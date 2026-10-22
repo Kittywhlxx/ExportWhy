@@ -21,14 +21,14 @@ from . import catalog, config
 from .llm import get_llm
 from .memory import Memory
 from .world import World
-from .roles import MAX_ROUNDS, Evaluator, Planner, Reporter, Retriever, Task
+from .roles import MAX_ROUNDS, Evaluator, Planner, Reporter, Retriever, Task, redact
 from .trace import Trace
 from .zetaris import DataLayerError, get_backend
 
 
-def run(task: Task, persist_memory: bool = True) -> tuple[str, dict]:
+def run(task: Task, persist_memory: bool = True, run_id: str | None = None) -> tuple[str, dict]:
     mode = "sample" if config.sample_mode() else "live"
-    trace = Trace(task.describe(), mode)
+    trace = Trace(task.describe(), mode, run_id=run_id)
     backend, llm = get_backend(), get_llm()
     memory = Memory(persist=persist_memory)
     planner, retriever, evaluator, reporter = Planner(llm, trace), Retriever(backend, trace), Evaluator(trace), Reporter(llm, trace)
@@ -47,7 +47,8 @@ def run(task: Task, persist_memory: bool = True) -> tuple[str, dict]:
             assessment.verdict = "cannot-confirm"
             report = reporter.report(task, assessment, "", 0)
             outcome = {"alert_id": task.alert_id, "verdict": "cannot-confirm", "reasons": assessment.reasons, "conflicts": [], "gaps": assessment.gaps,
-                       "missing": [], "facts": 0, "rounds": 0, "disclosure": assessment.disclosure, "memory_recalled": 0,
+                       "missing": [], "facts": 0, "rounds": 0, "disclosure": assessment.disclosure, "memory_recalled": 0, "evidence": [],
+                       "next_steps": assessment.next_steps, "run_id": trace.run_id, "log_file": str(trace.log_file.relative_to(config.ROOT)),
                        "memory": {"created": 0, "reconfirmed": 0, "superseded": 0}, "world": {"appended": 0}, "backend": backend.name, "llm": llm.name}
             path = trace.finish(outcome)
             return report + f"\n\n_trace: {path.relative_to(config.ROOT) if config.ROOT in path.parents else path} | data: {backend.name} | model: {llm.name}_\n", outcome
@@ -105,6 +106,8 @@ def run(task: Task, persist_memory: bool = True) -> tuple[str, dict]:
 
     outcome = {"alert_id": task.alert_id, "verdict": assessment.verdict, "reasons": assessment.reasons, "conflicts": assessment.conflicts, "gaps": assessment.gaps,
                "missing": assessment.missing, "facts": len(assessment.facts), "rounds": rounds, "disclosure": {k: v for k, v in d.items() if k != "columns_seen"},
+               "evidence": [{"text": redact(f.text)[0], "kind": f.kind, "cites": f.cites} for f in assessment.facts],
+               "next_steps": assessment.next_steps, "run_id": trace.run_id, "log_file": str(trace.log_file.relative_to(config.ROOT)),
                "memory_recalled": len(recalled), "memory": {k: len(v) for k, v in actions.items()}, "world": world_stats, "backend": backend.name, "llm": llm.name}
     path = trace.finish(outcome)
     shown = path.relative_to(config.ROOT) if config.ROOT in path.parents else path

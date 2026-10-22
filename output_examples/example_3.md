@@ -26,4 +26,4 @@ Why:
 - sensitive columns touched: export_events.destination (confidential)
 - values redacted in this report: 1
 
-_trace: traces/20261022T180845Z-19d3ff.json | evaluator rounds: 3 | data: sqlite | model: stub_
+_trace: traces/example-3.json | evaluator rounds: 3 | data: sqlite | model: stub_

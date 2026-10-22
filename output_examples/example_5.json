@@ -1,0 +1,129 @@
+{
+ "run_id": "example-5",
+ "status": "success",
+ "output": {
+  "alert_id": "AL-013",
+  "verdict": "compliant",
+  "reasons": [
+   "2000 rows are within the no-ticket cap of 50000; the hours window is advisory below the cap"
+  ],
+  "evidence": [
+   {
+    "text": "AL-013 (low, rule: off-hours export): account u1030 exported 2000 rows of DS06 at 2026-10-11 02:31:00 via sql-console to a internal-share destination; ticket cited: none.",
+    "kind": "evidence",
+    "cites": [
+     {
+      "step": "q1",
+      "table": "dexa.export_events",
+      "column": "rows_exported"
+     },
+     {
+      "step": "q1",
+      "table": "dexa.alerts",
+      "column": null
+     }
+    ]
+   },
+   {
+    "text": "Account u1030: role analyst, department customer-care, status active since 2024-07-15 00:00:00.",
+    "kind": "evidence",
+    "cites": [
+     {
+      "step": "q2",
+      "table": "dexa.accounts",
+      "column": "status"
+     }
+    ]
+   },
+   {
+    "text": "Dataset DS06 (product_catalog) is classified internal, owner sales, contains_pii=False.",
+    "kind": "evidence",
+    "cites": [
+     {
+      "step": "q4",
+      "table": "dexa.datasets",
+      "column": "sensitivity"
+     }
+    ]
+   },
+   {
+    "text": "Policy P006: role analyst may export DS06; no-ticket cap 50000 rows; advisory hours 07:00-19:00 (export was outside them).",
+    "kind": "evidence",
+    "cites": [
+     {
+      "step": "q5",
+      "table": "dexa.policies",
+      "column": "max_rows_without_ticket"
+     }
+    ]
+   }
+  ],
+  "conflicts": [],
+  "cannot_confirm": [],
+  "next_steps": [],
+  "disclosure": {
+   "tables_accessed": [
+    "accounts",
+    "alerts",
+    "datasets",
+    "export_events",
+    "field_sensitivity",
+    "policies"
+   ],
+   "tables_used_in_answer": [
+    "accounts",
+    "alerts",
+    "datasets",
+    "export_events",
+    "field_sensitivity",
+    "policies"
+   ],
+   "accessed_but_unused": [],
+   "sensitive_columns_touched": [],
+   "pii_columns_touched": []
+  },
+  "rounds": 1,
+  "memory": {
+   "created": 5,
+   "reconfirmed": 0,
+   "superseded": 0
+  },
+  "world_model": {
+   "events_before": 36,
+   "events_after": 43,
+   "appended": 7
+  },
+  "report_markdown": "# Export-alert triage: AL-013\n\n**Verdict: compliant**\n\nWhy:\n- 2000 rows are within the no-ticket cap of 50000; the hours window is advisory below the cap\n\n## Evidence (table.column | query step)\n- AL-013 (low, rule: off-hours export): account u1030 exported 2000 rows of DS06 at 2026-10-11 02:31:00 via sql-console to a internal-share destination; ticket cited: none.  [dexa.export_events.rows_exported | q1]\n- Account u1030: role analyst, department customer-care, status active since 2024-07-15 00:00:00.  [dexa.accounts.status | q2]\n- Dataset DS06 (product_catalog) is classified internal, owner sales, contains_pii=False.  [dexa.datasets.sensitivity | q4]\n- Policy P006: role analyst may export DS06; no-ticket cap 50000 rows; advisory hours 07:00-19:00 (export was outside them).  [dexa.policies.max_rows_without_ticket | q5]\n\n## Access footprint (disclosure check)\n- tables accessed: accounts, alerts, datasets, export_events, field_sensitivity, policies\n- tables that contributed to the verdict: accounts, alerts, datasets, export_events, field_sensitivity, policies\n- accessed but not needed: none\n- sensitive columns touched: none\n- values redacted in this report: 0\n\n_trace: traces/example-5.json | evaluator rounds: 1 | data: sqlite | model: stub_\n",
+  "data_layer": "sqlite",
+  "model_provider": "stub"
+ },
+ "agents": [
+  {
+   "name": "Planner",
+   "role": "Decides which evidence classes the verdict still lacks and drafts their SQL (Nemotron via Nightshift; validator-gated)"
+  },
+  {
+   "name": "Retriever",
+   "role": "Runs read-only SQL against Zetaris (three sources, one schema) and records the access footprint"
+  },
+  {
+   "name": "Evaluator",
+   "role": "Applies the decision rules, finds conflicts and gaps, sends the Planner back for more evidence (max 3 rounds)"
+  },
+  {
+   "name": "Reporter",
+   "role": "Writes the verdict with per-claim citations, what could not be confirmed, next checks, redacted"
+  },
+  {
+   "name": "H-MEM (Meterless engine)",
+   "role": "Remembers findings with provenance across investigations; re-verification raises confidence, changes supersede"
+  },
+  {
+   "name": "World Model (Meterless engine)",
+   "role": "Shared entity graph: accounts, datasets, tickets, exceptions; dossier feeds the Planner and Evaluator"
+  }
+ ],
+ "trace_id": "example-5",
+ "log_file": "logs/trace-example-5.jsonl",
+ "execution_time_seconds": 0.1
+}

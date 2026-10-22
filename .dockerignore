@@ -1,0 +1,13 @@
+.venv
+.git
+.pytest_cache
+__pycache__
+*.pyc
+.env
+memory/
+logs/*.jsonl
+traces/*.json
+zetaris-platform/
+*.zip
+docs/*.pdf
+.DS_Store

@@ -1,0 +1,142 @@
+{
+ "run_id": "example-1",
+ "status": "success",
+ "output": {
+  "alert_id": "AL-001",
+  "verdict": "compliant",
+  "reasons": [
+   "approved ticket T-2626 covers the account, dataset, 13578 rows and the time of export"
+  ],
+  "evidence": [
+   {
+    "text": "AL-001 (high, rule: off-hours bulk export of restricted/confidential data): account u1022 exported 13578 rows of DS01 at 2026-10-15 22:59:00 via sql-console to a email destination; ticket cited: T-2626.",
+    "kind": "evidence",
+    "cites": [
+     {
+      "step": "q1",
+      "table": "dexa.export_events",
+      "column": "rows_exported"
+     },
+     {
+      "step": "q1",
+      "table": "dexa.alerts",
+      "column": null
+     }
+    ]
+   },
+   {
+    "text": "Account u1022: role analyst, department customer-care, status active since 2026-01-12 00:00:00.",
+    "kind": "evidence",
+    "cites": [
+     {
+      "step": "q2",
+      "table": "dexa.accounts",
+      "column": "status"
+     }
+    ]
+   },
+   {
+    "text": "Dataset DS01 (customer_master) is classified restricted, owner risk, contains_pii=True.",
+    "kind": "evidence",
+    "cites": [
+     {
+      "step": "q4",
+      "table": "dexa.datasets",
+      "column": "sensitivity"
+     }
+    ]
+   },
+   {
+    "text": "Policy P001: role analyst may export DS01; no-ticket cap 500 rows; advisory hours 07:00-19:00 (export was outside them).",
+    "kind": "evidence",
+    "cites": [
+     {
+      "step": "q5",
+      "table": "dexa.policies",
+      "column": "max_rows_without_ticket"
+     }
+    ]
+   },
+   {
+    "text": "Ticket T-2626: requester u1022, dataset DS01, max_rows 20000, approved, valid 2026-10-13 22:59:00 .. 2026-10-20 22:59:00, approver u1001.",
+    "kind": "evidence",
+    "cites": [
+     {
+      "step": "q6",
+      "table": "dexa.tickets",
+      "column": "valid_to"
+     }
+    ]
+   }
+  ],
+  "conflicts": [],
+  "cannot_confirm": [],
+  "next_steps": [],
+  "disclosure": {
+   "tables_accessed": [
+    "accounts",
+    "alerts",
+    "datasets",
+    "export_events",
+    "field_sensitivity",
+    "policies",
+    "tickets"
+   ],
+   "tables_used_in_answer": [
+    "accounts",
+    "alerts",
+    "datasets",
+    "export_events",
+    "field_sensitivity",
+    "policies",
+    "tickets"
+   ],
+   "accessed_but_unused": [],
+   "sensitive_columns_touched": [],
+   "pii_columns_touched": []
+  },
+  "rounds": 2,
+  "memory": {
+   "created": 6,
+   "reconfirmed": 0,
+   "superseded": 0
+  },
+  "world_model": {
+   "events_before": 0,
+   "events_after": 10,
+   "appended": 10
+  },
+  "report_markdown": "# Export-alert triage: AL-001\n\n**Verdict: compliant**\n\nWhy:\n- approved ticket T-2626 covers the account, dataset, 13578 rows and the time of export\n\n## Evidence (table.column | query step)\n- AL-001 (high, rule: off-hours bulk export of restricted/confidential data): account u1022 exported 13578 rows of DS01 at 2026-10-15 22:59:00 via sql-console to a email destination; ticket cited: T-2626.  [dexa.export_events.rows_exported | q1]\n- Account u1022: role analyst, department customer-care, status active since 2026-01-12 00:00:00.  [dexa.accounts.status | q2]\n- Dataset DS01 (customer_master) is classified restricted, owner risk, contains_pii=True.  [dexa.datasets.sensitivity | q4]\n- Policy P001: role analyst may export DS01; no-ticket cap 500 rows; advisory hours 07:00-19:00 (export was outside them).  [dexa.policies.max_rows_without_ticket | q5]\n- Ticket T-2626: requester u1022, dataset DS01, max_rows 20000, approved, valid 2026-10-13 22:59:00 .. 2026-10-20 22:59:00, approver u1001.  [dexa.tickets.valid_to | q6]\n\n## Access footprint (disclosure check)\n- tables accessed: accounts, alerts, datasets, export_events, field_sensitivity, policies, tickets\n- tables that contributed to the verdict: accounts, alerts, datasets, export_events, field_sensitivity, policies, tickets\n- accessed but not needed: none\n- sensitive columns touched: none\n- values redacted in this report: 0\n\n_trace: traces/example-1.json | evaluator rounds: 2 | data: sqlite | model: stub_\n",
+  "data_layer": "sqlite",
+  "model_provider": "stub"
+ },
+ "agents": [
+  {
+   "name": "Planner",
+   "role": "Decides which evidence classes the verdict still lacks and drafts their SQL (Nemotron via Nightshift; validator-gated)"
+  },
+  {
+   "name": "Retriever",
+   "role": "Runs read-only SQL against Zetaris (three sources, one schema) and records the access footprint"
+  },
+  {
+   "name": "Evaluator",
+   "role": "Applies the decision rules, finds conflicts and gaps, sends the Planner back for more evidence (max 3 rounds)"
+  },
+  {
+   "name": "Reporter",
+   "role": "Writes the verdict with per-claim citations, what could not be confirmed, next checks, redacted"
+  },
+  {
+   "name": "H-MEM (Meterless engine)",
+   "role": "Remembers findings with provenance across investigations; re-verification raises confidence, changes supersede"
+  },
+  {
+   "name": "World Model (Meterless engine)",
+   "role": "Shared entity graph: accounts, datasets, tickets, exceptions; dossier feeds the Planner and Evaluator"
+  }
+ ],
+ "trace_id": "example-1",
+ "log_file": "logs/trace-example-1.jsonl",
+ "execution_time_seconds": 0.1
+}

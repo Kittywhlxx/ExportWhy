@@ -19,4 +19,4 @@ Why:
 - sensitive columns touched: none
 - values redacted in this report: 0
 
-_trace: traces/20261022T180845Z-89ec18.json | evaluator rounds: 2 | data: sqlite | model: stub_
+_trace: traces/example-1.json | evaluator rounds: 2 | data: sqlite | model: stub_

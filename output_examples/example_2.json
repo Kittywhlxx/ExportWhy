@@ -1,0 +1,170 @@
+{
+ "run_id": "example-2",
+ "status": "success",
+ "output": {
+  "alert_id": "AL-004",
+  "verdict": "investigate",
+  "reasons": [
+   "the cited ticket does not cover this export and no other authorisation does"
+  ],
+  "evidence": [
+   {
+    "text": "AL-004 (high, rule: rows exported exceed ticket scope): account u1012 exported 48000 rows of DS02 at 2026-10-19 03:30:00 via sql-console to a cloud-bucket destination; ticket cited: T-2629.",
+    "kind": "evidence",
+    "cites": [
+     {
+      "step": "q1",
+      "table": "dexa.export_events",
+      "column": "rows_exported"
+     },
+     {
+      "step": "q1",
+      "table": "dexa.alerts",
+      "column": null
+     }
+    ]
+   },
+   {
+    "text": "Account u1012: role finance, department marketing, status active since 2025-07-03 00:00:00.",
+    "kind": "evidence",
+    "cites": [
+     {
+      "step": "q2",
+      "table": "dexa.accounts",
+      "column": "status"
+     }
+    ]
+   },
+   {
+    "text": "Dataset DS02 (payment_transactions) is classified restricted, owner finance, contains_pii=True.",
+    "kind": "evidence",
+    "cites": [
+     {
+      "step": "q4",
+      "table": "dexa.datasets",
+      "column": "sensitivity"
+     }
+    ]
+   },
+   {
+    "text": "Policy P041: role finance may export DS02; no-ticket cap 500 rows; advisory hours 07:00-19:00 (export was outside them).",
+    "kind": "evidence",
+    "cites": [
+     {
+      "step": "q5",
+      "table": "dexa.policies",
+      "column": "max_rows_without_ticket"
+     }
+    ]
+   },
+   {
+    "text": "Ticket T-2629: requester u1012, dataset DS02, max_rows 5000, approved, valid 2026-10-18 03:30:00 .. 2026-10-25 03:30:00, approver u1005.",
+    "kind": "evidence",
+    "cites": [
+     {
+      "step": "q6",
+      "table": "dexa.tickets",
+      "column": "valid_to"
+     }
+    ]
+   },
+   {
+    "text": "0 other ticket(s) for u1012 on DS02; none covers this export.",
+    "kind": "evidence",
+    "cites": [
+     {
+      "step": "q7",
+      "table": "dexa.tickets",
+      "column": "status"
+     }
+    ]
+   },
+   {
+    "text": "No policy exception covers role finance or account u1012 on DS02 at 2026-10-19 03:30:00.",
+    "kind": "evidence",
+    "cites": [
+     {
+      "step": "q8",
+      "table": "dexa.policy_exceptions",
+      "column": "exception_id"
+     }
+    ]
+   }
+  ],
+  "conflicts": [
+   "ticket T-2629 was cited but does not cover the export: 48000 rows exported exceed the ticket's max_rows 5000"
+  ],
+  "cannot_confirm": [],
+  "next_steps": [
+   "contact the ticket approver and the exporter's manager; preserve the exported file"
+  ],
+  "disclosure": {
+   "tables_accessed": [
+    "accounts",
+    "alerts",
+    "datasets",
+    "export_events",
+    "field_sensitivity",
+    "policies",
+    "policy_exceptions",
+    "tickets"
+   ],
+   "tables_used_in_answer": [
+    "accounts",
+    "alerts",
+    "datasets",
+    "export_events",
+    "field_sensitivity",
+    "policies",
+    "policy_exceptions",
+    "tickets"
+   ],
+   "accessed_but_unused": [],
+   "sensitive_columns_touched": [],
+   "pii_columns_touched": []
+  },
+  "rounds": 3,
+  "memory": {
+   "created": 8,
+   "reconfirmed": 0,
+   "superseded": 0
+  },
+  "world_model": {
+   "events_before": 10,
+   "events_after": 20,
+   "appended": 10
+  },
+  "report_markdown": "# Export-alert triage: AL-004\n\n**Verdict: investigate**\n\nWhy:\n- the cited ticket does not cover this export and no other authorisation does\n\n## Evidence (table.column | query step)\n- AL-004 (high, rule: rows exported exceed ticket scope): account u1012 exported 48000 rows of DS02 at 2026-10-19 03:30:00 via sql-console to a cloud-bucket destination; ticket cited: T-2629.  [dexa.export_events.rows_exported | q1]\n- Account u1012: role finance, department marketing, status active since 2025-07-03 00:00:00.  [dexa.accounts.status | q2]\n- Dataset DS02 (payment_transactions) is classified restricted, owner finance, contains_pii=True.  [dexa.datasets.sensitivity | q4]\n- Policy P041: role finance may export DS02; no-ticket cap 500 rows; advisory hours 07:00-19:00 (export was outside them).  [dexa.policies.max_rows_without_ticket | q5]\n- Ticket T-2629: requester u1012, dataset DS02, max_rows 5000, approved, valid 2026-10-18 03:30:00 .. 2026-10-25 03:30:00, approver u1005.  [dexa.tickets.valid_to | q6]\n- 0 other ticket(s) for u1012 on DS02; none covers this export.  [dexa.tickets.status | q7]\n- No policy exception covers role finance or account u1012 on DS02 at 2026-10-19 03:30:00.  [dexa.policy_exceptions.exception_id | q8]\n\n## Conflicts (flagged, not silently resolved)\n- ticket T-2629 was cited but does not cover the export: 48000 rows exported exceed the ticket's max_rows 5000\n\n## Suggested next checks\n- contact the ticket approver and the exporter's manager; preserve the exported file\n\n## Access footprint (disclosure check)\n- tables accessed: accounts, alerts, datasets, export_events, field_sensitivity, policies, policy_exceptions, tickets\n- tables that contributed to the verdict: accounts, alerts, datasets, export_events, field_sensitivity, policies, policy_exceptions, tickets\n- accessed but not needed: none\n- sensitive columns touched: none\n- values redacted in this report: 0\n\n_trace: traces/example-2.json | evaluator rounds: 3 | data: sqlite | model: stub_\n",
+  "data_layer": "sqlite",
+  "model_provider": "stub"
+ },
+ "agents": [
+  {
+   "name": "Planner",
+   "role": "Decides which evidence classes the verdict still lacks and drafts their SQL (Nemotron via Nightshift; validator-gated)"
+  },
+  {
+   "name": "Retriever",
+   "role": "Runs read-only SQL against Zetaris (three sources, one schema) and records the access footprint"
+  },
+  {
+   "name": "Evaluator",
+   "role": "Applies the decision rules, finds conflicts and gaps, sends the Planner back for more evidence (max 3 rounds)"
+  },
+  {
+   "name": "Reporter",
+   "role": "Writes the verdict with per-claim citations, what could not be confirmed, next checks, redacted"
+  },
+  {
+   "name": "H-MEM (Meterless engine)",
+   "role": "Remembers findings with provenance across investigations; re-verification raises confidence, changes supersede"
+  },
+  {
+   "name": "World Model (Meterless engine)",
+   "role": "Shared entity graph: accounts, datasets, tickets, exceptions; dossier feeds the Planner and Evaluator"
+  }
+ ],
+ "trace_id": "example-2",
+ "log_file": "logs/trace-example-2.jsonl",
+ "execution_time_seconds": 0.1
+}

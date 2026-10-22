@@ -30,4 +30,4 @@ Why:
 Account u1022 is known to the world model: 1 recorded export(s) across DS01; 1 ticket citation(s).
 - earlier alert AL-001: verdict compliant (recorded 2026-10-15T22:59:00)
 
-_trace: traces/20261022T180845Z-7e2c30.json | evaluator rounds: 3 | data: sqlite | model: stub_
+_trace: traces/example-4.json | evaluator rounds: 3 | data: sqlite | model: stub_

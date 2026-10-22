@@ -1,0 +1,170 @@
+{
+ "run_id": "example-4",
+ "status": "success",
+ "output": {
+  "alert_id": "AL-011",
+  "verdict": "cannot-confirm",
+  "reasons": [
+   "the only authorisation the exporter cites cannot be found, and nothing else covers the export"
+  ],
+  "evidence": [
+   {
+    "text": "AL-011 (high, rule: off-hours bulk export citing a ticket): account u1022 exported 7000 rows of DS04 at 2026-10-22 22:25:00 via notebook to a email destination; ticket cited: T-9999.",
+    "kind": "evidence",
+    "cites": [
+     {
+      "step": "q1",
+      "table": "dexa.export_events",
+      "column": "rows_exported"
+     },
+     {
+      "step": "q1",
+      "table": "dexa.alerts",
+      "column": null
+     }
+    ]
+   },
+   {
+    "text": "Account u1022: role analyst, department customer-care, status active since 2026-01-12 00:00:00.",
+    "kind": "evidence",
+    "cites": [
+     {
+      "step": "q2",
+      "table": "dexa.accounts",
+      "column": "status"
+     }
+    ]
+   },
+   {
+    "text": "Dataset DS04 (marketing_leads) is classified confidential, owner marketing, contains_pii=True.",
+    "kind": "evidence",
+    "cites": [
+     {
+      "step": "q4",
+      "table": "dexa.datasets",
+      "column": "sensitivity"
+     }
+    ]
+   },
+   {
+    "text": "Policy P004: role analyst may export DS04; no-ticket cap 5000 rows; advisory hours 07:00-19:00 (export was outside them).",
+    "kind": "evidence",
+    "cites": [
+     {
+      "step": "q5",
+      "table": "dexa.policies",
+      "column": "max_rows_without_ticket"
+     }
+    ]
+   },
+   {
+    "text": "The exporter cited ticket T-9999, which does not exist in the ticket system.",
+    "kind": "gap",
+    "cites": [
+     {
+      "step": "q6",
+      "table": "dexa.tickets",
+      "column": "ticket_id"
+     }
+    ]
+   },
+   {
+    "text": "0 other ticket(s) for u1022 on DS04; none covers this export.",
+    "kind": "evidence",
+    "cites": [
+     {
+      "step": "q7",
+      "table": "dexa.tickets",
+      "column": "status"
+     }
+    ]
+   },
+   {
+    "text": "No policy exception covers role analyst or account u1022 on DS04 at 2026-10-22 22:25:00.",
+    "kind": "evidence",
+    "cites": [
+     {
+      "step": "q8",
+      "table": "dexa.policy_exceptions",
+      "column": "exception_id"
+     }
+    ]
+   }
+  ],
+  "conflicts": [],
+  "cannot_confirm": [
+   "cited ticket T-9999 does not exist in the ticket system"
+  ],
+  "next_steps": [
+   "ask the exporter for the approval they relied on; check the ticket system's audit log for a deleted ticket"
+  ],
+  "disclosure": {
+   "tables_accessed": [
+    "accounts",
+    "alerts",
+    "datasets",
+    "export_events",
+    "field_sensitivity",
+    "policies",
+    "policy_exceptions",
+    "tickets"
+   ],
+   "tables_used_in_answer": [
+    "accounts",
+    "alerts",
+    "datasets",
+    "export_events",
+    "field_sensitivity",
+    "policies",
+    "policy_exceptions",
+    "tickets"
+   ],
+   "accessed_but_unused": [],
+   "sensitive_columns_touched": [],
+   "pii_columns_touched": []
+  },
+  "rounds": 3,
+  "memory": {
+   "created": 8,
+   "reconfirmed": 0,
+   "superseded": 0
+  },
+  "world_model": {
+   "events_before": 27,
+   "events_after": 36,
+   "appended": 9
+  },
+  "report_markdown": "# Export-alert triage: AL-011\n\n**Verdict: cannot-confirm**\n\nWhy:\n- the only authorisation the exporter cites cannot be found, and nothing else covers the export\n\n## Evidence (table.column | query step)\n- AL-011 (high, rule: off-hours bulk export citing a ticket): account u1022 exported 7000 rows of DS04 at 2026-10-22 22:25:00 via notebook to a email destination; ticket cited: T-9999.  [dexa.export_events.rows_exported | q1]\n- Account u1022: role analyst, department customer-care, status active since 2026-01-12 00:00:00.  [dexa.accounts.status | q2]\n- Dataset DS04 (marketing_leads) is classified confidential, owner marketing, contains_pii=True.  [dexa.datasets.sensitivity | q4]\n- Policy P004: role analyst may export DS04; no-ticket cap 5000 rows; advisory hours 07:00-19:00 (export was outside them).  [dexa.policies.max_rows_without_ticket | q5]\n- 0 other ticket(s) for u1022 on DS04; none covers this export.  [dexa.tickets.status | q7]\n- No policy exception covers role analyst or account u1022 on DS04 at 2026-10-22 22:25:00.  [dexa.policy_exceptions.exception_id | q8]\n\n## Cannot be confirmed from the sources\n- cited ticket T-9999 does not exist in the ticket system\n\n## Suggested next checks\n- ask the exporter for the approval they relied on; check the ticket system's audit log for a deleted ticket\n\n## Access footprint (disclosure check)\n- tables accessed: accounts, alerts, datasets, export_events, field_sensitivity, policies, policy_exceptions, tickets\n- tables that contributed to the verdict: accounts, alerts, datasets, export_events, field_sensitivity, policies, policy_exceptions, tickets\n- accessed but not needed: none\n- sensitive columns touched: none\n- values redacted in this report: 0\n\n## World state (Meterless World Model)\nAccount u1022 is known to the world model: 1 recorded export(s) across DS01; 1 ticket citation(s).\n- earlier alert AL-001: verdict compliant (recorded 2026-10-15T22:59:00)\n\n_trace: traces/example-4.json | evaluator rounds: 3 | data: sqlite | model: stub_\n",
+  "data_layer": "sqlite",
+  "model_provider": "stub"
+ },
+ "agents": [
+  {
+   "name": "Planner",
+   "role": "Decides which evidence classes the verdict still lacks and drafts their SQL (Nemotron via Nightshift; validator-gated)"
+  },
+  {
+   "name": "Retriever",
+   "role": "Runs read-only SQL against Zetaris (three sources, one schema) and records the access footprint"
+  },
+  {
+   "name": "Evaluator",
+   "role": "Applies the decision rules, finds conflicts and gaps, sends the Planner back for more evidence (max 3 rounds)"
+  },
+  {
+   "name": "Reporter",
+   "role": "Writes the verdict with per-claim citations, what could not be confirmed, next checks, redacted"
+  },
+  {
+   "name": "H-MEM (Meterless engine)",
+   "role": "Remembers findings with provenance across investigations; re-verification raises confidence, changes supersede"
+  },
+  {
+   "name": "World Model (Meterless engine)",
+   "role": "Shared entity graph: accounts, datasets, tickets, exceptions; dossier feeds the Planner and Evaluator"
+  }
+ ],
+ "trace_id": "example-4",
+ "log_file": "logs/trace-example-4.jsonl",
+ "execution_time_seconds": 0.1
+}
