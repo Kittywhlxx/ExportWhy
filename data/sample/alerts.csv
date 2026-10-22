@@ -9,6 +9,6 @@ AL-007,E00236,2026-10-21 03:02:00,off-hours export emailed outside hours,high,op
 AL-008,E00237,2026-10-13 22:49:00,off-hours bulk export of restricted data,high,open
 AL-009,E00238,2026-10-14 23:49:00,export by account not in directory,high,open
 AL-010,E00239,2026-10-12 01:24:00,off-hours export of restricted data,high,open
-AL-011,E00240,2026-10-22 23:06:00,off-hours bulk export citing a ticket,high,open
+AL-011,E00240,2026-10-22 22:32:00,off-hours bulk export citing a ticket,high,open
 AL-012,E00241,2026-10-13 14:07:00,export by terminated account,high,open
 AL-013,E00242,2026-10-11 02:38:00,off-hours export,low,open

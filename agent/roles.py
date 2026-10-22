@@ -31,6 +31,7 @@ class Task:
     ticket_ref: str | None = None
     rule: str | None = None
     role: str | None = None          # known after the account row is read
+    prior: dict | None = None        # world-model dossier for the account (prior alerts, status history)
 
     def describe(self) -> str:
         return f"Triage alert {self.alert_id}"
@@ -251,8 +252,17 @@ class Evaluator:
             cites += [{"step": cite.get(cls), "table": f"{catalog.SCHEMA}.{t}", "column": None} for t in step_tables.get(cls, []) if t != table]
             facts.append(Fact(key, text, cites, kind))
 
+        CRITICAL = {"account", "policy", "ticket_cited", "tickets_account", "exceptions"}
+
         def need(cls):
-            if cls not in fetched and cls not in failed:
+            if cls in failed:
+                if cls not in derived.setdefault("unreachable", []):
+                    derived["unreachable"].append(cls)
+                    gaps.append(f"source for '{cls}' could not be queried ({TEMPLATES[cls][0]})")
+                    if cls in CRITICAL:
+                        derived["blocked_by_failure"] = True
+                return
+            if cls not in fetched:
                 missing.append(cls)
 
         # ---- alert + event
@@ -371,6 +381,17 @@ class Evaluator:
                         next_steps.append("contact the exporter's manager; confirm whether the destination was internal; preserve the exported file")
                     need("account_history")
 
+        # ---- what the world model already knows about this account (entity consistency across alerts)
+        prior = (task.prior or {}).get("prior_alerts") or []
+        if prior and derived.get("verdict") in ("investigate", "cannot-confirm"):
+            flagged = [p for p in prior if p["verdict"] in ("investigate", "cannot-confirm")]
+            if flagged:
+                reasons.append(f"account has {len(flagged)} earlier alert(s) that were not cleared: " + ", ".join(f"{p['alert']} ({p['verdict']})" for p in flagged))
+                next_steps.insert(0, "escalate: repeat pattern on the same account across investigations")
+        hist = (task.prior or {}).get("status_history") or []
+        if len({h["value"] for h in hist}) > 1:
+            conflicts.append("directory status for this account differs between investigations: " + " -> ".join(f"{h['value']} ({h['at']})" for h in hist))
+
         # ---- destination: a confidential column, read only when the export left the internal share
         external = str(ev.get("destination_type")) in ("email", "cloud-bucket", "usb")
         if external and derived.get("verdict") in ("investigate", "cannot-confirm"):
@@ -399,6 +420,11 @@ class Evaluator:
                       "pii_columns_touched": [x for x in touched_sensitive if "(pii)" in x]}
         derived["sensitivity"] = sens
         verdict = derived.get("verdict")
+        if derived.get("blocked_by_failure") and verdict != "investigate":
+            # a decision-critical source was unreachable: never upgrade to "compliant" on partial evidence
+            verdict = "cannot-confirm"; derived["verdict"] = verdict
+            reasons.insert(0, "a decision-critical source was unreachable; retry when it is back")
+            next_steps.insert(0, "re-run the triage once the failing source is reachable")
         if verdict is None and (not missing or rounds >= MAX_ROUNDS):
             verdict = "cannot-confirm"; reasons.append("evidence budget exhausted before a decision could be grounded")
         if verdict and missing and rounds >= MAX_ROUNDS:
@@ -432,7 +458,7 @@ class Reporter:
     def __init__(self, llm, trace):
         self.llm, self.trace = llm, trace
 
-    def report(self, task: Task, a: Assessment, memory_context: str, rounds: int) -> str:
+    def report(self, task: Task, a: Assessment, memory_context: str, rounds: int, world_context: str = "") -> str:
         redacted = 0
         lines = [f"# Export-alert triage: {task.alert_id}", "", f"**Verdict: {a.verdict}**", ""]
         if a.reasons:
@@ -463,6 +489,8 @@ class Reporter:
                   f"- accessed but not needed: {', '.join(d['accessed_but_unused']) or 'none'}",
                   f"- sensitive columns touched: {', '.join(d['sensitive_columns_touched']) or 'none'}",
                   f"- values redacted in this report: {redacted}"]
+        if world_context:
+            lines += ["", "## World state (Meterless World Model)", world_context]
         if memory_context:
             m, k = redact(memory_context); lines += ["", "## Memory used (H-MEM)", m]
         return "\n".join(lines)

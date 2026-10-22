@@ -19,6 +19,7 @@ from pathlib import Path
 from . import catalog, config
 from .llm import get_llm
 from .memory import Memory
+from .world import World
 from .roles import MAX_ROUNDS, Evaluator, Planner, Reporter, Retriever, Task
 from .trace import Trace
 from .zetaris import DataLayerError, get_backend
@@ -45,6 +46,11 @@ def run(task: Task, persist_memory: bool = True) -> tuple[str, dict]:
     mem_query = f"{task.account_id} {task.dataset_id} export alert ticket exception"
     memory_context, recalled = memory.recall(mem_query)
     trace.step("memory", "recall", query=mem_query, hits=[{**{k: v for k, v in m.items() if k != "content"}, "content": m["content"][:120]} for m in recalled])
+    world = World(persist=persist_memory)
+    world_context, dossier = world.dossier(task.account_id, task.alert_id)
+    task.prior = dossier
+    trace.step("world", "dossier", known=dossier["known"], prior_alerts=dossier["prior_alerts"], status_history=dossier["status_history"])
+    planner_context = "\n".join(x for x in (memory_context, world_context) if x)
 
     rounds = 0
     reason = "evidence the verdict needs: " + ", ".join(assessment.missing) + (" (memory holds earlier findings on this account/dataset; re-verifying)" if recalled else "")
@@ -53,7 +59,7 @@ def run(task: Task, persist_memory: bool = True) -> tuple[str, dict]:
         classes = [m for m in assessment.missing if m not in done]
         if not classes:
             break
-        for s in retriever.run(planner.plan(task, classes, memory_context, reason)):
+        for s in retriever.run(planner.plan(task, classes, planner_context, reason)):
             done.setdefault(s.evidence, []).append(s)
         assessment = evaluator.assess(task, done, retriever.footprint, rounds)
         reason = "evaluator: " + (", ".join(assessment.conflicts + assessment.gaps) or "evidence still insufficient") + " -> fetch " + ", ".join(assessment.missing)
@@ -61,7 +67,10 @@ def run(task: Task, persist_memory: bool = True) -> tuple[str, dict]:
     if assessment.verdict is None:
         assessment.verdict = assessment.derived.get("verdict") or "cannot-confirm"
 
-    report = reporter.report(task, assessment, memory_context, rounds)
+    rows_by_class = {cls: [r for st in steps if st.result for r in st.result.rows] for cls, steps in done.items()}
+    world_stats = world.ingest_run(task, assessment, rows_by_class, trace.run_id)
+    trace.step("world", "ingest", **world_stats, **world.stats())
+    report = reporter.report(task, assessment, memory_context, rounds, world_context)
 
     # remember what this investigation established (keys make re-runs idempotent)
     actions: dict[str, list[str]] = {"created": [], "reconfirmed": [], "superseded": []}
@@ -83,9 +92,10 @@ def run(task: Task, persist_memory: bool = True) -> tuple[str, dict]:
 
     outcome = {"alert_id": task.alert_id, "verdict": assessment.verdict, "reasons": assessment.reasons, "conflicts": assessment.conflicts, "gaps": assessment.gaps,
                "missing": assessment.missing, "facts": len(assessment.facts), "rounds": rounds, "disclosure": {k: v for k, v in d.items() if k != "columns_seen"},
-               "memory_recalled": len(recalled), "memory": {k: len(v) for k, v in actions.items()}, "backend": backend.name, "llm": llm.name}
+               "memory_recalled": len(recalled), "memory": {k: len(v) for k, v in actions.items()}, "world": world_stats, "backend": backend.name, "llm": llm.name}
     path = trace.finish(outcome)
-    report += f"\n\n_trace: {path.relative_to(config.ROOT)} | evaluator rounds: {rounds} | data: {backend.name} | model: {llm.name}_\n"
+    shown = path.relative_to(config.ROOT) if config.ROOT in path.parents else path
+    report += f"\n\n_trace: {shown} | evaluator rounds: {rounds} | data: {backend.name} | model: {llm.name}_\n"
     return report, outcome
 
 

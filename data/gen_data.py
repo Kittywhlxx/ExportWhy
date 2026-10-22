@@ -168,9 +168,12 @@ def gen(seed: int):
 
     night = lambda day: T0 + dt.timedelta(days=day, hours=r.choice([1, 2, 3, 22, 23]), minutes=r.randint(0, 59))
 
-    # S1 x2
+    # S1 x2  (the first S1 account is reused by S5c below: one account, two alerts, so the world model has
+    #         something to carry across investigations)
+    repeat_account = None
     for day, (role, ds) in [(14, ("analyst", "DS01")), (16, ("engineer", "DS03"))]:
         a = pick(role, ds); ts = night(day); t = ticket(a["account_id"], ds, 20000, ts - dt.timedelta(days=2), 7)
+        repeat_account = repeat_account or a
         e = event(a["account_id"], ds, r.randint(6000, 15000), ts, ticket_ref=t["ticket_id"])
         alert(e, "off-hours bulk export of restricted/confidential data", "S1 valid_ticket", "compliant", "approved ticket covers account, dataset, rows and time")
     # S2a expired
@@ -205,8 +208,8 @@ def gen(seed: int):
         a = r.choice([x for x in accounts if x["role"] == "contractor" and x["status"] == "active"]); ds = "DS02"
     ts = night(11); e = event(a["account_id"], ds, 900, ts)
     alert(e, "off-hours export of restricted data", "S5b missing_policy", "cannot-confirm", "no policy row for the role and dataset; entitlement cannot be determined")
-    # S5c ticket reference not found
-    a = pick("analyst", "DS04"); ts = night(21); e = event(a["account_id"], "DS04", 7000, ts, ticket_ref="T-9999")
+    # S5c ticket reference not found -- same account as the first S1 alert (analyst, allowed on DS04 too)
+    a = repeat_account; ts = night(21); e = event(a["account_id"], "DS04", 7000, ts, ticket_ref="T-9999")
     alert(e, "off-hours bulk export citing a ticket", "S5c ticket_not_found", "cannot-confirm", "the cited ticket does not exist in the ticket system")
     # S6 terminated account
     a = accounts[37]; ts = T0 + dt.timedelta(days=12, hours=14)
