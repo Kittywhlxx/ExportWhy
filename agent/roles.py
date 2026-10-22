@@ -276,7 +276,7 @@ class Evaluator:
             user = (f"Alert {task.alert_id}. Facts:\n" + "\n".join(f"- {f.text}" for f in a.facts) + f"\nConflicts: {a.conflicts}\nCannot confirm: {a.gaps}\n"
                     f"(The colleague's verdict is withheld. Give your own.)")
             try:
-                text, meta = self.llm.chat(system, user, json_mode=True, max_tokens=1500)
+                text, meta = self.llm.chat(system, user, json_mode=True, max_tokens=2500)
                 self.trace.step(self.name, "llm", **meta)
                 d = extract_json(text) or {}
                 v = str(d.get("verdict", "")).strip().lower()
@@ -559,15 +559,16 @@ class Critic:
             scores = {"accuracy": accuracy, "appropriateness": appropriateness, "actionability": actionability}
             source = "stub"
         else:
-            system = ("You are a strict reviewer. Score a security analyst's summary against the evidence on three criteria, 0-3 each: "
-                      "accuracy (every claim is supported by a listed fact; any unsupported id, number or claim costs points), "
-                      "appropriateness (the verdict and its main reason are stated and consistent with the facts), "
-                      "actionability (the next check is concrete). Reply with JSON {\"accuracy\": n, \"appropriateness\": n, \"actionability\": n, "
-                      "\"fix\": \"one sentence, the single most important change, or null\"}.")
+            system = ("You are a strict reviewer. Score a security analyst's summary against the evidence on three criteria using EXACTLY these anchors. "
+                      "accuracy: 3 = every id, number and claim appears in the facts; 2 = one minor claim not in the facts; 1 = one wrong id/number; 0 = a fabricated ticket, account, number or event. "
+                      "appropriateness: 3 = the verdict and its main reason are stated and match the facts; 2 = verdict stated, reason vague; 1 = verdict implied only; 0 = verdict missing or contradicted. "
+                      "actionability: 3 = a concrete next check is stated (or the verdict is compliant and no action is needed); 2 = a next step is implied; 1 = vague advice; 0 = none while one was needed. "
+                      "Do not deliberate at length: pick the anchor that fits and answer. Reply with JSON only: "
+                      "{\"accuracy\": n, \"appropriateness\": n, \"actionability\": n, \"fix\": \"one sentence, the single most important change, or null\"}.")
             user = (f"Verdict: {a.verdict}\nReasons: {a.reasons}\nNext checks: {a.next_steps}\nFacts:\n" + "\n".join(f"- {f.text}" for f in a.facts)
                     + f"\nUnconfirmed: {a.gaps}\n\nSummary under review:\n{summary}")
             try:
-                text, meta = self.llm.chat(system, user, json_mode=True, max_tokens=2000)
+                text, meta = self.llm.chat(system, user, json_mode=True, max_tokens=3500)
             except LLMError as exc:
                 out = {"attempt": attempt, "scores": None, "total": None, "passed": None, "fix": None, "source": "error", "note": f"model unavailable: {str(exc)[:160]}"}
                 self.trace.step(self.name, "critique", **out)
