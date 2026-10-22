@@ -198,6 +198,11 @@ def _ts(s) -> dt.datetime | None:
         return dt.datetime.strptime(s[:10], "%Y-%m-%d")
 
 
+def _clean(v) -> str:
+    """Display form of a timestamp from any backend (Zetaris appends .0)."""
+    return str(v).replace("T", " ").split(".")[0] if v not in (None, "") else ""
+
+
 def _truthy(v) -> bool:
     return str(v).strip().lower() in ("1", "true", "t", "yes")
 
@@ -217,7 +222,7 @@ def ticket_checks(t: dict, task: Task, ts: dt.datetime) -> list[str]:
     if str(t.get("status")).lower() != "approved":
         fails.append(f"ticket status is {t.get('status')}")
     if not _in_window(ts, t.get("valid_from"), t.get("valid_to")):
-        fails.append(f"export at {ts} is outside the ticket window {t.get('valid_from')} .. {t.get('valid_to')}")
+        fails.append(f"export at {ts} is outside the ticket window {_clean(t.get('valid_from'))} .. {_clean(t.get('valid_to'))}")
     try:
         if task.rows is not None and int(t.get("max_rows") or 0) < int(task.rows):
             fails.append(f"{task.rows} rows exported exceed the ticket's max_rows {t.get('max_rows')}")
@@ -258,7 +263,7 @@ class Evaluator:
             derived["verdict"] = "cannot-confirm"; reasons.append("alert or its export event not found")
             return self._finish(task, facts, conflicts, gaps, missing, reasons, next_steps, derived, footprint, rows, rounds)
         ts = _ts(ev["ts"])
-        task.event_id, task.ts, task.account_id, task.dataset_id = ev["event_id"], str(ev["ts"]), ev["account_id"], ev["dataset_id"]
+        task.event_id, task.ts, task.account_id, task.dataset_id = ev["event_id"], _clean(ev["ts"]), ev["account_id"], ev["dataset_id"]
         task.rows, task.ticket_ref, task.rule = int(ev["rows_exported"]), (ev.get("ticket_ref") or "").strip() or None, ev["rule"]
         fact("event", f"{task.alert_id} ({ev['severity']}, rule: {ev['rule']}): account {task.account_id} exported {task.rows} rows of {task.dataset_id} at {task.ts} "
              f"via {ev['tool']} to a {ev['destination_type']} destination; ticket cited: {task.ticket_ref or 'none'}.", "alert", "export_events", "rows_exported")
@@ -275,9 +280,9 @@ class Evaluator:
         elif acc:
             task.role = acc["role"]
             since = _ts(acc.get("status_since"))
-            fact("account", f"Account {task.account_id}: role {acc['role']}, department {acc['department']}, status {acc['status']} since {acc.get('status_since')}.", "account", "accounts", "status")
+            fact("account", f"Account {task.account_id}: role {acc['role']}, department {acc['department']}, status {acc['status']} since {_clean(acc.get('status_since'))}.", "account", "accounts", "status")
             if str(acc["status"]).lower() in ("terminated", "offboarding") and since is not None and since <= ts:
-                derived["verdict"] = "investigate"; reasons.append(f"account was {acc['status']} ({acc.get('status_since')}) before the export")
+                derived["verdict"] = "investigate"; reasons.append(f"account was {acc['status']} ({_clean(acc.get('status_since'))}) before the export")
                 next_steps.append("confirm with HR/IAM why the account still had export access; disable it")
         else:
             need("account")
@@ -326,7 +331,7 @@ class Evaluator:
                     else:
                         cited_fails = ticket_checks(t, task, ts)
                         fact("ticket_cited", f"Ticket {t['ticket_id']}: requester {t['requester_account_id']}, dataset {t['dataset_id']}, max_rows {t['max_rows']}, "
-                             f"{t['status']}, valid {t['valid_from']} .. {t['valid_to']}, approver {t['approver_id']}.", "ticket_cited", "tickets", "valid_to")
+                             f"{t['status']}, valid {_clean(t['valid_from'])} .. {_clean(t['valid_to'])}, approver {t['approver_id']}.", "ticket_cited", "tickets", "valid_to")
                         if not cited_fails:
                             covering = t["ticket_id"]
                         else:
@@ -350,7 +355,7 @@ class Evaluator:
                     exc = [e for e in rows.get("exceptions", []) if _in_window(ts, e.get("valid_from"), e.get("valid_to"))]
                     if exc:
                         e = exc[0]
-                        fact("exceptions", f"Policy exception {e['exception_id']} ({e['scope_type']} {e['scope_value']}, approved by {e['approved_by']}, valid {e['valid_from']} .. {e['valid_to']}) applies: {e['clause']}",
+                        fact("exceptions", f"Policy exception {e['exception_id']} ({e['scope_type']} {e['scope_value']}, approved by {e['approved_by']}, valid {_clean(e['valid_from'])} .. {_clean(e['valid_to'])}) applies: {e['clause']}",
                              "exceptions", "policy_exceptions", "clause")
                         derived["verdict"] = "compliant"; reasons.append(f"standing policy exception {e['exception_id']} covers the export")
                     else:
@@ -386,7 +391,7 @@ class Evaluator:
     def _finish(self, task, facts, conflicts, gaps, missing, reasons, next_steps, derived, footprint, rows, rounds) -> Assessment:
         # disclosure: columns touched vs classification; sensitive columns that no fact needed are flagged
         sens = {(r["table_name"], r["column_name"]): r["level"] for r in rows.get("sensitivity", [])}
-        used_tables = {c["table"].split(".")[1] for f in facts for c in f.cites}
+        used_tables = {c["table"].split(".")[1] for f in facts for c in f.cites} | ({"field_sensitivity"} if sens else set())
         touched_sensitive = sorted(f"{t}.{c} ({sens[(t, c)]})" for t, cols in footprint.items() for c in cols if (t, c) in sens)
         disclosure = {"tables_accessed": sorted(footprint), "columns_seen": {t: sorted(c) for t, c in footprint.items()},
                       "tables_used_in_answer": sorted(used_tables), "accessed_but_unused": sorted(set(footprint) - used_tables),
