@@ -31,6 +31,8 @@ with st.sidebar:
     mode = st.radio("Run mode", ["Live (Zetaris + Nightshift)", "Live data, stub model", "Offline sample (SQLite + stub)"], index=2)
     os.environ["SAMPLE_MODE"] = "true" if mode.startswith("Offline") else "false"
     os.environ["LLM_STUB"] = "true" if mode.startswith("Live data") else "false"
+    outage = st.multiselect("Simulate an outage", ["tickets", "policy", "logs"], help="The data layer fails for that source; watch the verdict degrade to cannot-confirm instead of guessing.")
+    os.environ["SIMULATE_OUTAGE"] = ",".join(outage)
     try:
         backend = get_backend()
         alerts = backend.query("SELECT a.alert_id, a.rule, a.severity, e.account_id, e.dataset_id, e.rows_exported "

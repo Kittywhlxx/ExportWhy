@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import os
 import sys
 from pathlib import Path
 
@@ -37,7 +38,19 @@ def run(task: Task, persist_memory: bool = True) -> tuple[str, dict]:
     for s in retriever.run(planner.plan(task, ["alert"], "", "identify the alert and its export event")):
         done.setdefault(s.evidence, []).append(s)
     assessment = evaluator.assess(task, done, retriever.footprint, 0)
+    outage = config.env("SIMULATE_OUTAGE")
+    if outage:
+        trace.data["simulated_outage"] = outage
     if not task.event_id:
+        if any(s.error for s in done.get("alert", [])):
+            # the alert source itself is down: report that, do not pretend to know anything
+            assessment.verdict = "cannot-confirm"
+            report = reporter.report(task, assessment, "", 0)
+            outcome = {"alert_id": task.alert_id, "verdict": "cannot-confirm", "reasons": assessment.reasons, "conflicts": [], "gaps": assessment.gaps,
+                       "missing": [], "facts": 0, "rounds": 0, "disclosure": assessment.disclosure, "memory_recalled": 0,
+                       "memory": {"created": 0, "reconfirmed": 0, "superseded": 0}, "world": {"appended": 0}, "backend": backend.name, "llm": llm.name}
+            path = trace.finish(outcome)
+            return report + f"\n\n_trace: {path.relative_to(config.ROOT) if config.ROOT in path.parents else path} | data: {backend.name} | model: {llm.name}_\n", outcome
         raise DataLayerError(f"alert {task.alert_id} not found")
     for s in retriever.run(planner.plan(task, ["account"], "", "identify the exporting account")):
         done.setdefault(s.evidence, []).append(s)
@@ -130,7 +143,8 @@ def evaluate(write_examples: bool) -> int:
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="exportwhy", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
-    sub.add_parser("alert").add_argument("id")
+    al = sub.add_parser("alert"); al.add_argument("id")
+    al.add_argument("--simulate-outage", metavar="SOURCES", help="comma-separated: logs, policy, tickets (or table names); the data layer fails for them")
     ev = sub.add_parser("evaluate"); ev.add_argument("--write-examples", action="store_true")
     sub.add_parser("memory")
     fb = sub.add_parser("feedback"); fb.add_argument("memory_id"); fb.add_argument("kind", choices=["helpful", "not_helpful", "wrong"])
@@ -156,6 +170,8 @@ def main(argv=None) -> int:
         Memory().feedback(args.memory_id, args.kind); print("recorded in the trust ledger"); return 0
     if args.cmd == "evaluate":
         return evaluate(args.write_examples)
+    if getattr(args, "simulate_outage", None):
+        os.environ["SIMULATE_OUTAGE"] = args.simulate_outage
     try:
         report, outcome = run(Task(alert_id=args.id))
     except DataLayerError as exc:

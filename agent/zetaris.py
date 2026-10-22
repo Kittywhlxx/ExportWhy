@@ -153,7 +153,34 @@ class SampleSQLite:
         raise DataLayerError("sample backend is read-only")
 
 
+SOURCES = {"logs": ["accounts", "export_events", "alerts"],
+           "policy": ["datasets", "policies", "policy_exceptions", "field_sensitivity"],
+           "tickets": ["tickets"]}
+
+
+class OutageBackend:
+    """Demo/failure-path wrapper: queries that touch the listed tables fail as if that source were down.
+    Enabled with SIMULATE_OUTAGE=tickets,policy,logs (source names or table names)."""
+
+    def __init__(self, inner, spec: str):
+        self.inner = inner
+        self.name = inner.name
+        self.tables: set[str] = set()
+        for item in [x.strip().lower() for x in spec.split(",") if x.strip()]:
+            self.tables.update(SOURCES.get(item, [item]))
+
+    def query(self, sql: str, limit: int = 200) -> QueryResult:
+        from .catalog import tables_in_sql
+        hit = sorted(set(tables_in_sql(sql)) & self.tables)
+        if hit:
+            raise DataLayerError(f"simulated outage: source for {', '.join(hit)} is unreachable")
+        return self.inner.query(sql, limit)
+
+    def run_ddl(self, sql: str) -> QueryResult:
+        return self.inner.run_ddl(sql)
+
+
 def get_backend():
-    if config.sample_mode():
-        return SampleSQLite()
-    return ZetarisREST()
+    backend = SampleSQLite() if config.sample_mode() else ZetarisREST()
+    spec = config.env("SIMULATE_OUTAGE")
+    return OutageBackend(backend, spec) if spec else backend

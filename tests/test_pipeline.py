@@ -60,3 +60,12 @@ def test_unreachable_ticket_source_never_yields_compliant(monkeypatch):
 def test_redaction_of_external_destination():
     report, out = agent_main.run(Task(alert_id="AL-007"))  # emailed export
     assert "<email redacted>" in report and "@example.com" not in report
+
+
+@pytest.mark.parametrize("source", ["tickets", "policy", "logs"])
+def test_simulated_outage_degrades_to_cannot_confirm(monkeypatch, source):
+    monkeypatch.setenv("SIMULATE_OUTAGE", source)
+    _, out = agent_main.run(Task(alert_id="AL-001"))      # normally compliant
+    assert out["verdict"] == "cannot-confirm"
+    assert out["gaps"], "an unreachable source must be reported as a gap"
+    assert not any(r.startswith("evidence budget exhausted") for r in out["reasons"])

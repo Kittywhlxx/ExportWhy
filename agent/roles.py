@@ -277,8 +277,11 @@ class Evaluator:
         ev = (rows.get("alert") or [None])[0]
         if not ev:
             if "alert" in failed:
-                gaps.append("the alert/event source could not be queried")
-            derived["verdict"] = "cannot-confirm"; reasons.append("alert or its export event not found")
+                gaps.append("the alert/event source (logs) could not be queried; nothing about this export can be established")
+                reasons.append("the logs source is unreachable"); next_steps.append("re-run the triage once the logs source is reachable")
+            else:
+                reasons.append("alert or its export event not found")
+            derived["verdict"] = "cannot-confirm"
             return self._finish(task, facts, conflicts, gaps, missing, reasons, next_steps, derived, footprint, rows, rounds)
         ts = _ts(ev["ts"])
         task.event_id, task.ts, task.account_id, task.dataset_id = ev["event_id"], _clean(ev["ts"]), ev["account_id"], ev["dataset_id"]
@@ -313,9 +316,9 @@ class Evaluator:
         else:
             need("dataset")
         pol = (rows.get("policy") or [None])[0]
-        if task.role and "policy" not in fetched and "policy" not in failed:
-            need("policy")
-        elif task.role and "policy" in fetched and not pol:
+        if task.role:
+            need("policy")          # no-op once fetched; records the gap and blocks "compliant" if the source failed
+        if task.role and "policy" in fetched and not pol:
             gaps.append(f"no policy row for role {task.role} on {task.dataset_id}")
             fact("policy", f"No data-access policy exists for role {task.role} on {task.dataset_id}; entitlement cannot be determined from policy.", "policy", "policies", "policy_id", kind="gap")
             derived.setdefault("verdict", "cannot-confirm"); reasons.append("no policy covers this role and dataset")
