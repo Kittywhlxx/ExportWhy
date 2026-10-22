@@ -59,13 +59,15 @@ TEMPLATES: dict[str, tuple[str, str]] = {
         "SELECT account_id, role, department, status, status_since FROM dexa.accounts WHERE account_id = '{account_id}'"),
     "dataset": ("what was exported: dataset sensitivity",
         "SELECT dataset_id, name, sensitivity, owner_team, contains_pii FROM dexa.datasets WHERE dataset_id = '{dataset_id}'"),
-    "policy": ("what the role may export from that dataset without a ticket",
-        "SELECT policy_id, role, dataset_id, allowed, allowed_hours_start, allowed_hours_end, max_rows_without_ticket, requires_ticket, notes "
-        "FROM dexa.policies WHERE role = '{role}' AND dataset_id = '{dataset_id}'"),
+    "policy": ("what the role may export from that dataset without a ticket (logs ⋈ policy, joined by Zetaris)",
+        "SELECT p.policy_id, p.role, p.dataset_id, p.allowed, p.allowed_hours_start, p.allowed_hours_end, p.max_rows_without_ticket, p.requires_ticket, p.notes "
+        "FROM dexa.export_events e JOIN dexa.accounts a ON a.account_id = e.account_id "
+        "JOIN dexa.policies p ON p.role = a.role AND p.dataset_id = e.dataset_id WHERE e.event_id = '{event_id}'"),
     "sensitivity": ("which columns are sensitive (for redaction and the disclosure check)",
         "SELECT table_name, column_name, level FROM dexa.field_sensitivity"),
-    "ticket_cited": ("the ticket the exporter cited",
-        "SELECT ticket_id, requester_account_id, dataset_id, max_rows, valid_from, valid_to, status, approver_id FROM dexa.tickets WHERE ticket_id = '{ticket_ref}'"),
+    "ticket_cited": ("the ticket the exporter cited (logs ⋈ tickets, joined by Zetaris)",
+        "SELECT t.ticket_id, t.requester_account_id, t.dataset_id, t.max_rows, t.valid_from, t.valid_to, t.status, t.approver_id "
+        "FROM dexa.export_events e JOIN dexa.tickets t ON t.ticket_id = e.ticket_ref WHERE e.event_id = '{event_id}'"),
     "tickets_account": ("any other ticket for this account and dataset",
         "SELECT ticket_id, requester_account_id, dataset_id, max_rows, valid_from, valid_to, status, approver_id FROM dexa.tickets "
         "WHERE requester_account_id = '{account_id}' AND dataset_id = '{dataset_id}' ORDER BY valid_to DESC"),
@@ -86,12 +88,18 @@ NO_DRAFT = {"alert", "account", "sensitivity", "destination", "account_history"}
 
 # ------------------------------------------------------------------ planner --------------------
 
+def _budget(obj) -> float | None:
+    fn = getattr(obj, "remaining", None)
+    return fn() if fn else None
+
+
 class Planner:
     name = "planner"
 
-    def __init__(self, llm, trace):
+    def __init__(self, llm, trace, remaining=None):
         self.llm, self.trace = llm, trace
         self.counter = 0
+        self.remaining = remaining            # callable -> seconds left in the triage budget
 
     def plan(self, task: Task, classes: list[str], memory_context: str, reason: str) -> list[Step]:
         params = {k: (v if v is not None else "") for k, v in vars(task).items()}
@@ -121,7 +129,7 @@ class Planner:
                 f"Why we are planning now: {reason}\nMemory from earlier investigations:\n{memory_context or '(none)'}\n\nSteps:\n"
                 + "\n".join(f"- {s.sid} [{s.evidence}]: {s.purpose}. Reference SQL: {s.sql}" for s in steps))
         try:
-            text, meta = self.llm.chat(system, user, json_mode=True)
+            text, meta = self.llm.chat(system, user, json_mode=True, max_seconds=_budget(self))
         except LLMError as exc:
             self.trace.step(self.name, "model_unavailable", error=str(exc)[:200], fallback="rule-based SQL templates")
             return 0
@@ -132,7 +140,7 @@ class Planner:
             s = by_id.get(str(d.get("id"))); sql = str(d.get("sql", "")).strip().rstrip(";")
             if not s or not sql:
                 continue
-            ok, why = self._validate(sql, task)
+            ok, why = self._validate(sql, task, template=s.sql, evidence=s.evidence)
             if ok:
                 s.sql, s.origin = sql, "llm"; kept += 1
             else:
@@ -140,10 +148,30 @@ class Planner:
         self.trace.step(self.name, "llm", **meta)
         return kept
 
+    AUTH_CLASSES = {"policy", "ticket_cited", "tickets_account", "exceptions", "account", "alert"}
+
     @staticmethod
-    def _validate(sql: str, task: Task) -> tuple[bool, str]:
+    def _predicates(sql: str) -> set[str]:
+        """Every `column = 'value'` filter in a query, normalised (alias prefixes dropped)."""
+        return {f"{c.lower()}='{v}'" for c, v in re.findall(r"(?:\b\w+\.)?(\w+)\s*=\s*'([^']*)'", sql)}
+
+    @classmethod
+    def _validate(cls, sql: str, task: Task, template: str | None = None, evidence: str | None = None) -> tuple[bool, str]:
         if not re.match(r"^\s*select\b", sql, re.I) or re.search(r"\b(insert|update|delete|drop|create|alter|grant|attach)\b", sql, re.I):
             return False, "not a plain SELECT"
+        if re.search(r"select\s+(\w+\.)?\*", sql, re.I):
+            return False, "SELECT * is never accepted (column scoping)"
+        if template is not None and evidence in cls.AUTH_CLASSES:
+            # a decision-critical lookup may not lose a filter or widen its column list: dropping the account
+            # or role predicate on an exceptions query would let another account's exception authorise this export
+            missing = cls._predicates(template) - cls._predicates(sql)
+            if missing:
+                return False, f"authorisation query lost filter(s): {', '.join(sorted(missing))}"
+            tcols = set(re.findall(r"(?:\w+\.)?(\w+)", re.split(r"\bfrom\b", template, 1, flags=re.I)[0], re.I))
+            dcols = set(re.findall(r"(?:\w+\.)?(\w+)", re.split(r"\bfrom\b", sql, 1, flags=re.I)[0], re.I))
+            extra = {c for c in dcols - tcols if c.lower() not in ("select", "as", "distinct")} & {c for t in catalog.TABLES.values() for c in t["columns"]}
+            if extra:
+                return False, f"authorisation query widened its column list: {', '.join(sorted(extra))}"
         if not catalog.tables_in_sql(sql):
             return False, "no known dexa table referenced"
         for ref in re.findall(r"\b([a-z_]+)\.([a-z_]+)\b", sql, re.I):
@@ -255,9 +283,10 @@ TOKEN = re.compile(r"\b(AL-\d+|T-\d+|u\d{4}|DS\d{2}|X\d{2}|P\d{3}|E\d{5}|CVE-[\d
 class Evaluator:
     name = "evaluator"
 
-    def __init__(self, trace, llm=None):
+    def __init__(self, trace, llm=None, remaining=None):
         self.trace = trace
         self.llm = llm
+        self.remaining = remaining
 
     # ---- second opinion: the model judges the same evidence independently; rules remain the floor
     def second_opinion(self, task: Task, a: "Assessment") -> dict:
@@ -276,7 +305,7 @@ class Evaluator:
             user = (f"Alert {task.alert_id}. Facts:\n" + "\n".join(f"- {f.text}" for f in a.facts) + f"\nConflicts: {a.conflicts}\nCannot confirm: {a.gaps}\n"
                     f"(The colleague's verdict is withheld. Give your own.)")
             try:
-                text, meta = self.llm.chat(system, user, json_mode=True, max_tokens=2500)
+                text, meta = self.llm.chat(system, user, json_mode=True, max_tokens=2500, max_seconds=_budget(self))
                 self.trace.step(self.name, "llm", **meta)
                 d = extract_json(text) or {}
                 v = str(d.get("verdict", "")).strip().lower()
@@ -361,6 +390,8 @@ class Evaluator:
         pol = (rows.get("policy") or [None])[0]
         if task.role:
             need("policy")          # no-op once fetched; records the gap and blocks "compliant" if the source failed
+            if task.ticket_ref:
+                need("ticket_cited")   # the cited ticket is needed whenever one is cited; fetch it with the policy, not a round later
         if task.role and "policy" in fetched and not pol:
             gaps.append(f"no policy row for role {task.role} on {task.dataset_id}")
             fact("policy", f"No data-access policy exists for role {task.role} on {task.dataset_id}; entitlement cannot be determined from policy.", "policy", "policies", "policy_id", kind="gap")
@@ -387,7 +418,7 @@ class Evaluator:
                 if "ticket_cited" not in fetched:
                     need("ticket_cited")
                 else:
-                    t = (rows.get("ticket_cited") or [None])[0]
+                    t = next((r for r in rows.get("ticket_cited", []) if r.get("ticket_id") == task.ticket_ref), None)
                     if not t:
                         gaps.append(f"cited ticket {task.ticket_ref} does not exist in the ticket system")
                         fact("ticket_cited", f"The exporter cited ticket {task.ticket_ref}, which does not exist in the ticket system.", "ticket_cited", "tickets", "ticket_id", kind="gap")
@@ -418,7 +449,13 @@ class Evaluator:
                     else:
                         fact("tickets_account", f"{len(others)} other ticket(s) for {task.account_id} on {task.dataset_id}; none covers this export.", "tickets_account", "tickets", "status")
                 if "verdict" not in derived and "exceptions" in fetched:
-                    exc = [e for e in rows.get("exceptions", []) if _in_window(ts, e.get("valid_from"), e.get("valid_to"))]
+                    def _applies(e):   # the row must be for this dataset and for this role or this account, whatever the query returned
+                        return (e.get("dataset_id") == task.dataset_id and ((e.get("scope_type") == "role" and e.get("scope_value") == task.role)
+                                or (e.get("scope_type") == "account" and e.get("scope_value") == task.account_id)))
+                    foreign = [e.get("exception_id") for e in rows.get("exceptions", []) if not _applies(e)]
+                    if foreign:
+                        conflicts.append(f"exceptions query returned rows that do not apply to this alert ({', '.join(map(str, foreign))}); ignored")
+                    exc = [e for e in rows.get("exceptions", []) if _applies(e) and _in_window(ts, e.get("valid_from"), e.get("valid_to"))]
                     if exc:
                         e = exc[0]
                         fact("exceptions", f"Policy exception {e['exception_id']} ({e['scope_type']} {e['scope_value']}, approved by {e['approved_by']}, valid {_clean(e['valid_from'])} .. {_clean(e['valid_to'])}) applies: {e['clause']}",
@@ -502,10 +539,12 @@ class Evaluator:
             next_steps.insert(0, "re-run the triage once the failing source is reachable")
         if verdict is None and (not missing or rounds >= MAX_ROUNDS):
             verdict = "cannot-confirm"; reasons.append("evidence budget exhausted before a decision could be grounded")
+        unfetched: list[str] = []
         if verdict and missing and rounds >= MAX_ROUNDS:
-            missing = []   # budget spent: report with what we have
+            unfetched, missing = list(missing), []      # budget spent: report with what we have, and say what was not retrieved
         if verdict and missing and all(m == "account_history" for m in missing) and rounds >= MAX_ROUNDS - 1:
-            missing = []   # baseline is nice-to-have; never spend the last round only on it
+            unfetched, missing = list(missing), []      # baseline is nice-to-have; never spend the last round only on it
+        derived["unfetched"] = unfetched
         a = Assessment(facts, conflicts, gaps, missing, verdict if not missing else None, reasons, next_steps, disclosure, derived)
         self.trace.step(self.name, "assess", round=rounds, facts=len(facts), conflicts=conflicts, gaps=gaps, missing=missing,
                         verdict=a.verdict, reasons=reasons, disclosure={k: v for k, v in disclosure.items() if k != "columns_seen"})
@@ -539,8 +578,9 @@ class Critic:
     name = "critic"
     PASS = 7
 
-    def __init__(self, llm, trace):
+    def __init__(self, llm, trace, remaining=None):
         self.llm, self.trace = llm, trace
+        self.remaining = remaining
 
     def review(self, task: Task, a: "Assessment", summary: str, attempt: int = 1) -> dict:
         if self.llm.name == "stub":
@@ -568,7 +608,7 @@ class Critic:
             user = (f"Verdict: {a.verdict}\nReasons: {a.reasons}\nNext checks: {a.next_steps}\nFacts:\n" + "\n".join(f"- {f.text}" for f in a.facts)
                     + f"\nUnconfirmed: {a.gaps}\n\nSummary under review:\n{summary}")
             try:
-                text, meta = self.llm.chat(system, user, json_mode=True, max_tokens=3500)
+                text, meta = self.llm.chat(system, user, json_mode=True, max_tokens=3500, max_seconds=_budget(self))
             except LLMError as exc:
                 out = {"attempt": attempt, "scores": None, "total": None, "passed": None, "fix": None, "source": "error", "note": f"model unavailable: {str(exc)[:160]}"}
                 self.trace.step(self.name, "critique", **out)
@@ -581,7 +621,12 @@ class Critic:
                        "note": "model reply unparseable; critic unavailable", "raw_tail": text[-300:], "usage": meta.get("usage")}
                 self.trace.step(self.name, "critique", **out)
                 return out
-            scores = {k: max(0, min(3, int(d.get(k, 0) or 0))) for k in ("accuracy", "appropriateness", "actionability")}
+            try:
+                scores = {k: max(0, min(3, int(float(d.get(k, 0) or 0)))) for k in ("accuracy", "appropriateness", "actionability")}
+            except (TypeError, ValueError):
+                out = {"attempt": attempt, "scores": None, "total": None, "passed": None, "fix": None, "source": source, "note": "model reply had non-numeric scores; critic unavailable"}
+                self.trace.step(self.name, "critique", **out)
+                return out
             fix = d.get("fix") or None
         total = sum(scores.values())
         out = {"attempt": attempt, "scores": scores, "total": total, "passed": total >= self.PASS, "fix": fix if total < self.PASS else None, "source": source}
@@ -589,11 +634,25 @@ class Critic:
         return out
 
 
+OWNER_HINTS = [("approver", "ticket approver"), ("manager", "exporter's manager"), ("HR/IAM", "IAM / HR"), ("human review", "security review board"),
+               ("re-run", "analyst"), ("dataset owner", "dataset owner"), ("exporter", "exporter"), ("identity provider", "IAM"), ("destination", "analyst")]
+DONE_HINTS = [("preserve", "export file preserved and hash recorded"), ("re-run", "triage re-run with the source reachable"), ("human review", "decision recorded with reasons"),
+              ("approval", "approval evidence attached to the alert"), ("policy row", "policy row published or export confirmed unauthorised"),
+              ("disable", "account access confirmed disabled"), ("destination", "destination confirmed sanctioned, or deletion confirmed")]
+
+
+def _handoff(step: str) -> str:
+    owner = next((o for k, o in OWNER_HINTS if k.lower() in step.lower()), "analyst")
+    done = next((d for k, d in DONE_HINTS if k.lower() in step.lower()), "evidence attached and the verdict re-run")
+    return f"{step}  _(suggested owner: {owner}; done when: {done})_"
+
+
 class Reporter:
     name = "reporter"
 
-    def __init__(self, llm, trace):
+    def __init__(self, llm, trace, remaining=None):
         self.llm, self.trace = llm, trace
+        self.remaining = remaining
 
     def template_summary(self, a: Assessment) -> str:
         first = a.reasons[0] if a.reasons else "no reason recorded"
@@ -629,7 +688,7 @@ class Reporter:
         user = (f"Reviewer's fix: {fix}\nVerdict: {a.verdict}\nReasons: {a.reasons}\nFacts:\n" + "\n".join(f"- {f.text}" for f in a.facts)
                 + f"\nUnconfirmed: {a.gaps}\n\nSummary to revise:\n{summary}")
         try:
-            text, meta = self.llm.chat(system, user, max_tokens=1500)
+            text, meta = self.llm.chat(system, user, max_tokens=1500, max_seconds=_budget(self))
         except LLMError as exc:
             self.trace.step(self.name, "model_unavailable", error=str(exc)[:200], fallback="template summary")
             return self.template_summary(a)
@@ -646,8 +705,12 @@ class Reporter:
             head += f" · confidence {confidence['score']:.2f} ({confidence['label']})"
         if a.priority:
             head += f" · priority {a.priority['bucket']} ({a.priority['score']:.0f}/10)"
+        elif a.verdict in ("cannot-confirm", "needs-human"):
+            head += " · queue: manual review (unresolved evidence)"
         if status != "complete":
             head += f" · **{status}**"
+        if critique and critique.get("review_status") and critique["review_status"] != "passed":
+            head += f" · review: {critique['review_status']}"
         lines = [f"# Export-alert triage: {task.alert_id}", "", head, ""]
         if confidence and confidence.get("factors"):
             lines += ["Confidence: " + "; ".join(confidence["factors"]), ""]
@@ -671,10 +734,11 @@ class Reporter:
         gap_facts = [f for f in a.facts if f.kind == "gap"]
         if a.gaps or gap_facts:
             lines += ["", "## Cannot be confirmed from the sources"] + [f"- {g}" for g in a.gaps]
-        if a.missing:
-            lines += ["", f"## Evidence still unfetched after {rounds} round(s)"] + [f"- {m}" for m in a.missing]
+        unf = a.derived.get("unfetched") or a.missing
+        if unf:
+            lines += ["", f"## Evidence not retrieved within the {rounds}-round budget (verdict stands on what was retrieved)"] + [f"- {m}: {TEMPLATES[m][0]}" for m in unf if m in TEMPLATES]
         if a.next_steps:
-            lines += ["", "## Suggested next checks"] + [f"- {n}" for n in a.next_steps]
+            lines += ["", "## Suggested next checks (owner to be assigned by the analyst; SLA not modelled)"] + [f"- {_handoff(n)}" for n in a.next_steps]
         d = a.disclosure
         lines += ["", "## Access footprint (disclosure check)",
                   f"- tables accessed: {', '.join(d['tables_accessed']) or 'none'}",
@@ -720,6 +784,6 @@ class Reporter:
                   "never add a claim that is not in the list; state the verdict and its main reason first; name what could not be confirmed.")
         user = (f"Verdict: {a.verdict}\nReasons: {a.reasons}\nFacts:\n" + "\n".join(f"- {f.text}" for f in a.facts)
                 + f"\nConflicts: {a.conflicts}\nUnconfirmed: {a.gaps}")
-        text, meta = self.llm.chat(system, user, max_tokens=1500)
+        text, meta = self.llm.chat(system, user, max_tokens=1500, max_seconds=_budget(self))
         self.trace.step(self.name, "llm", **meta)
         return text.strip()

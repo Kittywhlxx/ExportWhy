@@ -1,9 +1,13 @@
 # Export-alert triage: AL-011
 
-**Verdict: cannot-confirm**
+**Verdict: cannot-confirm** · confidence 0.60 (medium) · queue: manual review (unresolved evidence)
+
+Confidence: evidence completeness 1.00; second opinion agrees; critic 9/9; 1 open gap(s)
 
 Why:
 - the only authorisation the exporter cites cannot be found, and nothing else covers the export
+
+Verdict cannot-confirm: the only authorisation the exporter cites cannot be found, and nothing else covers the export. Next: ask the exporter for the approval they relied on; check the ticket system's audit log for a deleted ticket.
 
 ## Evidence (table.column | query step)
 - AL-011 (high, rule: off-hours bulk export citing a ticket): account u1022 exported 7000 rows of DS04 at 2026-10-22 22:25:00 via notebook to a email destination; ticket cited: T-9999.  [dexa.export_events.rows_exported | q1]
@@ -12,22 +16,72 @@ Why:
 - Policy P004: role analyst may export DS04; no-ticket cap 5000 rows; advisory hours 07:00-19:00 (export was outside them).  [dexa.policies.max_rows_without_ticket | q5]
 - 0 other ticket(s) for u1022 on DS04; none covers this export.  [dexa.tickets.status | q7]
 - No policy exception covers role analyst or account u1022 on DS04 at 2026-10-22 22:25:00.  [dexa.policy_exceptions.exception_id | q8]
+- The export went to an external email destination: <email redacted>.  [dexa.export_events.destination | q10]
 
 ## Cannot be confirmed from the sources
 - cited ticket T-9999 does not exist in the ticket system
 
-## Suggested next checks
-- ask the exporter for the approval they relied on; check the ticket system's audit log for a deleted ticket
+## Suggested next checks (owner to be assigned by the analyst; SLA not modelled)
+- ask the exporter for the approval they relied on; check the ticket system's audit log for a deleted ticket  _(suggested owner: exporter; done when: approval evidence attached to the alert)_
+- confirm whether the destination is a sanctioned location; request deletion if not  _(suggested owner: analyst; done when: destination confirmed sanctioned, or deletion confirmed)_
 
 ## Access footprint (disclosure check)
 - tables accessed: accounts, alerts, datasets, export_events, field_sensitivity, policies, policy_exceptions, tickets
 - tables that contributed to the verdict: accounts, alerts, datasets, export_events, field_sensitivity, policies, policy_exceptions, tickets
 - accessed but not needed: none
-- sensitive columns touched: none
-- values redacted in this report: 0
+- sensitive columns touched: export_events.destination (confidential)
+- values redacted in this report: 1
+
+## Second opinion (Evaluator, model-backed)
+- agrees: model verdict cannot-confirm vs rules cannot-confirm (stub)
+  - stub: deterministic second opinion agrees with the rules
+
+## Review (Critic, 0-3 x 3 rubric)
+- accuracy 3, appropriateness 3, actionability 3 = 9/9 (pass; attempt 1)
+
+## Investigation timeline
+-    0.0s · planner · fetch alert
+-    0.0s · retriever · q1 alert: 1 rows from alerts, export_events (sqlite, 0 ms)
+-    0.0s · evaluator · needs more: sensitivity, account, dataset
+-    0.0s · planner · fetch account
+-    0.0s · retriever · q2 account: 1 rows from accounts (sqlite, 0 ms)
+-    0.0s · evaluator · needs more: sensitivity, dataset, policy, ticket_cited
+-    0.0s · planner · fetch sensitivity, dataset, policy, ticket_cited
+-    0.0s · retriever · q3 sensitivity: 9 rows from field_sensitivity (sqlite, 0 ms)
+-    0.0s · retriever · q4 dataset: 1 rows from datasets (sqlite, 0 ms)
+-    0.0s · retriever · q5 policy: 1 rows from accounts, export_events, policies (sqlite, 0 ms)
+-    0.0s · retriever · q6 ticket_cited: 0 rows from export_events, tickets (sqlite, 0 ms)
+-    0.0s · evaluator · needs more: tickets_account, exceptions
+-    0.0s · planner · fetch tickets_account, exceptions
+-    0.0s · retriever · q7 tickets_account: 0 rows from tickets (sqlite, 0 ms)
+-    0.0s · retriever · q8 exceptions: 0 rows from policy_exceptions (sqlite, 0 ms)
+-    0.0s · evaluator · needs more: account_history, destination
+-    0.0s · planner · fetch account_history, destination
+-    0.0s · retriever · q9 account_history: 1 rows from export_events (sqlite, 0 ms)
+-    0.0s · retriever · q10 destination: 1 rows from export_events (sqlite, 0 ms)
+-    0.0s · evaluator · verdict cannot-confirm
+-    0.0s · evaluator · second opinion cannot-confirm (agrees; stub)
+-    0.0s · critic · rubric 9/9 attempt 1
 
 ## World state (Meterless World Model)
-Account u1022 is known to the world model: 1 recorded export(s) across DS01; 1 ticket citation(s).
+Account u1022 is known to the world model: 2 recorded export(s) across DS01, DS04; 2 ticket citation(s).
 - earlier alert AL-001: verdict compliant (recorded 2026-10-15T22:59:00)
+
+## Memory used (H-MEM)
+[MEMORY CONTEXT]
+## general
+- [WK] 0 other ticket(s) for u1022 on DS04; none covers this export. <mem-87>
+[/MEMORY CONTEXT]
+
+## Memory updated (H-MEM, with provenance)
+- reconfirmed: `mem-82` AL-011 (high, rule: off-hours bulk export citing a ticket): account u1022 exported 7000 rows of DS04 at 2026-10-22 22:25:00 via notebook to   <dexa.export_events via q1>
+- reconfirmed: `mem-83` Account u1022: role analyst, department customer-care, status active since 2026-01-12 00:00:00.  <dexa.accounts via q2>
+- reconfirmed: `mem-84` Dataset DS04 (marketing_leads) is classified confidential, owner marketing, contains_pii=True.  <dexa.datasets via q4>
+- reconfirmed: `mem-85` Policy P004: role analyst may export DS04; no-ticket cap 5000 rows; advisory hours 07:00-19:00 (export was outside them).  <dexa.policies via q5>
+- reconfirmed: `mem-86` The exporter cited ticket T-9999, which does not exist in the ticket system.  <dexa.tickets via q6>
+- reconfirmed: `mem-87` 0 other ticket(s) for u1022 on DS04; none covers this export.  <dexa.tickets via q7>
+- reconfirmed: `mem-88` No policy exception covers role analyst or account u1022 on DS04 at 2026-10-22 22:25:00.  <dexa.policy_exceptions via q8>
+- reconfirmed: `mem-89` The export went to an external email destination: <email redacted>.  <dexa.export_events via q10>
+- reconfirmed: `mem-90` verdict cannot-confirm  <evaluator>
 
 _trace: traces/example-4.json | evaluator rounds: 3 | data: sqlite | model: stub_

@@ -53,7 +53,7 @@ def triage(request: dict) -> dict:
         report, out = run(Task(alert_id=str(alert_id)), run_id=run_id)
         return {"run_id": run_id, "status": "success",
                 "output": {"alert_id": out["alert_id"], "verdict": out["verdict"], "confidence": out["confidence"], "priority": out["priority"],
-                           "triage_status": out["status"], "reasons": out["reasons"], "evidence": out["evidence"], "timeline": out["timeline"],
+                           "triage_status": out["status"], "queue": out.get("queue"), "reasons": out["reasons"], "evidence": out["evidence"], "timeline": out["timeline"],
                            "conflicts": out["conflicts"], "cannot_confirm": out["gaps"], "next_steps": out["next_steps"],
                            "disclosure": out["disclosure"], "rounds": out["rounds"], "memory": out.get("memory"), "world_model": out.get("world"),
                            "report_markdown": report, "data_layer": out["backend"], "model_provider": out["llm"]},
@@ -131,7 +131,10 @@ def main() -> int:
     if a.input:
         request = json.loads(Path(a.input).read_text())
     elif a.alert:
-        request = {"run_id": a.run_id or f"cli-{a.alert}", "input": {"alert_id": a.alert}, "options": {"sample_mode": a.sample, "simulate_outage": a.outage}}
+        options = {"simulate_outage": a.outage}
+        if a.sample:
+            options["sample_mode"] = True          # otherwise SAMPLE_MODE from the environment stands
+        request = {"run_id": a.run_id or f"cli-{a.alert}", "input": {"alert_id": a.alert}, "options": options}
     else:
         ap.error("give --input FILE, --alert ID, or --serve")
     if a.run_id:

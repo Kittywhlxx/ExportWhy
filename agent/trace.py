@@ -18,7 +18,7 @@ ACTION = {"plan": "plan_evidence", "query": "query_zetaris", "query_failed": "qu
           "assess": "evaluate_evidence", "llm": "model_call", "recall": "hmem_recall", "remember": "hmem_store",
           "dossier": "world_model_read", "ingest": "world_model_write", "second_opinion": "evaluate_second_opinion",
           "critique": "critique_report", "revise": "revise_report", "model_unavailable": "model_fallback",
-          "confidence": "score_confidence", "timeout": "time_budget"}
+          "confidence": "score_confidence", "timeout": "time_budget", "summary_fallback": "summary_gate"}
 
 
 class Trace:
@@ -93,6 +93,8 @@ class Trace:
             line.update(output_summary=f"confidence {p.get('score')} ({p.get('label')}): " + "; ".join(p.get("factors", [])))
         elif kind == "timeout":
             line.update(output_summary=f"time budget {p.get('budget_s')}s exhausted during {p.get('phase')}; partial result", status="escalated")
+        elif kind == "summary_fallback":
+            line.update(output_summary=f"summary gate: {p.get('review_status')}", status="recovered")
         elif kind == "model_unavailable":
             line.update(output_summary=f"model unavailable ({p.get('error', '')[:120]}); fallback: {p.get('fallback')}", status="recovered")
         elif kind == "revise":

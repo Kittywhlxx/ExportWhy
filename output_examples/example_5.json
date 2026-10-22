@@ -4,6 +4,18 @@
  "output": {
   "alert_id": "AL-013",
   "verdict": "compliant",
+  "confidence": {
+   "score": 1.0,
+   "label": "high",
+   "factors": [
+    "evidence completeness 1.00",
+    "second opinion agrees",
+    "critic 9/9"
+   ]
+  },
+  "priority": null,
+  "triage_status": "complete",
+  "queue": "none",
   "reasons": [
    "2000 rows are within the no-ticket cap of 50000; the hours window is advisory below the cap"
   ],
@@ -54,8 +66,85 @@
       "step": "q5",
       "table": "dexa.policies",
       "column": "max_rows_without_ticket"
+     },
+     {
+      "step": "q5",
+      "table": "dexa.accounts",
+      "column": null
+     },
+     {
+      "step": "q5",
+      "table": "dexa.export_events",
+      "column": null
      }
     ]
+   }
+  ],
+  "timeline": [
+   {
+    "t": 0.011,
+    "agent": "planner",
+    "what": "fetch alert"
+   },
+   {
+    "t": 0.012,
+    "agent": "retriever",
+    "what": "q1 alert: 1 rows from alerts, export_events (sqlite, 0 ms)"
+   },
+   {
+    "t": 0.012,
+    "agent": "evaluator",
+    "what": "needs more: sensitivity, account, dataset"
+   },
+   {
+    "t": 0.012,
+    "agent": "planner",
+    "what": "fetch account"
+   },
+   {
+    "t": 0.012,
+    "agent": "retriever",
+    "what": "q2 account: 1 rows from accounts (sqlite, 0 ms)"
+   },
+   {
+    "t": 0.013,
+    "agent": "evaluator",
+    "what": "needs more: sensitivity, dataset, policy"
+   },
+   {
+    "t": 0.022,
+    "agent": "planner",
+    "what": "fetch sensitivity, dataset, policy"
+   },
+   {
+    "t": 0.022,
+    "agent": "retriever",
+    "what": "q3 sensitivity: 9 rows from field_sensitivity (sqlite, 0 ms)"
+   },
+   {
+    "t": 0.022,
+    "agent": "retriever",
+    "what": "q4 dataset: 1 rows from datasets (sqlite, 0 ms)"
+   },
+   {
+    "t": 0.022,
+    "agent": "retriever",
+    "what": "q5 policy: 1 rows from accounts, export_events, policies (sqlite, 0 ms)"
+   },
+   {
+    "t": 0.022,
+    "agent": "evaluator",
+    "what": "verdict compliant"
+   },
+   {
+    "t": 0.022,
+    "agent": "evaluator",
+    "what": "second opinion compliant (agrees; stub)"
+   },
+   {
+    "t": 0.022,
+    "agent": "critic",
+    "what": "rubric 9/9 attempt 1"
    }
   ],
   "conflicts": [],
@@ -84,16 +173,16 @@
   },
   "rounds": 1,
   "memory": {
-   "created": 5,
-   "reconfirmed": 0,
+   "created": 0,
+   "reconfirmed": 5,
    "superseded": 0
   },
   "world_model": {
-   "events_before": 36,
-   "events_after": 43,
-   "appended": 7
+   "events_before": 100,
+   "events_after": 100,
+   "appended": 0
   },
-  "report_markdown": "# Export-alert triage: AL-013\n\n**Verdict: compliant**\n\nWhy:\n- 2000 rows are within the no-ticket cap of 50000; the hours window is advisory below the cap\n\n## Evidence (table.column | query step)\n- AL-013 (low, rule: off-hours export): account u1030 exported 2000 rows of DS06 at 2026-10-11 02:31:00 via sql-console to a internal-share destination; ticket cited: none.  [dexa.export_events.rows_exported | q1]\n- Account u1030: role analyst, department customer-care, status active since 2024-07-15 00:00:00.  [dexa.accounts.status | q2]\n- Dataset DS06 (product_catalog) is classified internal, owner sales, contains_pii=False.  [dexa.datasets.sensitivity | q4]\n- Policy P006: role analyst may export DS06; no-ticket cap 50000 rows; advisory hours 07:00-19:00 (export was outside them).  [dexa.policies.max_rows_without_ticket | q5]\n\n## Access footprint (disclosure check)\n- tables accessed: accounts, alerts, datasets, export_events, field_sensitivity, policies\n- tables that contributed to the verdict: accounts, alerts, datasets, export_events, field_sensitivity, policies\n- accessed but not needed: none\n- sensitive columns touched: none\n- values redacted in this report: 0\n\n_trace: traces/example-5.json | evaluator rounds: 1 | data: sqlite | model: stub_\n",
+  "report_markdown": "# Export-alert triage: AL-013\n\n**Verdict: compliant** \u00b7 confidence 1.00 (high)\n\nConfidence: evidence completeness 1.00; second opinion agrees; critic 9/9\n\nWhy:\n- 2000 rows are within the no-ticket cap of 50000; the hours window is advisory below the cap\n\nVerdict compliant: 2000 rows are within the no-ticket cap of 50000; the hours window is advisory below the cap. No further action required.\n\n## Evidence (table.column | query step)\n- AL-013 (low, rule: off-hours export): account u1030 exported 2000 rows of DS06 at 2026-10-11 02:31:00 via sql-console to a internal-share destination; ticket cited: none.  [dexa.export_events.rows_exported | q1]\n- Account u1030: role analyst, department customer-care, status active since 2024-07-15 00:00:00.  [dexa.accounts.status | q2]\n- Dataset DS06 (product_catalog) is classified internal, owner sales, contains_pii=False.  [dexa.datasets.sensitivity | q4]\n- Policy P006: role analyst may export DS06; no-ticket cap 50000 rows; advisory hours 07:00-19:00 (export was outside them).  [dexa.policies.max_rows_without_ticket | q5]\n\n## Access footprint (disclosure check)\n- tables accessed: accounts, alerts, datasets, export_events, field_sensitivity, policies\n- tables that contributed to the verdict: accounts, alerts, datasets, export_events, field_sensitivity, policies\n- accessed but not needed: none\n- sensitive columns touched: none\n- values redacted in this report: 0\n\n## Second opinion (Evaluator, model-backed)\n- agrees: model verdict compliant vs rules compliant (stub)\n  - stub: deterministic second opinion agrees with the rules\n\n## Review (Critic, 0-3 x 3 rubric)\n- accuracy 3, appropriateness 3, actionability 3 = 9/9 (pass; attempt 1)\n\n## Investigation timeline\n-    0.0s \u00b7 planner \u00b7 fetch alert\n-    0.0s \u00b7 retriever \u00b7 q1 alert: 1 rows from alerts, export_events (sqlite, 0 ms)\n-    0.0s \u00b7 evaluator \u00b7 needs more: sensitivity, account, dataset\n-    0.0s \u00b7 planner \u00b7 fetch account\n-    0.0s \u00b7 retriever \u00b7 q2 account: 1 rows from accounts (sqlite, 0 ms)\n-    0.0s \u00b7 evaluator \u00b7 needs more: sensitivity, dataset, policy\n-    0.0s \u00b7 planner \u00b7 fetch sensitivity, dataset, policy\n-    0.0s \u00b7 retriever \u00b7 q3 sensitivity: 9 rows from field_sensitivity (sqlite, 0 ms)\n-    0.0s \u00b7 retriever \u00b7 q4 dataset: 1 rows from datasets (sqlite, 0 ms)\n-    0.0s \u00b7 retriever \u00b7 q5 policy: 1 rows from accounts, export_events, policies (sqlite, 0 ms)\n-    0.0s \u00b7 evaluator \u00b7 verdict compliant\n-    0.0s \u00b7 evaluator \u00b7 second opinion compliant (agrees; stub)\n-    0.0s \u00b7 critic \u00b7 rubric 9/9 attempt 1\n\n## World state (Meterless World Model)\nAccount u1030 is known to the world model: 1 recorded export(s) across DS06; 0 ticket citation(s).\n\n## Memory updated (H-MEM, with provenance)\n- reconfirmed: `mem-99` AL-013 (low, rule: off-hours export): account u1030 exported 2000 rows of DS06 at 2026-10-11 02:31:00 via sql-console to a internal-share de  <dexa.export_events via q1>\n- reconfirmed: `mem-100` Account u1030: role analyst, department customer-care, status active since 2024-07-15 00:00:00.  <dexa.accounts via q2>\n- reconfirmed: `mem-101` Dataset DS06 (product_catalog) is classified internal, owner sales, contains_pii=False.  <dexa.datasets via q4>\n- reconfirmed: `mem-102` Policy P006: role analyst may export DS06; no-ticket cap 50000 rows; advisory hours 07:00-19:00 (export was outside them).  <dexa.policies via q5>\n- reconfirmed: `mem-103` verdict compliant  <evaluator>\n\n_trace: traces/example-5.json | evaluator rounds: 1 | data: sqlite | model: stub_\n",
   "data_layer": "sqlite",
   "model_provider": "stub"
  },
@@ -108,11 +197,15 @@
   },
   {
    "name": "Evaluator",
-   "role": "Applies the decision rules, finds conflicts and gaps, sends the Planner back for more evidence (max 3 rounds)"
+   "role": "Applies the decision rules, finds conflicts and gaps, sends the Planner back for more evidence (max 3 rounds); then asks the model for an independent second opinion and escalates to a human on disagreement"
   },
   {
    "name": "Reporter",
-   "role": "Writes the verdict with per-claim citations, what could not be confirmed, next checks, redacted"
+   "role": "Proposer: drafts the summary and the report with per-claim citations, what could not be confirmed, next checks, redacted"
+  },
+  {
+   "name": "Critic",
+   "role": "Scores the summary on a 0-3 x 3 rubric (accuracy, appropriateness, actionability); below 7/9 returns one fix and the Reporter revises once"
   },
   {
    "name": "H-MEM (Meterless engine)",
@@ -125,5 +218,5 @@
  ],
  "trace_id": "example-5",
  "log_file": "logs/trace-example-5.jsonl",
- "execution_time_seconds": 0.1
+ "execution_time_seconds": 0.2
 }

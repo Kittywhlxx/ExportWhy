@@ -7,8 +7,10 @@ datasets, exceptions and field classification; the approval-ticket system) run a
 Postgres databases. `data/zetaris/register.py` registers each as its own JDBC datasource
 (`logsdb`, `policydb`, `ticketsdb`) and builds one schemastore container, `dexa`, with a view per
 table. The agent's only tool is read-only Lightning SQL against `dexa.*` through the Zetaris REST
-API (`agent/zetaris.py`); every cross-source join (alert ⋈ event ⋈ account ⋈ policy ⋈ ticket) is
-executed by Zetaris. The agent never opens a connection to a source. The same schema is served
+API (`agent/zetaris.py`). The two decision-critical lookups are cross-source joins executed by Zetaris
+(the policy for this export: `export_events ⋈ accounts ⋈ policies`, logs ⋈ policy; the cited ticket:
+`export_events ⋈ tickets`, logs ⋈ tickets); the remaining lookups are scoped single-source queries that
+the Evaluator correlates. The agent never opens a connection to a source. The same schema is served
 offline by a SQLite twin so judges can run everything without Zetaris (`SAMPLE_MODE=true`).
 Verified: 13/13 alerts on the federated backend; registration script and schema in the README.
 
@@ -23,7 +25,7 @@ mark facts helpful or wrong and agree or disagree with verdicts from the UI or C
 trust-ledger entry with previous and new state, and the calibration tally per verdict type is shown.
 Recall before each investigation re-injects earlier findings on the account/dataset.
 Test: `tests/test_hmem_conformance.py` reproduces the official conformance vectors
-(`agent/hmem/conformance_vectors.json`, byte-identical; record validation, feedback deltas, ranking
+(`agent/hmem/conformance_vectors.json`, a copy of the upstream file; record validation, feedback deltas, ranking
 order, sleep guardrails, conflict gate, ledger audit, dream boundary) plus persistence and scoping
 tests. 17 tests pass.
 
@@ -64,7 +66,7 @@ Nemotron-drafted queries passed the validator and 13/13 verdicts matched the gro
 
 - The three sources are genuinely federated by Zetaris at query time; the agent's whole knowledge of
   the world is SQL over one governed schema, which is what makes the disclosure footprint
-  measurable: 113 sensitive-column reads with naive `SELECT *` queries versus 3 with this planner,
+  measurable: 113 sensitive-column reads with naive `SELECT *` queries versus 5 with this planner,
   identical verdicts.
 - The two Meterless engines are implemented from the specs in Python and both sit on the critical
   path: without H-MEM there is no re-verification, no feedback with an audit trail; without the
@@ -74,5 +76,8 @@ Nemotron-drafted queries passed the validator and 13/13 verdicts matched the gro
   reports revision stages that overturn correct decisions; this design rules that failure mode out
   while still using the model on every alert.
 
-Pre-existing components: none. All code, data generators, samples and ground truth were written
-during the build window (22–27 October 2026).
+Pre-existing components: no pre-existing product code. The two Meterless engines are Python
+implementations adapted from the published reference implementations and conformance suites
+(Meterless repository, Apache-2.0; see NOTICE), and `agent/hmem/conformance_vectors.json` is a copy of
+the upstream vectors file. The application, its integration of the engines, the synthetic data
+generator, scenarios and ground truth were written during the build window (22–27 October 2026).

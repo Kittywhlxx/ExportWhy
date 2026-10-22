@@ -44,8 +44,11 @@ class Nightshift:
         ids = [m.id for m in models.data]
         return {"online": any(i.startswith("meterless/") for i in ids), "models": ids[:20], "selected": self.model}
 
-    def chat(self, system: str, user: str, json_mode: bool = False, max_tokens: int = 2000) -> tuple[str, dict]:
+    def chat(self, system: str, user: str, json_mode: bool = False, max_tokens: int = 2000, max_seconds: float | None = None) -> tuple[str, dict]:
+        """max_seconds: the triage's remaining wall-clock budget; the request timeout and the retries never exceed it."""
         delays = [2, 4, 8]
+        deadline = time.time() + max_seconds if max_seconds else None
+        client = self.client.with_options(timeout=max(5.0, min(180.0, max_seconds))) if max_seconds else self.client
         # Nightshift may route to a reasoning model (Nemotron 3 Ultra) that emits its thinking as text before
         # the answer and ignores thinking toggles. A low max_tokens cuts the reply off mid-thought, so the
         # budget stays large enough for ~600 thinking tokens plus the answer; strip_thinking() removes the
@@ -53,7 +56,9 @@ class Nightshift:
         system = "/no_think " + system
         for attempt in range(4):
             try:
-                resp = self.client.chat.completions.create(
+                if deadline and time.time() > deadline:
+                    raise LLMError("triage time budget exhausted before the model call")
+                resp = client.chat.completions.create(
                     model=self.model, temperature=0.1, max_tokens=max_tokens,
                     messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
                     extra_headers={"meterless-scope": "user"})
@@ -66,8 +71,8 @@ class Nightshift:
                 return text, meta
             except Exception as exc:  # noqa: BLE001 - provider errors are heterogeneous
                 status = getattr(exc, "status_code", None)
-                if status in (429, 500, 502, 503, 504) and attempt < 3:   # rate limit or a transient provider/route error
-                    time.sleep(delays[attempt]); continue
+                if status in (429, 500, 502, 503, 504) and attempt < 3 and not (deadline and time.time() + delays[attempt] > deadline):
+                    time.sleep(delays[attempt]); continue           # transient provider/route error, only while the budget allows a retry
                 raise LLMError(f"Nightshift request failed: {exc}") from exc
         raise LLMError("unreachable")
 
@@ -80,7 +85,7 @@ class StubLLM:
     def health(self) -> dict:
         return {"online": True, "models": ["stub"], "selected": "stub"}
 
-    def chat(self, system: str, user: str, json_mode: bool = False) -> tuple[str, dict]:
+    def chat(self, system: str, user: str, json_mode: bool = False, max_tokens: int = 0, max_seconds: float | None = None) -> tuple[str, dict]:
         return ("", {"provider": self.name, "model_requested": "stub", "model_served": "stub"})
 
 

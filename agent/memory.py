@@ -17,6 +17,7 @@ MEMORY_DIR = config.ROOT / "memory"
 class Memory:
     def __init__(self, persist: bool = True, clock=None):
         from .hmem import HMEM  # the Python port of the Meterless H-MEM spec (agent/hmem/)
+        self.persist, self.clock = persist, clock
         kwargs = {"actor": "exportwhy"}
         if persist:
             MEMORY_DIR.mkdir(exist_ok=True)
@@ -24,6 +25,15 @@ class Memory:
         if clock:
             kwargs["clock"] = clock
         self.h = HMEM(**kwargs)
+
+    def _reload(self):
+        """Re-open the persisted store after another actor wrote to it."""
+        if self.persist:
+            from .hmem import HMEM
+            kwargs = {"actor": "exportwhy", "persist_dir": str(MEMORY_DIR)}
+            if self.clock:
+                kwargs["clock"] = self.clock
+            self.h = HMEM(**kwargs)
 
     # -- recall ------------------------------------------------------------------------------
     def recall(self, query: str, top_n: int = 5) -> tuple[str, list[dict]]:
@@ -62,7 +72,19 @@ class Memory:
         return max(cands, key=lambda m: _g(m, "timestamp") or 0) if cands else None
 
     def feedback(self, memory_id: str, kind: str):
-        self.h.feedback(memory_id, kind)
+        """Human feedback on a fact. Logged by a separate actor ("analyst") so it is never confused with the
+        agent's own re-verification, which also uses the helpful delta."""
+        self._as_analyst().feedback(memory_id, kind)
+        self._reload()
+
+    def _as_analyst(self):
+        from .hmem import HMEM
+        if not self.persist:
+            return self.h                         # memory-only: same object (tests); actor distinction needs persistence
+        kwargs = {"actor": "analyst", "persist_dir": str(MEMORY_DIR)}
+        if self.clock:
+            kwargs["clock"] = self.clock
+        return HMEM(**kwargs)
 
     def all(self) -> list[dict]:
         return [{"id": _g(m, "id"), "content": _g(m, "content"), "confidence": _g(m, "confidence"), "tags": _g(m, "tags"),
@@ -84,10 +106,12 @@ class Memory:
     def verdict_feedback(self, alert_id: str, agree: bool, note: str = "") -> dict | None:
         """Analyst feedback on the verdict itself (Google SecOps-style thumbs on the disposition). Applied to the
         verdict memory as helpful/wrong, so the ledger keeps who-said-what and the next recall ranks it accordingly."""
-        rec = next((m for m in self.all() if f"alert:{alert_id}" in (m.get("tags") or []) and "kind:verdict" in (m.get("tags") or [])), None)
+        cands = [m for m in self.all() if f"alert:{alert_id}" in (m.get("tags") or []) and "kind:verdict" in (m.get("tags") or []) and not m["superseded"]]
+        rec = cands[-1] if cands else None          # the current verdict record, never a superseded one
         if rec is None:
             return None
-        self.h.feedback(rec["id"], "helpful" if agree else "wrong")
+        self._as_analyst().feedback(rec["id"], "helpful" if agree else "wrong")
+        self._reload()
         if note:
             self.remember(f"Analyst note on {alert_id}: {note}", source=f"analyst:{alert_id}", refs=[], tags=[f"alert:{alert_id}", "kind:analyst-note"], confidence=1.0, mtype="general")
         return self.calibration()
@@ -100,9 +124,9 @@ class Memory:
             if "kind:verdict" not in tags:
                 continue
             verdict = (m["content"].split("verdict ", 1)[1].split(";")[0].strip() if "verdict " in m["content"] else "?")
-            hist = self.history(m["id"])
-            agree = sum(1 for h in hist if h["action"] == "feedback" and (h["details"] or {}).get("kind") == "helpful")
-            disagree = sum(1 for h in hist if h["action"] == "feedback" and (h["details"] or {}).get("kind") == "wrong")
+            hist = [h for h in self.history(m["id"]) if h["action"] == "feedback" and h["actor"] == "analyst"]   # humans only; re-verification is not agreement
+            agree = sum(1 for h in hist if (h["details"] or {}).get("kind") == "helpful")
+            disagree = sum(1 for h in hist if (h["details"] or {}).get("kind") == "wrong")
             d = out.setdefault(verdict, {"verdicts": 0, "agree": 0, "disagree": 0})
             d["verdicts"] += 1; d["agree"] += agree; d["disagree"] += disagree
         return out

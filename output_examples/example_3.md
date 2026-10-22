@@ -1,9 +1,15 @@
 # Export-alert triage: AL-007
 
-**Verdict: investigate**
+**Verdict: investigate** · confidence 1.00 (high) · priority P2 (6/10)
+
+Confidence: evidence completeness 1.00; second opinion agrees; critic 9/9
+
+Priority: dataset confidential (+3); 4800 rows (+1); external destination (+2)
 
 Why:
 - 4800 rows exceed the no-ticket cap and no ticket or exception authorises the export
+
+Verdict investigate: 4800 rows exceed the no-ticket cap and no ticket or exception authorises the export. Next: contact the exporter's manager; confirm whether the destination was internal; preserve the exported file.
 
 ## Evidence (table.column | query step)
 - AL-007 (high, rule: off-hours export emailed outside hours): account u1016 exported 4800 rows of DS03 at 2026-10-21 02:55:00 via sql-console to a email destination; ticket cited: none.  [dexa.export_events.rows_exported | q1]
@@ -15,9 +21,9 @@ Why:
 - The export went to an external email destination: <email redacted>.  [dexa.export_events.destination | q9]
 - Baseline: 4 earlier export(s) of DS03 by this account, largest 88 rows; this export is far above that baseline.  [dexa.export_events.rows_exported | q8]
 
-## Suggested next checks
-- contact the exporter's manager; confirm whether the destination was internal; preserve the exported file
-- confirm whether the destination is a sanctioned location; request deletion if not
+## Suggested next checks (owner to be assigned by the analyst; SLA not modelled)
+- contact the exporter's manager; confirm whether the destination was internal; preserve the exported file  _(suggested owner: exporter's manager; done when: export file preserved and hash recorded)_
+- confirm whether the destination is a sanctioned location; request deletion if not  _(suggested owner: analyst; done when: destination confirmed sanctioned, or deletion confirmed)_
 
 ## Access footprint (disclosure check)
 - tables accessed: accounts, alerts, datasets, export_events, field_sensitivity, policies, policy_exceptions, tickets
@@ -25,5 +31,55 @@ Why:
 - accessed but not needed: none
 - sensitive columns touched: export_events.destination (confidential)
 - values redacted in this report: 1
+
+## Second opinion (Evaluator, model-backed)
+- agrees: model verdict investigate vs rules investigate (stub)
+  - stub: deterministic second opinion agrees with the rules
+
+## Review (Critic, 0-3 x 3 rubric)
+- accuracy 3, appropriateness 3, actionability 3 = 9/9 (pass; attempt 1)
+
+## Investigation timeline
+-    0.0s · planner · fetch alert
+-    0.0s · retriever · q1 alert: 1 rows from alerts, export_events (sqlite, 0 ms)
+-    0.0s · evaluator · needs more: sensitivity, account, dataset
+-    0.0s · planner · fetch account
+-    0.0s · retriever · q2 account: 1 rows from accounts (sqlite, 0 ms)
+-    0.0s · evaluator · needs more: sensitivity, dataset, policy
+-    0.0s · planner · fetch sensitivity, dataset, policy
+-    0.0s · retriever · q3 sensitivity: 9 rows from field_sensitivity (sqlite, 0 ms)
+-    0.0s · retriever · q4 dataset: 1 rows from datasets (sqlite, 0 ms)
+-    0.0s · retriever · q5 policy: 1 rows from accounts, export_events, policies (sqlite, 0 ms)
+-    0.0s · evaluator · needs more: tickets_account, exceptions
+-    0.0s · planner · fetch tickets_account, exceptions
+-    0.0s · retriever · q6 tickets_account: 0 rows from tickets (sqlite, 0 ms)
+-    0.0s · retriever · q7 exceptions: 0 rows from policy_exceptions (sqlite, 0 ms)
+-    0.0s · evaluator · needs more: account_history, destination
+-    0.0s · planner · fetch account_history, destination
+-    0.0s · retriever · q8 account_history: 1 rows from export_events (sqlite, 0 ms)
+-    0.0s · retriever · q9 destination: 1 rows from export_events (sqlite, 0 ms)
+-    0.0s · evaluator · verdict investigate
+-    0.0s · evaluator · second opinion investigate (agrees; stub)
+-    0.0s · critic · rubric 9/9 attempt 1
+
+## World state (Meterless World Model)
+Account u1016 is known to the world model: 1 recorded export(s) across DS03; 0 ticket citation(s).
+
+## Memory used (H-MEM)
+[MEMORY CONTEXT]
+## general
+- [WK] 0 other ticket(s) for u1016 on DS03; none covers this export. <mem-55>
+[/MEMORY CONTEXT]
+
+## Memory updated (H-MEM, with provenance)
+- reconfirmed: `mem-51` AL-007 (high, rule: off-hours export emailed outside hours): account u1016 exported 4800 rows of DS03 at 2026-10-21 02:55:00 via sql-console  <dexa.export_events via q1>
+- reconfirmed: `mem-52` Account u1016: role support, department finance, status active since 2026-03-31 00:00:00.  <dexa.accounts via q2>
+- reconfirmed: `mem-53` Dataset DS03 (support_tickets) is classified confidential, owner customer-care, contains_pii=True.  <dexa.datasets via q4>
+- reconfirmed: `mem-54` Policy P034: role support may export DS03; no-ticket cap 200 rows; advisory hours 07:00-19:00 (export was outside them).  <dexa.policies via q5>
+- reconfirmed: `mem-55` 0 other ticket(s) for u1016 on DS03; none covers this export.  <dexa.tickets via q6>
+- reconfirmed: `mem-56` No policy exception covers role support or account u1016 on DS03 at 2026-10-21 02:55:00.  <dexa.policy_exceptions via q7>
+- reconfirmed: `mem-57` The export went to an external email destination: <email redacted>.  <dexa.export_events via q9>
+- reconfirmed: `mem-58` Baseline: 4 earlier export(s) of DS03 by this account, largest 88 rows; this export is far above that baseline.  <dexa.export_events via q8>
+- reconfirmed: `mem-59` verdict investigate  <evaluator>
 
 _trace: traces/example-3.json | evaluator rounds: 3 | data: sqlite | model: stub_

@@ -53,4 +53,5 @@ Record counts for seed 7: 40 accounts, 242 export events, 13 alerts, 8 datasets,
 - Policies are per role x dataset only; no per-column or per-row entitlements.
 - The hours window is advisory below the no-ticket cap; the generator and the evaluator agree on that reading.
 - Timestamps are naive local time in one zone.
+- Licence: the generator and every generated sample are original work released with the project under Apache-2.0; they contain no third-party data.
 - Pre-existing components: none. Generator, samples and ground truth were written during the build window.

@@ -29,7 +29,7 @@ Notes: One sentence: a security analyst gets an alert that someone exported 48,0
 - the approval-ticket system says *whether it was approved*, for how many rows, until when
 - none of them knows about the others; the analyst joins them by hand, every time
 
-**Cost today:** 15–40 minutes per alert of copy-paste investigation; inconsistent calls between analysts; "approved" accepted at face value without checking scope or expiry.
+**Cost today:** analysts reconcile export logs, policies and approvals by hand; calls differ between analysts; "approved" is accepted at face value without checking scope or expiry. (Time savings have not been measured in this project.)
 
 Visual: three disconnected boxes (logs · policy · tickets) with the analyst in the middle.
 
@@ -50,7 +50,7 @@ Given an alert id, it:
 
 Visual: one report, annotated (verdict line, evidence line with `[dexa.tickets.valid_to | q6]`, "Conflicts", "Cannot be confirmed", "Access footprint").
 
-Notes: Read one evidence line aloud so the judges hear the citation format. Point at "cannot be confirmed": the agent has a third state that the two-way true/false-positive products do not have.
+Notes: Read one evidence line aloud so the judges hear the citation format. Point at "cannot be confirmed": ExportWhy explicitly separates unresolved evidence from a grounded disposition instead of forcing a yes/no.
 
 ---
 
@@ -81,7 +81,7 @@ Notes: Say explicitly which agentic pairings this is (Planner+Doer, Evidence-Wea
 ## 5. Zetaris: three sources, one schema
 
 - three independent Postgres databases (logs, policy, tickets) registered as **three JDBC datasources**
-- one schemastore container `dexa` with a view per table → the agent writes ordinary SQL, **Zetaris executes the cross-source joins**
+- one schemastore container `dexa` with a view per table → the agent writes ordinary SQL; the policy and cited-ticket lookups are **cross-source joins executed by Zetaris** (logs ⋈ policy, logs ⋈ tickets), the rest are scoped single-source queries
 - the agent never connects to a source directly; the data layer is the only tool it has
 - 15 registration statements, scripted; the same schema is served offline from a SQLite twin (`SAMPLE_MODE`)
 
@@ -107,7 +107,7 @@ Notes: Stress "critical path": remove either engine and a feature stops working 
 
 ## 7. NVIDIA Nemotron: where the model contributes
 
-- drafts the evidence SQL (48 of 48 drafts kept by the validator in the live run; 0 rejected)
+- drafts the evidence SQL (validator keeps a draft only if it is read-only, column-scoped and, for authorisation lookups, carries every filter of the template; 48 of 48 kept in the recorded live run)
 - gives the Evaluator's **second opinion** on the same facts, blind to the rules' answer
 - writes the analyst summary and **scores it as the Critic**
 - every call: `routed_model` and `receipt_id` in the trace (`nvidia/nemotron-3-ultra-550b-a55b`, `nemotron-3.5-super-vl-120b-a12b`)
@@ -123,15 +123,15 @@ Notes: Name the design rule: the model can make the verdict more conservative or
 | check | result |
 |---|---|
 | live Zetaris, rule verdicts | 13/13 alerts match ground truth |
-| live Zetaris + Nemotron drafting | 13/13; 35 model calls; 48/48 SQL kept |
+| live Zetaris + Nemotron drafting (recorded 2026-10-22 run) | 13/13; 48/48 drafted SQL kept |
 | 12 seeds × 13 alerts, offline | 156/156 |
-| disclosure ablation (sensitive column reads over 13 triages) | naive `SELECT *` 113 · this system 3 · + Nemotron drafts 5, identical verdicts |
+| disclosure ablation (distinct sensitive-column reads over 13 synthetic triages) | naive `SELECT *` 113 · this system 5 (96% fewer), identical verdicts |
 | failure path | any critical source down → cannot-confirm, never compliant (3 outage tests) |
 | tests | 42 passed (two engine conformance suites + end-to-end) |
 
-Visual: the confusion table (10 scenarios, every row in its expected column) and the ablation bar (113 vs 3).
+Visual: the confusion table (10 scenarios, every row in its expected column) and the ablation bar (113 vs 5).
 
-Notes: Be honest: ground truth is generated with the data, so 156/156 measures consistency on the ten scenarios the generator injects, not real-world detection quality. The ablation is the differentiator: 38× less sensitive data read for the same verdicts.
+Notes: Be honest: ground truth is generated with the data, so 156/156 measures consistency on the ten scenarios the generator injects, not real-world detection quality. The ablation is the differentiator: 96% fewer distinct sensitive-column accesses on these 13 synthetic alerts, for the same verdicts.
 
 ---
 
@@ -165,4 +165,4 @@ Notes: End on the one-liner: an analyst can read the verdict, see every claim's 
 
 ## Appendix slide (optional): the eight-line agent loop spec
 
-Goal · Plan (≤5 steps) · Tools with fail modes · Memory (scratchpad / decisions / knowledge) · Rubric 0-3×3 · Stop conditions (grounded → report; budget spent → cannot-confirm; disagreement → needs-human; critic <7/9 → one revision) · Run log (JSONL) · Guardrails (3 rounds, ≤6 model calls, read-only SQL, column-scoped, 480 s budget, redaction).
+Goal · Plan (≤5 steps) · Tools with fail modes · Memory (scratchpad / decisions / knowledge) · Rubric 0-3×3 · Stop conditions (grounded → report; budget spent → cannot-confirm; disagreement → needs-human; critic <7/9 → one revision, still failing → deterministic summary) · Run log (JSONL) · Guardrails (3 rounds, ≤8 model calls, read-only SQL with fixed authorisation predicates, column-scoped, 480 s budget enforced per call, redaction).

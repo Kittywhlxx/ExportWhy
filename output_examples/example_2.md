@@ -1,9 +1,15 @@
 # Export-alert triage: AL-004
 
-**Verdict: investigate**
+**Verdict: investigate** · confidence 1.00 (high) · priority P1 (8/10)
+
+Confidence: evidence completeness 1.00; second opinion agrees; critic 9/9
+
+Priority: dataset restricted (+4); 48000 rows (+2); external destination (+2)
 
 Why:
 - the cited ticket does not cover this export and no other authorisation does
+
+Verdict investigate: the cited ticket does not cover this export and no other authorisation does. Next: contact the ticket approver and the exporter's manager; preserve the exported file.
 
 ## Evidence (table.column | query step)
 - AL-004 (high, rule: rows exported exceed ticket scope): account u1012 exported 48000 rows of DS02 at 2026-10-19 03:30:00 via sql-console to a cloud-bucket destination; ticket cited: T-2629.  [dexa.export_events.rows_exported | q1]
@@ -13,18 +19,73 @@ Why:
 - Ticket T-2629: requester u1012, dataset DS02, max_rows 5000, approved, valid 2026-10-18 03:30:00 .. 2026-10-25 03:30:00, approver u1005.  [dexa.tickets.valid_to | q6]
 - 0 other ticket(s) for u1012 on DS02; none covers this export.  [dexa.tickets.status | q7]
 - No policy exception covers role finance or account u1012 on DS02 at 2026-10-19 03:30:00.  [dexa.policy_exceptions.exception_id | q8]
+- The export went to an external cloud-bucket destination: <destination redacted>  [dexa.export_events.destination | q10]
+- Baseline: 0 earlier export(s) of DS02 by this account, largest 0 rows; this export is far above that baseline.  [dexa.export_events.rows_exported | q9]
 
 ## Conflicts (flagged, not silently resolved)
 - ticket T-2629 was cited but does not cover the export: 48000 rows exported exceed the ticket's max_rows 5000
 
-## Suggested next checks
-- contact the ticket approver and the exporter's manager; preserve the exported file
+## Suggested next checks (owner to be assigned by the analyst; SLA not modelled)
+- contact the ticket approver and the exporter's manager; preserve the exported file  _(suggested owner: ticket approver; done when: export file preserved and hash recorded)_
+- confirm whether the destination is a sanctioned location; request deletion if not  _(suggested owner: analyst; done when: destination confirmed sanctioned, or deletion confirmed)_
 
 ## Access footprint (disclosure check)
 - tables accessed: accounts, alerts, datasets, export_events, field_sensitivity, policies, policy_exceptions, tickets
 - tables that contributed to the verdict: accounts, alerts, datasets, export_events, field_sensitivity, policies, policy_exceptions, tickets
 - accessed but not needed: none
-- sensitive columns touched: none
-- values redacted in this report: 0
+- sensitive columns touched: export_events.destination (confidential)
+- values redacted in this report: 1
+
+## Second opinion (Evaluator, model-backed)
+- agrees: model verdict investigate vs rules investigate (stub)
+  - stub: deterministic second opinion agrees with the rules
+
+## Review (Critic, 0-3 x 3 rubric)
+- accuracy 3, appropriateness 3, actionability 3 = 9/9 (pass; attempt 1)
+
+## Investigation timeline
+-    0.0s · planner · fetch alert
+-    0.0s · retriever · q1 alert: 1 rows from alerts, export_events (sqlite, 0 ms)
+-    0.0s · evaluator · needs more: sensitivity, account, dataset
+-    0.0s · planner · fetch account
+-    0.0s · retriever · q2 account: 1 rows from accounts (sqlite, 0 ms)
+-    0.0s · evaluator · needs more: sensitivity, dataset, policy, ticket_cited
+-    0.0s · planner · fetch sensitivity, dataset, policy, ticket_cited
+-    0.0s · retriever · q3 sensitivity: 9 rows from field_sensitivity (sqlite, 0 ms)
+-    0.0s · retriever · q4 dataset: 1 rows from datasets (sqlite, 0 ms)
+-    0.0s · retriever · q5 policy: 1 rows from accounts, export_events, policies (sqlite, 0 ms)
+-    0.0s · retriever · q6 ticket_cited: 1 rows from export_events, tickets (sqlite, 0 ms)
+-    0.0s · evaluator · needs more: tickets_account, exceptions
+-    0.0s · planner · fetch tickets_account, exceptions
+-    0.0s · retriever · q7 tickets_account: 1 rows from tickets (sqlite, 0 ms)
+-    0.0s · retriever · q8 exceptions: 1 rows from policy_exceptions (sqlite, 0 ms)
+-    0.0s · evaluator · needs more: account_history, destination
+-    0.0s · planner · fetch account_history, destination
+-    0.0s · retriever · q9 account_history: 1 rows from export_events (sqlite, 0 ms)
+-    0.0s · retriever · q10 destination: 1 rows from export_events (sqlite, 0 ms)
+-    0.0s · evaluator · verdict investigate
+-    0.0s · evaluator · second opinion investigate (agrees; stub)
+-    0.0s · critic · rubric 9/9 attempt 1
+
+## World state (Meterless World Model)
+Account u1012 is known to the world model: 1 recorded export(s) across DS02; 1 ticket citation(s).
+
+## Memory used (H-MEM)
+[MEMORY CONTEXT]
+## general
+- [WK] 0 other ticket(s) for u1012 on DS02; none covers this export. <mem-29>
+[/MEMORY CONTEXT]
+
+## Memory updated (H-MEM, with provenance)
+- reconfirmed: `mem-24` AL-004 (high, rule: rows exported exceed ticket scope): account u1012 exported 48000 rows of DS02 at 2026-10-19 03:30:00 via sql-console to   <dexa.export_events via q1>
+- reconfirmed: `mem-25` Account u1012: role finance, department marketing, status active since 2025-07-03 00:00:00.  <dexa.accounts via q2>
+- reconfirmed: `mem-26` Dataset DS02 (payment_transactions) is classified restricted, owner finance, contains_pii=True.  <dexa.datasets via q4>
+- reconfirmed: `mem-27` Policy P041: role finance may export DS02; no-ticket cap 500 rows; advisory hours 07:00-19:00 (export was outside them).  <dexa.policies via q5>
+- reconfirmed: `mem-28` Ticket T-2629: requester u1012, dataset DS02, max_rows 5000, approved, valid 2026-10-18 03:30:00 .. 2026-10-25 03:30:00, approver u1005.  <dexa.tickets via q6>
+- reconfirmed: `mem-29` 0 other ticket(s) for u1012 on DS02; none covers this export.  <dexa.tickets via q7>
+- reconfirmed: `mem-30` No policy exception covers role finance or account u1012 on DS02 at 2026-10-19 03:30:00.  <dexa.policy_exceptions via q8>
+- reconfirmed: `mem-31` The export went to an external cloud-bucket destination: <destination redacted>  <dexa.export_events via q10>
+- reconfirmed: `mem-32` Baseline: 0 earlier export(s) of DS02 by this account, largest 0 rows; this export is far above that baseline.  <dexa.export_events via q9>
+- reconfirmed: `mem-33` verdict investigate  <evaluator>
 
 _trace: traces/example-2.json | evaluator rounds: 3 | data: sqlite | model: stub_

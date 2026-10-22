@@ -72,17 +72,18 @@ def from_traces(trace_dir: Path) -> list[dict]:
 
 def main() -> int:
     ap = argparse.ArgumentParser(); ap.add_argument("--traces", default=str(ROOT / "traces")); ap.add_argument("--out", default=str(ROOT / "docs/ablation_disclosure.md"))
+    ap.add_argument("--live-traces", action="store_true", help="add a row computed from the latest live-model trace per alert in --traces (only meaningful on a frozen directory)")
     a = ap.parse_args()
     rows = [summarise("naive (SELECT *)", run_config("naive")), summarise("scoped templates (this system)", run_config(""))]
-    live = from_traces(Path(a.traces))
+    live = from_traces(Path(a.traces)) if a.live_traces else []
     if live:
-        rows.append(summarise("scoped + Nemotron-drafted SQL (validated)", live))
+        rows.append(summarise(f"scoped + Nemotron-drafted SQL (validated), traces from {a.traces}", live))
     cols = ["config", "alerts", "pii", "confidential", "internal", "sensitive_total", "unused_tables", "tables_per_alert", "ground_truth"]
     md = ["| " + " | ".join(cols) + " |", "|" + "---|" * len(cols)] + ["| " + " | ".join(str(r[c]) for c in cols) + " |" for r in rows]
     text = ("# Disclosure ablation\n\nSame 13 alerts (seed 7), same evidence loop and verdict rules; only how the queries are written differs. "
             "Counts are distinct sensitive columns read, summed over the 13 triages, classified by `field_sensitivity`.\n\n" + "\n".join(md) +
-            "\n\nnaive = every evidence query is `SELECT *`; scoped = the shipped column-scoped templates; the third row is the live run where "
-            "Nemotron drafted the SQL and the validator kept only drafts that stay read-only, on known tables, on this alert's keys.\n")
+            "\n\nnaive = every evidence query is `SELECT *`; scoped = the shipped column-scoped templates. Both rows are reproducible offline. "
+            "A live-model row is only added with --live-traces on a frozen trace directory, because mixing trace versions is not a like-for-like comparison.\n")
     Path(a.out).write_text(text); print(text)
     return 0
 

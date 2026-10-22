@@ -18,7 +18,7 @@ sys.path.insert(0, str(ROOT))
 from agent import config  # noqa: E402
 from agent.main import run  # noqa: E402
 from agent.memory import Memory  # noqa: E402
-from agent.roles import Task  # noqa: E402
+from agent.roles import Task, redact  # noqa: E402
 from agent.zetaris import DataLayerError, get_backend  # noqa: E402
 
 st.set_page_config(page_title="ExportWhy", page_icon="🔎", layout="wide")
@@ -64,8 +64,8 @@ if "last" not in st.session_state:
     st.stop()
 
 alert_id, report, outcome = st.session_state["last"]
-trace_path = config.TRACE_DIR / f"{[p for p in sorted(config.TRACE_DIR.glob('*.json'))][-1].name}" if config.TRACE_DIR.exists() else None
-trace = json.loads(trace_path.read_text()) if trace_path else {}
+trace_path = config.TRACE_DIR / f"{outcome['run_id']}.json"          # the trace of THIS outcome, not the newest file
+trace = json.loads(trace_path.read_text()) if trace_path.exists() else {}
 
 # ------------------------------------------------------------------ verdict banner
 verdict = outcome["verdict"]
@@ -74,15 +74,16 @@ banner = f"**{alert_id} → {verdict.upper()}**  —  " + ("; ".join(outcome["re
 if tstatus != "complete":
     banner = f"[{tstatus.upper()}] " + banner
 getattr(st, VERDICT_STYLE.get(verdict, "info"))(banner)
+queue = outcome.get("queue", "none")
 c0, c1, c2, c3, c4, c5 = st.columns(6)
-c0.metric("confidence", f"{conf.get('score', 0):.2f}", conf.get("label"))
-c1.metric("priority", prio["bucket"] if prio else "—", f"{prio['score']:.0f}/10" if prio else "not queued")
+c0.metric("evidence/review score", f"{conf.get('score', 0):.2f}", conf.get("label"), help="heuristic, not a probability: evidence completeness, second-opinion agreement, critic score, open gaps")
+c1.metric("queue", {"manual-review": "manual review", "none": "not queued"}.get(queue, queue), (f"{prio['score']:.0f}/10" if prio else ("unresolved evidence" if queue == "manual-review" else "no action")))
 c2.metric("evaluator rounds", outcome["rounds"])
 c3.metric("facts cited", outcome["facts"])
 c4.metric("cannot confirm", len(outcome["gaps"]))
 c5.metric("sensitive columns read", len(outcome["disclosure"]["sensitive_columns_touched"]))
 if conf.get("factors"):
-    st.caption("confidence: " + "; ".join(conf["factors"]) + ((" · priority: " + "; ".join(prio["factors"])) if prio else ""))
+    st.caption("score: " + "; ".join(conf["factors"]) + ((" · priority: " + "; ".join(prio["factors"])) if prio else "") + (" · offline: the second opinion is a deterministic stub" if outcome.get("llm") == "stub" else ""))
 fb1, fb2, fb3 = st.columns([1, 1, 6])
 if fb1.button("👍 agree with verdict", key="v-agree"):
     st.session_state["cal"] = Memory().verdict_feedback(alert_id, True); st.rerun()
@@ -90,7 +91,7 @@ if fb2.button("👎 disagree", key="v-disagree"):
     st.session_state["cal"] = Memory().verdict_feedback(alert_id, False); st.rerun()
 cal = st.session_state.get("cal") or Memory().calibration()
 if cal:
-    fb3.caption("calibration (analyst feedback on verdicts): " + "; ".join(f"{k}: {v['agree']} agree / {v['disagree']} disagree over {v['verdicts']} verdict(s)" for k, v in cal.items()))
+    fb3.caption("analyst feedback tally (humans only): " + "; ".join(f"{k}: {v['agree']} agree / {v['disagree']} disagree over {v['verdicts']} verdict(s)" for k, v in cal.items()))
 
 # ------------------------------------------------------------------ report + trace
 left, right = st.columns([3, 2])
@@ -149,7 +150,7 @@ try:
     for m in records:
         c_text, c_conf, c_ok, c_bad = st.columns([7, 1.2, 1, 1])
         flags = (" · superseded" if m["superseded"] else "") + (" · review" if "review" in (m.get("tags") or []) else "")
-        c_text.markdown(f"`{m['id']}` {m['content']}")
+        c_text.markdown(f"`{m['id']}` {redact(m['content'])[0]}")
         c_conf.markdown(f"**{float(m['confidence']):.2f}**{flags}")
         if c_ok.button("helpful", key=f"ok-{m['id']}"):
             mem.feedback(m["id"], "helpful"); st.session_state["flash"] = f"{m['id']}: helpful, +0.05 confidence, ledger entry written"; st.rerun()

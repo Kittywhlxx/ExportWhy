@@ -85,7 +85,7 @@ Why:
 | **Rubric (0-3 × 3)** | Critic: accuracy · appropriateness · actionability; pass at 7/9 |
 | **Stop conditions** | verdict grounded → report; evidence budget (3 rounds) spent → cannot-confirm; rules vs model disagree → needs-human; critic < 7/9 → one revision |
 | **Run log** | `logs/trace-<run_id>.jsonl`: step · decision · result · next agent, plus `traces/<run_id>.json` |
-| **Guardrails** | ≤3 evaluator rounds; ≤6 model calls per alert (two planning, one second opinion, one summary, one critique, at most one revision); read-only SQL on known tables only, column-scoped; 180 s model timeout, 3 bounded retries, every model failure degrades to a template or 'unavailable' and never aborts the triage; secrets only from env; redaction before output |
+| **Guardrails** | ≤3 evaluator rounds; ≤8 model calls per alert (up to three planning rounds, one second opinion, one summary, one critique, at most one revision and its re-check); read-only SQL on known tables only, column-scoped, authorisation lookups must keep every filter of their template; a 480 s triage budget enforced before every model call and inside its retries, model timeout ≤180 s; every model failure degrades to a template or 'unavailable', a summary that fails review is replaced by the deterministic one; secrets only from env; redaction before output |
 
 Autonomy level L2 (loop with checks): the agent iterates on its own but must pass the rules, the
 second opinion and the critic; the analyst stays in the loop through the feedback buttons.
@@ -95,7 +95,7 @@ second opinion and the critic; the analyst stays in the loop through the feedbac
 | | Where | What it does in this project |
 |---|---|---|
 | **Zetaris** (required) | `data/zetaris/register.py`, `agent/zetaris.py` | Three Postgres databases are registered as three JDBC datasources and exposed as one schemastore container `dexa`. Every agent query is a Lightning SQL `SELECT` over that schema; Zetaris executes the cross-source joins. The agent never connects to a source directly. |
-| **Meterless H-MEM** (engine) | `agent/hmem/` (Python implementation of the spec), `agent/memory.py` | Findings are memory records with mandatory source and provenance; feedback deltas, supersede-on-change and the trust ledger follow the spec. `tests/test_hmem_conformance.py` reproduces the official conformance vectors (`agent/hmem/conformance_vectors.json`, byte-identical copy). |
+| **Meterless H-MEM** (engine) | `agent/hmem/` (Python implementation of the spec), `agent/memory.py` | Findings are memory records with mandatory source and provenance; feedback deltas, supersede-on-change and the trust ledger follow the spec. `tests/test_hmem_conformance.py` reproduces the official conformance vectors (`agent/hmem/conformance_vectors.json`, a copy of the upstream file). |
 | **Meterless World Model** (engine) | `agent/worldmodel/` (Python implementation of the spec), `agent/world.py` | Stable content-addressed ids, provenance on every write, append-only event log, bitemporal edges. Accounts/datasets/tickets/exceptions are entities, alerts/events are contexts; the account dossier feeds the Planner and the Evaluator. `tests/test_worldmodel_conformance.py` reproduces the official runner's cases. |
 | **Meterless Nightshift** (primary AI provider) | `agent/llm.py` | OpenAI-compatible calls to the local runtime with the provider contract v4 headers (`Authorization: Bearer`, `meterless-app`, `meterless-scope: user`), `GET /v1/models` as the online check, 429 back-off. |
 | **NVIDIA Nemotron** | via Nightshift | The NVIDIA key lives in Nightshift's Providers tab; requests are routed to Nemotron models and the compute receipt (requested vs routed model) is written into every trace under `routed_model`. |
@@ -272,19 +272,20 @@ full table in [docs/ablation_disclosure.md](docs/ablation_disclosure.md)).
 | planner | pii | confidential | internal | sensitive total | verdicts vs ground truth |
 |---|---:|---:|---:|---:|---|
 | naive: every evidence query is `SELECT *` | 52 | 26 | 35 | 113 | 13/13 |
-| this system: column-scoped evidence queries | 0 | 3 | 0 | 3 | 13/13 |
-| this system + Nemotron-drafted SQL, validator-gated (live run) | 0 | 5 | 0 | 5 | 13/13 |
+| this system: column-scoped evidence queries | 0 | 5 | 0 | 5 | 13/13 |
 
-The three confidential reads are the `destination` column, fetched only for the alerts whose export left
-the internal share and whose verdict was not "compliant". Identical verdicts, 38x less sensitive data read:
-minimal disclosure is a policy of the planner, not a loss of accuracy.
+The five confidential reads are the `destination` column, fetched only for the alerts whose export left
+the internal share and whose verdict was not "compliant". Identical verdicts, 96% fewer distinct
+sensitive-column accesses on these 13 synthetic alerts: minimal disclosure is a policy of the planner, not a
+loss of accuracy. With Nemotron drafting the SQL, the validator now keeps every filter and the column list of
+an authorisation template, so a draft cannot widen what is read.
 
 ## Tests
 
 `pytest -q` runs the H-MEM conformance vectors, the World Model conformance cases, and the
 end-to-end loop in `SAMPLE_MODE` (ground truth, cross-alert world state, outage injection per source,
 redaction, second-opinion escalation, critic-driven revision, confidence/priority/timeline, time budget,
-verdict feedback). 42 tests, one expected-fail that pins a known reference-implementation behaviour.
+verdict feedback, review-found regressions). 47 tests, one expected-fail that pins a known reference-implementation behaviour.
 
 ## Limits and honest notes
 
@@ -295,7 +296,9 @@ verdict feedback). 42 tests, one expected-fail that pins a known reference-imple
 * Nightshift chooses the Nemotron model per request and currently prefers Nemotron 3 Ultra (550B), a
   reasoning model that spends 400–1400 tokens thinking before it answers; a live triage therefore takes
   4–5 minutes for five model calls, within the 5–10 minute budget. The stub path takes 2 seconds.
-* Pre-existing components: none. Everything was written during the build window (22–27 Oct 2026).
+* Pre-existing components: no pre-existing product code. The Meterless engines are Python ports of the
+  published reference implementations (Apache-2.0, see NOTICE); everything else was written during the build
+  window (22–27 Oct 2026). Project licence: Apache-2.0.
 
 ## Repository layout
 

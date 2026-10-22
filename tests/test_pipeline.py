@@ -126,3 +126,67 @@ def test_verdict_feedback_is_recorded_in_ledger_and_calibration():
     stats = Memory().verdict_feedback("AL-004", agree=False, note="scope amended later")
     assert stats["investigate"]["disagree"] == 1
     assert Memory().verdict_feedback("AL-999", agree=True) is None
+
+
+# ---- regressions from the pre-submission review
+
+def test_validator_rejects_widened_authorisation_queries():
+    from agent.roles import Planner, TEMPLATES
+    t = Task(alert_id="AL-011", event_id="E00001", account_id="u1022", dataset_id="DS04", role="analyst", ticket_ref="T-9999")
+    tpl = TEMPLATES["exceptions"][1].format(**{k: (v or "") for k, v in vars(t).items()})
+    widened = "SELECT exception_id, scope_type, scope_value, dataset_id, clause, valid_from, valid_to, approved_by FROM dexa.policy_exceptions WHERE dataset_id = 'DS04'"
+    assert Planner._validate(widened, t, template=tpl, evidence="exceptions")[0] is False
+    assert Planner._validate("SELECT * FROM dexa.policy_exceptions WHERE dataset_id = 'DS04'", t, template=tpl, evidence="exceptions")[0] is False
+    rewritten = tpl.replace("SELECT", "select", 1).replace(" FROM ", "\nFROM ")      # same filters and columns, cosmetic rewrite: accepted
+    assert Planner._validate(rewritten, t, template=tpl, evidence="exceptions")[0] is True
+
+
+def test_evaluator_ignores_exception_rows_for_other_accounts(monkeypatch):
+    """Even if a widened query slipped through, another account's exception must not authorise this export."""
+    real = zetaris.SampleSQLite.query
+
+    def widened(self, sql, limit=200):
+        if "dexa.policy_exceptions" in sql:
+            return real(self, "SELECT exception_id, scope_type, scope_value, dataset_id, clause, valid_from, valid_to, approved_by FROM dexa.policy_exceptions WHERE dataset_id = 'DS04'", limit)
+        return real(self, sql, limit)
+
+    monkeypatch.setattr(zetaris.SampleSQLite, "query", widened)
+    _, out = agent_main.run(Task(alert_id="AL-011"))          # u1022 on DS04; X03 belongs to u1014
+    assert out["verdict"] == "cannot-confirm"
+    assert any("do not apply to this alert" in c for c in out["conflicts"])
+
+
+def test_summary_gate_falls_back_when_critic_keeps_failing(monkeypatch):
+    from agent import roles
+
+    def always_bad(self, task, a):
+        return "Verdict investigate: approved by ticket T-4242 for 99999 rows."
+
+    monkeypatch.setattr(roles.Reporter, "draft_summary", always_bad)
+    monkeypatch.setattr(roles.Reporter, "revise", lambda self, task, a, summary, fix: summary)   # revision does not help
+    _, out = agent_main.run(Task(alert_id="AL-004"))
+    assert out["critic"]["review_status"].startswith("failed")
+    assert "T-4242" not in out["summary"] and out["verdict"] in out["summary"]
+
+
+def test_run_py_respects_sample_mode_env_and_outage_keys(monkeypatch):
+    import run as entry
+    monkeypatch.setenv("SAMPLE_MODE", "true")
+    body = entry.triage({"run_id": "t-1", "input": {"alert_id": "AL-001"}, "options": {"simulate_outage": "logs"}})
+    assert body["status"] == "success" and body["output"]["data_layer"] == "sqlite"
+    assert body["output"]["verdict"] == "cannot-confirm" and body["output"]["triage_status"] == "partial"
+    for key in ("confidence", "priority", "queue", "timeline", "cannot_confirm"):
+        assert key in body["output"]
+
+
+def test_slow_backend_yields_partial_not_complete(monkeypatch):
+    import time as _t
+    real = zetaris.SampleSQLite.query
+
+    def slow(self, sql, limit=200):
+        _t.sleep(0.05); return real(self, sql, limit)
+
+    monkeypatch.setattr(zetaris.SampleSQLite, "query", slow)
+    monkeypatch.setenv("TRIAGE_TIMEOUT_S", "0.2")
+    _, out = agent_main.run(Task(alert_id="AL-004"))
+    assert out["status"] in ("partial", "timed-out")

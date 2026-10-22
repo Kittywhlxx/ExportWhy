@@ -1,0 +1,10 @@
+ExportWhy — Open Agent Hackathon 2026 entry.
+
+This product includes software adapted from Meterless (https://github.com/Meterless/Meterless),
+licensed under the Apache License, Version 2.0:
+  - agent/hmem/            Python port of engines/hmem/reference (H-MEM) and its conformance runner cases
+  - agent/worldmodel/      Python port of engines/world-model/reference and its conformance runner cases
+  - agent/hmem/conformance_vectors.json   copy of engines/hmem/conformance/vectors/vectors.json
+Modifications: translation to Python, synchronous APIs, dataclass records, test ports (tests/test_hmem_conformance.py,
+tests/test_worldmodel_conformance.py). All other code, the synthetic data generator, scenarios and ground truth are
+original work written during the hackathon build window (22–27 October 2026).

@@ -32,7 +32,12 @@ def run(task: Task, persist_memory: bool = True, run_id: str | None = None) -> t
     trace = Trace(task.describe(), mode, run_id=run_id)
     backend, llm = get_backend(), get_llm()
     memory = Memory(persist=persist_memory)
-    planner, retriever, evaluator, reporter, critic = Planner(llm, trace), Retriever(backend, trace), Evaluator(trace, llm), Reporter(llm, trace), Critic(llm, trace)
+    budget_s = float(config.env("TRIAGE_TIMEOUT_S", "480") or 480)   # whole-triage wall clock; beyond it: partial result, manual review
+    deadline = trace.started + budget_s
+    remaining = lambda: max(0.0, deadline - time.time())
+    status = "complete"
+    planner, retriever, evaluator, reporter, critic = (Planner(llm, trace, remaining), Retriever(backend, trace), Evaluator(trace, llm, remaining),
+                                                       Reporter(llm, trace, remaining), Critic(llm, trace, remaining))
 
     # round 0: identify the alert and its export event, then the exporting account (keys for everything else)
     done: dict[str, list] = {}
@@ -46,10 +51,14 @@ def run(task: Task, persist_memory: bool = True, run_id: str | None = None) -> t
         if any(s.error for s in done.get("alert", [])):
             # the alert source itself is down: report that, do not pretend to know anything
             assessment.verdict = "cannot-confirm"
-            report = reporter.report(task, assessment, "", 0)
+            confidence = {"score": 0.0, "label": "low", "factors": ["the alert source could not be queried"]}
+            critique = {"attempt": 0, "scores": None, "total": None, "passed": None, "fix": None, "source": "none", "note": "skipped: no evidence to summarise", "review_status": "skipped"}
+            report = reporter.report(task, assessment, "", 0, confidence=confidence, critique=critique, status="partial")
             outcome = {"alert_id": task.alert_id, "verdict": "cannot-confirm", "reasons": assessment.reasons, "conflicts": [], "gaps": assessment.gaps,
                        "missing": [], "facts": 0, "rounds": 0, "disclosure": assessment.disclosure, "memory_recalled": 0, "evidence": [],
                        "next_steps": assessment.next_steps, "run_id": trace.run_id, "log_file": str(trace.log_file.relative_to(config.ROOT)),
+                       "summary": reporter.template_summary(assessment), "second_opinion": None, "critic": critique, "confidence": confidence,
+                       "priority": None, "queue": "manual-review", "status": "partial", "timeline": _timeline(trace),
                        "memory": {"created": 0, "reconfirmed": 0, "superseded": 0}, "world": {"appended": 0}, "backend": backend.name, "llm": llm.name}
             path = trace.finish(outcome)
             return report + f"\n\n_trace: {path.relative_to(config.ROOT) if config.ROOT in path.parents else path} | data: {backend.name} | model: {llm.name}_\n", outcome
@@ -66,10 +75,6 @@ def run(task: Task, persist_memory: bool = True, run_id: str | None = None) -> t
     task.prior = dossier
     trace.step("world", "dossier", known=dossier["known"], prior_alerts=dossier["prior_alerts"], status_history=dossier["status_history"])
     planner_context = "\n".join(x for x in (memory_context, world_context) if x)
-
-    budget_s = float(config.env("TRIAGE_TIMEOUT_S", "480") or 480)   # whole-triage wall clock; beyond it: partial result, manual review
-    deadline = trace.started + budget_s
-    status = "complete"
 
     rounds = 0
     reason = "evidence the verdict needs: " + ", ".join(assessment.missing) + (" (memory holds earlier findings on this account/dataset; re-verifying)" if recalled else "")
@@ -124,11 +129,20 @@ def run(task: Task, persist_memory: bool = True, run_id: str | None = None) -> t
     else:
         summary = reporter.draft_summary(task, assessment)
         critique = critic.review(task, assessment, summary, attempt=1)
-        if critique["passed"] is False and critique.get("fix"):
+        if critique["passed"] is False and critique.get("fix") and time.time() < deadline:
             summary = reporter.revise(task, assessment, summary, critique["fix"])
             second = critic.review(task, assessment, summary, attempt=2)
             second["fix_applied"] = critique["fix"]; second["first_total"] = critique["total"]
             critique = second
+    # the rubric is a gate: a summary that did not pass (or could not be reviewed) is never delivered as-is
+    if critique.get("passed") is True:
+        critique["review_status"] = "passed"
+    else:
+        critique["review_status"] = "failed; deterministic summary used" if critique.get("passed") is False else "unavailable; deterministic summary used"
+        summary = reporter.template_summary(assessment)
+        trace.step("reporter", "summary_fallback", review_status=critique["review_status"])
+    if time.time() > deadline and status == "complete":
+        status = "partial"
 
     # confidence in the verdict: evidence completeness, second-opinion agreement, critic score, open gaps
     # evidence completeness: the decision-critical classes this alert needed, and how many actually returned
@@ -142,11 +156,15 @@ def run(task: Task, persist_memory: bool = True, run_id: str | None = None) -> t
     conf = 0.5 * completeness + 0.3 * agree_term + 0.2 * critic_term
     if assessment.gaps:
         conf = min(conf, 0.6)
+    unfetched = assessment.derived.get("unfetched") or []
+    if unfetched:
+        conf = min(conf, 0.85)
     if assessment.verdict == "needs-human" or status != "complete":
         conf = min(conf, 0.4)
     confidence = {"score": round(conf, 2), "label": "high" if conf >= 0.8 else "medium" if conf >= 0.6 else "low",
                   "factors": [f"evidence completeness {completeness:.2f}", "second opinion " + ("agrees" if opinion.get("agrees") else "unavailable" if opinion.get("agrees") is None else "disagrees"),
-                              f"critic {critique.get('total', '-')}/9" if critique.get("total") is not None else "critic unavailable"] + ([f"{len(assessment.gaps)} open gap(s)"] if assessment.gaps else [])}
+                              f"critic {critique.get('total', '-')}/9" if critique.get("total") is not None else "critic unavailable"]
+                             + ([f"{len(assessment.gaps)} open gap(s)"] if assessment.gaps else []) + ([f"not retrieved: {', '.join(unfetched)}"] if unfetched else [])}
     trace.step("evaluator", "confidence", **confidence)
 
     rows_by_class = {cls: [r for st in steps if st.result for r in st.result.rows] for cls, steps in done.items()}
@@ -182,6 +200,7 @@ def run(task: Task, persist_memory: bool = True, run_id: str | None = None) -> t
                "next_steps": assessment.next_steps, "run_id": trace.run_id, "log_file": str(trace.log_file.relative_to(config.ROOT)),
                "summary": redact(summary)[0], "second_opinion": opinion, "critic": critique, "confidence": confidence,
                "priority": assessment.priority, "status": status, "timeline": timeline,
+               "queue": ("manual-review" if assessment.verdict in ("cannot-confirm", "needs-human") else assessment.priority["bucket"] if assessment.priority else "none"),
                "memory_recalled": len(recalled), "memory": {k: len(v) for k, v in actions.items()}, "world": world_stats, "backend": backend.name, "llm": llm.name}
     path = trace.finish(outcome)
     shown = path.relative_to(config.ROOT) if config.ROOT in path.parents else path
@@ -210,6 +229,8 @@ def _timeline(trace) -> list[dict]:
             out.append({"t": st["t"], "agent": "reporter", "what": "revised the summary once"})
         elif k == "timeout":
             out.append({"t": st["t"], "agent": "system", "what": f"time budget {st['budget_s']:.0f}s exhausted during {st['phase']}"})
+        elif k == "summary_fallback":
+            out.append({"t": st["t"], "agent": "reporter", "what": f"review {st['review_status']}"})
         elif k == "model_unavailable":
             out.append({"t": st["t"], "agent": st["agent"], "what": f"model unavailable, fallback: {st.get('fallback')}"})
     return out

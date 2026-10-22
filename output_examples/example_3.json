@@ -4,6 +4,26 @@
  "output": {
   "alert_id": "AL-007",
   "verdict": "investigate",
+  "confidence": {
+   "score": 1.0,
+   "label": "high",
+   "factors": [
+    "evidence completeness 1.00",
+    "second opinion agrees",
+    "critic 9/9"
+   ]
+  },
+  "priority": {
+   "score": 6.0,
+   "bucket": "P2",
+   "factors": [
+    "dataset confidential (+3)",
+    "4800 rows (+1)",
+    "external destination (+2)"
+   ]
+  },
+  "triage_status": "complete",
+  "queue": "P2",
   "reasons": [
    "4800 rows exceed the no-ticket cap and no ticket or exception authorises the export"
   ],
@@ -54,6 +74,16 @@
       "step": "q5",
       "table": "dexa.policies",
       "column": "max_rows_without_ticket"
+     },
+     {
+      "step": "q5",
+      "table": "dexa.accounts",
+      "column": null
+     },
+     {
+      "step": "q5",
+      "table": "dexa.export_events",
+      "column": null
      }
     ]
    },
@@ -102,6 +132,113 @@
     ]
    }
   ],
+  "timeline": [
+   {
+    "t": 0.01,
+    "agent": "planner",
+    "what": "fetch alert"
+   },
+   {
+    "t": 0.01,
+    "agent": "retriever",
+    "what": "q1 alert: 1 rows from alerts, export_events (sqlite, 0 ms)"
+   },
+   {
+    "t": 0.011,
+    "agent": "evaluator",
+    "what": "needs more: sensitivity, account, dataset"
+   },
+   {
+    "t": 0.011,
+    "agent": "planner",
+    "what": "fetch account"
+   },
+   {
+    "t": 0.011,
+    "agent": "retriever",
+    "what": "q2 account: 1 rows from accounts (sqlite, 0 ms)"
+   },
+   {
+    "t": 0.011,
+    "agent": "evaluator",
+    "what": "needs more: sensitivity, dataset, policy"
+   },
+   {
+    "t": 0.022,
+    "agent": "planner",
+    "what": "fetch sensitivity, dataset, policy"
+   },
+   {
+    "t": 0.022,
+    "agent": "retriever",
+    "what": "q3 sensitivity: 9 rows from field_sensitivity (sqlite, 0 ms)"
+   },
+   {
+    "t": 0.022,
+    "agent": "retriever",
+    "what": "q4 dataset: 1 rows from datasets (sqlite, 0 ms)"
+   },
+   {
+    "t": 0.022,
+    "agent": "retriever",
+    "what": "q5 policy: 1 rows from accounts, export_events, policies (sqlite, 0 ms)"
+   },
+   {
+    "t": 0.022,
+    "agent": "evaluator",
+    "what": "needs more: tickets_account, exceptions"
+   },
+   {
+    "t": 0.022,
+    "agent": "planner",
+    "what": "fetch tickets_account, exceptions"
+   },
+   {
+    "t": 0.022,
+    "agent": "retriever",
+    "what": "q6 tickets_account: 0 rows from tickets (sqlite, 0 ms)"
+   },
+   {
+    "t": 0.022,
+    "agent": "retriever",
+    "what": "q7 exceptions: 0 rows from policy_exceptions (sqlite, 0 ms)"
+   },
+   {
+    "t": 0.022,
+    "agent": "evaluator",
+    "what": "needs more: account_history, destination"
+   },
+   {
+    "t": 0.022,
+    "agent": "planner",
+    "what": "fetch account_history, destination"
+   },
+   {
+    "t": 0.023,
+    "agent": "retriever",
+    "what": "q8 account_history: 1 rows from export_events (sqlite, 0 ms)"
+   },
+   {
+    "t": 0.023,
+    "agent": "retriever",
+    "what": "q9 destination: 1 rows from export_events (sqlite, 0 ms)"
+   },
+   {
+    "t": 0.023,
+    "agent": "evaluator",
+    "what": "verdict investigate"
+   },
+   {
+    "t": 0.023,
+    "agent": "evaluator",
+    "what": "second opinion investigate (agrees; stub)"
+   },
+   {
+    "t": 0.023,
+    "agent": "critic",
+    "what": "rubric 9/9 attempt 1"
+   }
+  ],
   "conflicts": [],
   "cannot_confirm": [],
   "next_steps": [
@@ -137,16 +274,16 @@
   },
   "rounds": 3,
   "memory": {
-   "created": 9,
-   "reconfirmed": 0,
+   "created": 0,
+   "reconfirmed": 9,
    "superseded": 0
   },
   "world_model": {
-   "events_before": 20,
-   "events_after": 27,
-   "appended": 7
+   "events_before": 100,
+   "events_after": 100,
+   "appended": 0
   },
-  "report_markdown": "# Export-alert triage: AL-007\n\n**Verdict: investigate**\n\nWhy:\n- 4800 rows exceed the no-ticket cap and no ticket or exception authorises the export\n\n## Evidence (table.column | query step)\n- AL-007 (high, rule: off-hours export emailed outside hours): account u1016 exported 4800 rows of DS03 at 2026-10-21 02:55:00 via sql-console to a email destination; ticket cited: none.  [dexa.export_events.rows_exported | q1]\n- Account u1016: role support, department finance, status active since 2026-03-31 00:00:00.  [dexa.accounts.status | q2]\n- Dataset DS03 (support_tickets) is classified confidential, owner customer-care, contains_pii=True.  [dexa.datasets.sensitivity | q4]\n- Policy P034: role support may export DS03; no-ticket cap 200 rows; advisory hours 07:00-19:00 (export was outside them).  [dexa.policies.max_rows_without_ticket | q5]\n- 0 other ticket(s) for u1016 on DS03; none covers this export.  [dexa.tickets.status | q6]\n- No policy exception covers role support or account u1016 on DS03 at 2026-10-21 02:55:00.  [dexa.policy_exceptions.exception_id | q7]\n- The export went to an external email destination: <email redacted>.  [dexa.export_events.destination | q9]\n- Baseline: 4 earlier export(s) of DS03 by this account, largest 88 rows; this export is far above that baseline.  [dexa.export_events.rows_exported | q8]\n\n## Suggested next checks\n- contact the exporter's manager; confirm whether the destination was internal; preserve the exported file\n- confirm whether the destination is a sanctioned location; request deletion if not\n\n## Access footprint (disclosure check)\n- tables accessed: accounts, alerts, datasets, export_events, field_sensitivity, policies, policy_exceptions, tickets\n- tables that contributed to the verdict: accounts, alerts, datasets, export_events, field_sensitivity, policies, policy_exceptions, tickets\n- accessed but not needed: none\n- sensitive columns touched: export_events.destination (confidential)\n- values redacted in this report: 1\n\n_trace: traces/example-3.json | evaluator rounds: 3 | data: sqlite | model: stub_\n",
+  "report_markdown": "# Export-alert triage: AL-007\n\n**Verdict: investigate** \u00b7 confidence 1.00 (high) \u00b7 priority P2 (6/10)\n\nConfidence: evidence completeness 1.00; second opinion agrees; critic 9/9\n\nPriority: dataset confidential (+3); 4800 rows (+1); external destination (+2)\n\nWhy:\n- 4800 rows exceed the no-ticket cap and no ticket or exception authorises the export\n\nVerdict investigate: 4800 rows exceed the no-ticket cap and no ticket or exception authorises the export. Next: contact the exporter's manager; confirm whether the destination was internal; preserve the exported file.\n\n## Evidence (table.column | query step)\n- AL-007 (high, rule: off-hours export emailed outside hours): account u1016 exported 4800 rows of DS03 at 2026-10-21 02:55:00 via sql-console to a email destination; ticket cited: none.  [dexa.export_events.rows_exported | q1]\n- Account u1016: role support, department finance, status active since 2026-03-31 00:00:00.  [dexa.accounts.status | q2]\n- Dataset DS03 (support_tickets) is classified confidential, owner customer-care, contains_pii=True.  [dexa.datasets.sensitivity | q4]\n- Policy P034: role support may export DS03; no-ticket cap 200 rows; advisory hours 07:00-19:00 (export was outside them).  [dexa.policies.max_rows_without_ticket | q5]\n- 0 other ticket(s) for u1016 on DS03; none covers this export.  [dexa.tickets.status | q6]\n- No policy exception covers role support or account u1016 on DS03 at 2026-10-21 02:55:00.  [dexa.policy_exceptions.exception_id | q7]\n- The export went to an external email destination: <email redacted>.  [dexa.export_events.destination | q9]\n- Baseline: 4 earlier export(s) of DS03 by this account, largest 88 rows; this export is far above that baseline.  [dexa.export_events.rows_exported | q8]\n\n## Suggested next checks (owner to be assigned by the analyst; SLA not modelled)\n- contact the exporter's manager; confirm whether the destination was internal; preserve the exported file  _(suggested owner: exporter's manager; done when: export file preserved and hash recorded)_\n- confirm whether the destination is a sanctioned location; request deletion if not  _(suggested owner: analyst; done when: destination confirmed sanctioned, or deletion confirmed)_\n\n## Access footprint (disclosure check)\n- tables accessed: accounts, alerts, datasets, export_events, field_sensitivity, policies, policy_exceptions, tickets\n- tables that contributed to the verdict: accounts, alerts, datasets, export_events, field_sensitivity, policies, policy_exceptions, tickets\n- accessed but not needed: none\n- sensitive columns touched: export_events.destination (confidential)\n- values redacted in this report: 1\n\n## Second opinion (Evaluator, model-backed)\n- agrees: model verdict investigate vs rules investigate (stub)\n  - stub: deterministic second opinion agrees with the rules\n\n## Review (Critic, 0-3 x 3 rubric)\n- accuracy 3, appropriateness 3, actionability 3 = 9/9 (pass; attempt 1)\n\n## Investigation timeline\n-    0.0s \u00b7 planner \u00b7 fetch alert\n-    0.0s \u00b7 retriever \u00b7 q1 alert: 1 rows from alerts, export_events (sqlite, 0 ms)\n-    0.0s \u00b7 evaluator \u00b7 needs more: sensitivity, account, dataset\n-    0.0s \u00b7 planner \u00b7 fetch account\n-    0.0s \u00b7 retriever \u00b7 q2 account: 1 rows from accounts (sqlite, 0 ms)\n-    0.0s \u00b7 evaluator \u00b7 needs more: sensitivity, dataset, policy\n-    0.0s \u00b7 planner \u00b7 fetch sensitivity, dataset, policy\n-    0.0s \u00b7 retriever \u00b7 q3 sensitivity: 9 rows from field_sensitivity (sqlite, 0 ms)\n-    0.0s \u00b7 retriever \u00b7 q4 dataset: 1 rows from datasets (sqlite, 0 ms)\n-    0.0s \u00b7 retriever \u00b7 q5 policy: 1 rows from accounts, export_events, policies (sqlite, 0 ms)\n-    0.0s \u00b7 evaluator \u00b7 needs more: tickets_account, exceptions\n-    0.0s \u00b7 planner \u00b7 fetch tickets_account, exceptions\n-    0.0s \u00b7 retriever \u00b7 q6 tickets_account: 0 rows from tickets (sqlite, 0 ms)\n-    0.0s \u00b7 retriever \u00b7 q7 exceptions: 0 rows from policy_exceptions (sqlite, 0 ms)\n-    0.0s \u00b7 evaluator \u00b7 needs more: account_history, destination\n-    0.0s \u00b7 planner \u00b7 fetch account_history, destination\n-    0.0s \u00b7 retriever \u00b7 q8 account_history: 1 rows from export_events (sqlite, 0 ms)\n-    0.0s \u00b7 retriever \u00b7 q9 destination: 1 rows from export_events (sqlite, 0 ms)\n-    0.0s \u00b7 evaluator \u00b7 verdict investigate\n-    0.0s \u00b7 evaluator \u00b7 second opinion investigate (agrees; stub)\n-    0.0s \u00b7 critic \u00b7 rubric 9/9 attempt 1\n\n## World state (Meterless World Model)\nAccount u1016 is known to the world model: 1 recorded export(s) across DS03; 0 ticket citation(s).\n\n## Memory used (H-MEM)\n[MEMORY CONTEXT]\n## general\n- [WK] 0 other ticket(s) for u1016 on DS03; none covers this export. <mem-55>\n[/MEMORY CONTEXT]\n\n## Memory updated (H-MEM, with provenance)\n- reconfirmed: `mem-51` AL-007 (high, rule: off-hours export emailed outside hours): account u1016 exported 4800 rows of DS03 at 2026-10-21 02:55:00 via sql-console  <dexa.export_events via q1>\n- reconfirmed: `mem-52` Account u1016: role support, department finance, status active since 2026-03-31 00:00:00.  <dexa.accounts via q2>\n- reconfirmed: `mem-53` Dataset DS03 (support_tickets) is classified confidential, owner customer-care, contains_pii=True.  <dexa.datasets via q4>\n- reconfirmed: `mem-54` Policy P034: role support may export DS03; no-ticket cap 200 rows; advisory hours 07:00-19:00 (export was outside them).  <dexa.policies via q5>\n- reconfirmed: `mem-55` 0 other ticket(s) for u1016 on DS03; none covers this export.  <dexa.tickets via q6>\n- reconfirmed: `mem-56` No policy exception covers role support or account u1016 on DS03 at 2026-10-21 02:55:00.  <dexa.policy_exceptions via q7>\n- reconfirmed: `mem-57` The export went to an external email destination: <email redacted>.  <dexa.export_events via q9>\n- reconfirmed: `mem-58` Baseline: 4 earlier export(s) of DS03 by this account, largest 88 rows; this export is far above that baseline.  <dexa.export_events via q8>\n- reconfirmed: `mem-59` verdict investigate  <evaluator>\n\n_trace: traces/example-3.json | evaluator rounds: 3 | data: sqlite | model: stub_\n",
   "data_layer": "sqlite",
   "model_provider": "stub"
  },
@@ -161,11 +298,15 @@
   },
   {
    "name": "Evaluator",
-   "role": "Applies the decision rules, finds conflicts and gaps, sends the Planner back for more evidence (max 3 rounds)"
+   "role": "Applies the decision rules, finds conflicts and gaps, sends the Planner back for more evidence (max 3 rounds); then asks the model for an independent second opinion and escalates to a human on disagreement"
   },
   {
    "name": "Reporter",
-   "role": "Writes the verdict with per-claim citations, what could not be confirmed, next checks, redacted"
+   "role": "Proposer: drafts the summary and the report with per-claim citations, what could not be confirmed, next checks, redacted"
+  },
+  {
+   "name": "Critic",
+   "role": "Scores the summary on a 0-3 x 3 rubric (accuracy, appropriateness, actionability); below 7/9 returns one fix and the Reporter revises once"
   },
   {
    "name": "H-MEM (Meterless engine)",
@@ -178,5 +319,5 @@
  ],
  "trace_id": "example-3",
  "log_file": "logs/trace-example-3.jsonl",
- "execution_time_seconds": 0.1
+ "execution_time_seconds": 0.2
 }
