@@ -85,7 +85,7 @@ Why:
 | **Rubric (0-3 × 3)** | Critic: accuracy · appropriateness · actionability; pass at 7/9 |
 | **Stop conditions** | verdict grounded → report; evidence budget (3 rounds) spent → cannot-confirm; rules vs model disagree → needs-human; critic < 7/9 → one revision |
 | **Run log** | `logs/trace-<run_id>.jsonl`: step · decision · result · next agent, plus `traces/<run_id>.json` |
-| **Guardrails** | ≤3 evaluator rounds, ≤3 model calls per alert plus one per critique, read-only SQL on known tables only, column-scoped queries, 180 s model timeout with bounded retries, secrets only from env, redaction before output |
+| **Guardrails** | ≤3 evaluator rounds; ≤6 model calls per alert (two planning, one second opinion, one summary, one critique, at most one revision); read-only SQL on known tables only, column-scoped; 180 s model timeout, 3 bounded retries, every model failure degrades to a template or 'unavailable' and never aborts the triage; secrets only from env; redaction before output |
 
 Autonomy level L2 (loop with checks): the agent iterates on its own but must pass the rules, the
 second opinion and the critic; the analyst stays in the loop through the feedback buttons.
@@ -274,8 +274,9 @@ known reference-implementation behaviour.
   cover the ten scenarios the generator produces, not every real-world policy.
 * The reference engines are implemented in Python from the Meterless specs; Node is not required.
   The official TypeScript runners were not executed here, their cases were ported to pytest.
-* Nightshift chooses the Nemotron model per request; a triage with the live model takes 2–3
-  minutes, mostly waiting on a 550B reasoning model. The stub path takes 2 seconds.
+* Nightshift chooses the Nemotron model per request and currently prefers Nemotron 3 Ultra (550B), a
+  reasoning model that spends 400–1400 tokens thinking before it answers; a live triage therefore takes
+  4–5 minutes for five model calls, within the 5–10 minute budget. The stub path takes 2 seconds.
 * Pre-existing components: none. Everything was written during the build window (22–27 Oct 2026).
 
 ## Repository layout
