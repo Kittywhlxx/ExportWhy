@@ -44,10 +44,12 @@ class Nightshift:
         ids = [m.id for m in models.data]
         return {"online": any(i.startswith("meterless/") for i in ids), "models": ids[:20], "selected": self.model}
 
-    def chat(self, system: str, user: str, json_mode: bool = False, max_tokens: int = 700) -> tuple[str, dict]:
+    def chat(self, system: str, user: str, json_mode: bool = False, max_tokens: int = 2000) -> tuple[str, dict]:
         delays = [2, 4, 8]
-        # Nemotron reasoning models honour "/no_think"; without it a 20-token answer can carry 500 tokens of
-        # thinking and a minute of latency. The routed model is recorded per call from the compute receipt.
+        # Nightshift may route to a reasoning model (Nemotron 3 Ultra) that emits its thinking as text before
+        # the answer and ignores thinking toggles. A low max_tokens cuts the reply off mid-thought, so the
+        # budget stays large enough for ~600 thinking tokens plus the answer; strip_thinking() removes the
+        # thinking. The routed model is recorded per call from the compute receipt.
         system = "/no_think " + system
         for attempt in range(4):
             try:
@@ -64,7 +66,7 @@ class Nightshift:
                 return text, meta
             except Exception as exc:  # noqa: BLE001 - provider errors are heterogeneous
                 status = getattr(exc, "status_code", None)
-                if status in (429, 503) and attempt < 3:
+                if status in (429, 500, 502, 503, 504) and attempt < 3:   # rate limit or a transient provider/route error
                     time.sleep(delays[attempt]); continue
                 raise LLMError(f"Nightshift request failed: {exc}") from exc
         raise LLMError("unreachable")

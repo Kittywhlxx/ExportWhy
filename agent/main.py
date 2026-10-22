@@ -21,7 +21,7 @@ from . import catalog, config
 from .llm import get_llm
 from .memory import Memory
 from .world import World
-from .roles import MAX_ROUNDS, Evaluator, Planner, Reporter, Retriever, Task, redact
+from .roles import MAX_ROUNDS, Critic, Evaluator, Planner, Reporter, Retriever, Task, redact
 from .trace import Trace
 from .zetaris import DataLayerError, get_backend
 
@@ -31,7 +31,7 @@ def run(task: Task, persist_memory: bool = True, run_id: str | None = None) -> t
     trace = Trace(task.describe(), mode, run_id=run_id)
     backend, llm = get_backend(), get_llm()
     memory = Memory(persist=persist_memory)
-    planner, retriever, evaluator, reporter = Planner(llm, trace), Retriever(backend, trace), Evaluator(trace), Reporter(llm, trace)
+    planner, retriever, evaluator, reporter, critic = Planner(llm, trace), Retriever(backend, trace), Evaluator(trace, llm), Reporter(llm, trace), Critic(llm, trace)
 
     # round 0: identify the alert and its export event, then the exporting account (keys for everything else)
     done: dict[str, list] = {}
@@ -77,14 +77,41 @@ def run(task: Task, persist_memory: bool = True, run_id: str | None = None) -> t
             done.setdefault(s.evidence, []).append(s)
         assessment = evaluator.assess(task, done, retriever.footprint, rounds)
         reason = "evaluator: " + (", ".join(assessment.conflicts + assessment.gaps) or "evidence still insufficient") + " -> fetch " + ", ".join(assessment.missing)
-    trace.data["rounds"] = rounds
     if assessment.verdict is None:
         assessment.verdict = assessment.derived.get("verdict") or "cannot-confirm"
+
+    # second opinion: the model judges the same evidence; a disagreement buys one more evidence round, then escalates
+    opinion = evaluator.second_opinion(task, assessment)
+    if opinion.get("usable") and not opinion["agrees"]:
+        extra = [m for m in opinion.get("missing_evidence", []) if m not in done]
+        if extra and rounds < MAX_ROUNDS:
+            rounds += 1
+            for s in retriever.run(planner.plan(task, extra, planner_context, "second opinion disagrees with the rules; fetching the evidence it asked for: " + ", ".join(extra))):
+                done.setdefault(s.evidence, []).append(s)
+            assessment = evaluator.assess(task, done, retriever.footprint, rounds)
+            assessment.verdict = assessment.verdict or assessment.derived.get("verdict") or "cannot-confirm"
+            opinion = evaluator.second_opinion(task, assessment)
+        if not opinion["agrees"]:
+            assessment.conflicts.append(f"rules say {assessment.verdict}, model second opinion says {opinion['verdict']}: " + "; ".join(opinion.get("reasons", [])[:2]))
+            assessment.reasons.insert(0, f"rules-based verdict {assessment.verdict} disputed by the model second opinion; a human must decide")
+            assessment.next_steps.insert(0, "human review: resolve the disagreement between the rules and the model before closing the alert")
+            assessment.verdict = "needs-human"
+    opinion["rules_verdict"] = assessment.derived.get("verdict")
+    trace.data["rounds"] = rounds
+
+    # proposer + critic: draft the summary, score it, revise once if it fails the rubric
+    summary = reporter.draft_summary(task, assessment)
+    critique = critic.review(task, assessment, summary, attempt=1)
+    if critique["passed"] is False and critique.get("fix"):
+        summary = reporter.revise(task, assessment, summary, critique["fix"])
+        second = critic.review(task, assessment, summary, attempt=2)
+        second["fix_applied"] = critique["fix"]; second["first_total"] = critique["total"]
+        critique = second
 
     rows_by_class = {cls: [r for st in steps if st.result for r in st.result.rows] for cls, steps in done.items()}
     world_stats = world.ingest_run(task, assessment, rows_by_class, trace.run_id)
     trace.step("world", "ingest", **world_stats, **world.stats())
-    report = reporter.report(task, assessment, memory_context, rounds, world_context)
+    report = reporter.report(task, assessment, memory_context, rounds, world_context, summary=summary, critique=critique, second_opinion=opinion)
 
     # remember what this investigation established (keys make re-runs idempotent)
     actions: dict[str, list[str]] = {"created": [], "reconfirmed": [], "superseded": []}
@@ -108,6 +135,7 @@ def run(task: Task, persist_memory: bool = True, run_id: str | None = None) -> t
                "missing": assessment.missing, "facts": len(assessment.facts), "rounds": rounds, "disclosure": {k: v for k, v in d.items() if k != "columns_seen"},
                "evidence": [{"text": redact(f.text)[0], "kind": f.kind, "cites": f.cites} for f in assessment.facts],
                "next_steps": assessment.next_steps, "run_id": trace.run_id, "log_file": str(trace.log_file.relative_to(config.ROOT)),
+               "summary": redact(summary)[0], "second_opinion": opinion, "critic": critique,
                "memory_recalled": len(recalled), "memory": {k: len(v) for k, v in actions.items()}, "world": world_stats, "backend": backend.name, "llm": llm.name}
     path = trace.finish(outcome)
     shown = path.relative_to(config.ROOT) if config.ROOT in path.parents else path

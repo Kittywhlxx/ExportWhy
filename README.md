@@ -57,6 +57,15 @@ Why:
   does an exception clause apply? is the account still employed?) and sends the Planner back for
   more evidence when the picture is incomplete or sources disagree. At most three rounds. A source
   that cannot be queried becomes an explicit gap, never a silent "compliant".
+* **Evaluator, second opinion**: once the rules have a verdict, the model (Nemotron through
+  Nightshift) judges the same facts independently, without seeing the rules' answer. Agreement is
+  recorded; a disagreement buys one more evidence round for whatever the model says is missing,
+  and if they still disagree the verdict becomes **needs-human** with both positions in the report.
+  The model can never silently turn a block or a cannot-confirm into a compliant.
+* **Reporter + Critic** (proposer/critic pairing): the Reporter drafts a 3-5 sentence summary; the
+  Critic scores it 0-3 on accuracy (every claim backed by a listed fact), appropriateness (verdict
+  and reason stated and consistent) and actionability (next check concrete). Below 7/9 it returns
+  one fix and the Reporter revises once. Scores, fix and revision are in the trace and the UI.
 * **Reporter** writes the verdict, the per-claim citations, the conflicts, what could not be
   confirmed, next checks, and the **disclosure footprint**: which tables contributed, which did
   not, and which sensitive columns were read. Personal data is redacted in the report.
@@ -64,6 +73,22 @@ Why:
   re-verifies and raises confidence; a changed fact supersedes the old one, never overwrites). The
   World Model keeps accounts, datasets, tickets and exceptions as shared entities, so the second
   alert on the same account knows about the first.
+
+## Agent loop spec (the eight lines)
+
+| | |
+|---|---|
+| **Goal** | Decide whether one export alert is compliant, needs investigation, or cannot be confirmed, and say why with evidence |
+| **Plan (≤5 steps)** | identify alert+account → fetch policy, dataset, cited ticket → if not covered: other tickets, exceptions → baseline/destination → second opinion, critique, report |
+| **Tools** | `run_sql(select) → rows` via Zetaris REST (fail: timeout/unreachable → gap, never a guess); H-MEM `recall/remember/feedback`; World Model `dossier/ingest`; Nightshift `chat` (fail: template SQL, stub summary) |
+| **Memory** | scratchpad = evidence rows per class; decisions = H-MEM facts with provenance (re-verified, superseded); knowledge = World Model entities and verdicts |
+| **Rubric (0-3 × 3)** | Critic: accuracy · appropriateness · actionability; pass at 7/9 |
+| **Stop conditions** | verdict grounded → report; evidence budget (3 rounds) spent → cannot-confirm; rules vs model disagree → needs-human; critic < 7/9 → one revision |
+| **Run log** | `logs/trace-<run_id>.jsonl`: step · decision · result · next agent, plus `traces/<run_id>.json` |
+| **Guardrails** | ≤3 evaluator rounds, ≤3 model calls per alert plus one per critique, read-only SQL on known tables only, column-scoped queries, 180 s model timeout with bounded retries, secrets only from env, redaction before output |
+
+Autonomy level L2 (loop with checks): the agent iterates on its own but must pass the rules, the
+second opinion and the critic; the analyst stays in the loop through the feedback buttons.
 
 ## Sponsor technology
 
@@ -144,6 +169,30 @@ METERLESS_MODEL=meterless/fast                       # a routing mode; the recei
 
 ## Usage
 
+Programmatic entry point (JSON in, JSON out; `input_examples/*.json` → `output_examples/*.json`):
+
+```bash
+python run.py --input input_examples/example_2.json     # one triage, response on stdout
+python run.py --alert AL-003 --sample                     # shorthand, offline
+python run.py --serve                                     # HTTP on 0.0.0.0:$PORT: POST /run, GET /health, GET /alerts
+curl -X POST localhost:8000/run -H 'Content-Type: application/json' -d @input_examples/example_2.json
+```
+
+Docker (Zetaris and Nightshift stay on the host; the image builds the SAMPLE_MODE twin, so
+`-e SAMPLE_MODE=true` runs with nothing else):
+
+```bash
+docker build -t exportwhy .
+docker run --rm -p 8000:8000 -e SAMPLE_MODE=true exportwhy                       # offline
+docker run --rm -p 8000:8000 --env-file .env exportwhy                           # live: use host.docker.internal in .env
+```
+
+Logs: readable `[INFO]` lines on stderr (`docker logs`), one JSON object per step in
+`logs/trace-<run_id>.jsonl` (agent, action, input/output summary, model and receipt for every model
+call, status success/recovered/escalated/error), and the full nested trace in `traces/<run_id>.json`.
+
+CLI:
+
 ```
 python -m agent.main alert <ALERT-ID>        triage one alert (report to stdout, JSON trace to traces/)
 python -m agent.main alert <ALERT-ID> --simulate-outage tickets   fail a source (logs | policy | tickets): the verdict degrades to cannot-confirm, never to a guess
@@ -215,9 +264,9 @@ minimal disclosure is a policy of the planner, not a loss of accuracy.
 ## Tests
 
 `pytest -q` runs the H-MEM conformance vectors, the World Model conformance cases, and the
-end-to-end loop in `SAMPLE_MODE` (ground truth, cross-alert world state, a failure injection on
-the ticket source, redaction). 33 tests, one expected-fail that pins a known reference-implementation
-behaviour.
+end-to-end loop in `SAMPLE_MODE` (ground truth, cross-alert world state, outage injection per source,
+redaction, second-opinion escalation, critic-driven revision). 39 tests, one expected-fail that pins a
+known reference-implementation behaviour.
 
 ## Limits and honest notes
 

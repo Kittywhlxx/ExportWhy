@@ -12,7 +12,7 @@ import re
 from dataclasses import dataclass, field
 
 from . import catalog
-from .llm import extract_json
+from .llm import LLMError, extract_json
 from .zetaris import DataLayerError, QueryResult
 
 MAX_ROUNDS = 3
@@ -120,7 +120,11 @@ class Planner:
         user = (f"Alert {task.alert_id} (event={task.event_id}, account={task.account_id}, role={task.role}, dataset={task.dataset_id}, ts={task.ts}, ticket_ref={task.ticket_ref}).\n"
                 f"Why we are planning now: {reason}\nMemory from earlier investigations:\n{memory_context or '(none)'}\n\nSteps:\n"
                 + "\n".join(f"- {s.sid} [{s.evidence}]: {s.purpose}. Reference SQL: {s.sql}" for s in steps))
-        text, meta = self.llm.chat(system, user, json_mode=True)
+        try:
+            text, meta = self.llm.chat(system, user, json_mode=True)
+        except LLMError as exc:
+            self.trace.step(self.name, "model_unavailable", error=str(exc)[:200], fallback="rule-based SQL templates")
+            return 0
         drafts = extract_json(text) or []
         by_id = {s.sid: s for s in steps}
         kept = 0
@@ -240,11 +244,46 @@ def ticket_checks(t: dict, task: Task, ts: dt.datetime) -> list[str]:
     return fails
 
 
+VERDICTS = ("compliant", "investigate", "cannot-confirm")
+TOKEN = re.compile(r"\b(AL-\d+|T-\d+|u\d{4}|DS\d{2}|X\d{2}|P\d{3}|E\d{5}|CVE-[\d-]+|\d{3,})\b")
+
+
 class Evaluator:
     name = "evaluator"
 
-    def __init__(self, trace):
+    def __init__(self, trace, llm=None):
         self.trace = trace
+        self.llm = llm
+
+    # ---- second opinion: the model judges the same evidence independently; rules remain the floor
+    def second_opinion(self, task: Task, a: "Assessment") -> dict:
+        """Returns {"verdict", "reasons", "missing_evidence", "agrees", "source"}. Never raises."""
+        forced = os.environ.get("SECOND_OPINION_FORCE")          # test hook: simulate a disagreeing model
+        if forced in VERDICTS:
+            op = {"verdict": forced, "reasons": ["forced disagreement (test)"], "missing_evidence": [], "source": "forced"}
+        elif self.llm is None or self.llm.name == "stub":
+            op = {"verdict": a.verdict, "reasons": ["stub: deterministic second opinion agrees with the rules"], "missing_evidence": [], "source": "stub"}
+        else:
+            system = ("You are a second security analyst reviewing a colleague's triage of a data-export alert. Judge ONLY from the facts given. "
+                      "Reply with JSON: {\"verdict\": \"compliant\"|\"investigate\"|\"cannot-confirm\", \"reasons\": [..], "
+                      "\"missing_evidence\": [names from: " + ", ".join(TEMPLATES) + "]}. Rules of the organisation: an export above the no-ticket cap "
+                      "needs an approved ticket covering account, dataset, rows and time, or a standing exception; an unknown account, missing policy or "
+                      "missing cited ticket means the question cannot be confirmed; a terminated account always needs investigation.")
+            user = (f"Alert {task.alert_id}. Facts:\n" + "\n".join(f"- {f.text}" for f in a.facts) + f"\nConflicts: {a.conflicts}\nCannot confirm: {a.gaps}\n"
+                    f"(The colleague's verdict is withheld. Give your own.)")
+            try:
+                text, meta = self.llm.chat(system, user, json_mode=True, max_tokens=1500)
+                self.trace.step(self.name, "llm", **meta)
+                d = extract_json(text) or {}
+                v = str(d.get("verdict", "")).strip().lower()
+                op = {"verdict": v if v in VERDICTS else "unparseable", "reasons": [str(r)[:200] for r in (d.get("reasons") or [])][:4],
+                      "missing_evidence": [m for m in (d.get("missing_evidence") or []) if m in TEMPLATES], "source": meta.get("routed_model") or meta.get("model_served")}
+            except Exception as exc:  # noqa: BLE001 - the model is advisory; its failure never blocks a verdict
+                op = {"verdict": "unavailable", "reasons": [f"model unavailable: {str(exc)[:120]}"], "missing_evidence": [], "source": "error"}
+        op["usable"] = op["verdict"] in VERDICTS
+        op["agrees"] = op["verdict"] == a.verdict if op["usable"] else None   # None = no usable opinion
+        self.trace.step(self.name, "second_opinion", rules_verdict=a.verdict, **op)
+        return op
 
     def assess(self, task: Task, done: dict[str, list[Step]], footprint: dict, rounds: int) -> Assessment:
         rows = {cls: [r for s in steps if s.result for r in s.result.rows] for cls, steps in done.items()}
@@ -465,18 +504,122 @@ def redact(text: str) -> tuple[str, int]:
     return text, n
 
 
+def _supported_tokens(a: "Assessment", task: Task) -> set[str]:
+    text = " ".join([f.text for f in a.facts] + a.reasons + a.next_steps + a.conflicts + a.gaps + [str(v) for v in vars(task).values() if isinstance(v, (str, int))])
+    return set(TOKEN.findall(text))
+
+
+class Critic:
+    """Proposer + Critic pairing: scores the Reporter's summary on a 0-3 x 3 rubric (accuracy, appropriateness,
+    actionability). Below 7/9 it returns ONE fix and the Reporter revises once. Model-backed when a model is
+    available; a deterministic check (every id/number in the summary must appear in the evidence) otherwise."""
+    name = "critic"
+    PASS = 7
+
+    def __init__(self, llm, trace):
+        self.llm, self.trace = llm, trace
+
+    def review(self, task: Task, a: "Assessment", summary: str, attempt: int = 1) -> dict:
+        if self.llm.name == "stub":
+            supported = _supported_tokens(a, task)
+            unsupported = sorted({t for t in TOKEN.findall(summary) if t not in supported})
+            accuracy = 0 if unsupported else 3          # a fabricated id or number is disqualifying, not a deduction
+            appropriateness = 3 if a.verdict and a.verdict in summary else 1
+            actionability = 3 if (not a.next_steps or any(n[:30].lower() in summary.lower() for n in a.next_steps)) else 2
+            fix = None
+            if unsupported:
+                fix = f"remove or ground these unsupported references: {', '.join(unsupported)}"
+            elif appropriateness < 3:
+                fix = f"state the verdict '{a.verdict}' explicitly"
+            elif actionability < 3:
+                fix = f"include the next check: {a.next_steps[0]}"
+            scores = {"accuracy": accuracy, "appropriateness": appropriateness, "actionability": actionability}
+            source = "stub"
+        else:
+            system = ("You are a strict reviewer. Score a security analyst's summary against the evidence on three criteria, 0-3 each: "
+                      "accuracy (every claim is supported by a listed fact; any unsupported id, number or claim costs points), "
+                      "appropriateness (the verdict and its main reason are stated and consistent with the facts), "
+                      "actionability (the next check is concrete). Reply with JSON {\"accuracy\": n, \"appropriateness\": n, \"actionability\": n, "
+                      "\"fix\": \"one sentence, the single most important change, or null\"}.")
+            user = (f"Verdict: {a.verdict}\nReasons: {a.reasons}\nNext checks: {a.next_steps}\nFacts:\n" + "\n".join(f"- {f.text}" for f in a.facts)
+                    + f"\nUnconfirmed: {a.gaps}\n\nSummary under review:\n{summary}")
+            try:
+                text, meta = self.llm.chat(system, user, json_mode=True, max_tokens=2000)
+            except LLMError as exc:
+                out = {"attempt": attempt, "scores": None, "total": None, "passed": None, "fix": None, "source": "error", "note": f"model unavailable: {str(exc)[:160]}"}
+                self.trace.step(self.name, "critique", **out)
+                return out
+            self.trace.step(self.name, "llm", **meta)
+            d = extract_json(text) or {}
+            source = meta.get("routed_model") or meta.get("model_served")
+            if not all(k in d for k in ("accuracy", "appropriateness", "actionability")):
+                out = {"attempt": attempt, "scores": None, "total": None, "passed": None, "fix": None, "source": source,
+                       "note": "model reply unparseable; critic unavailable", "raw_tail": text[-300:], "usage": meta.get("usage")}
+                self.trace.step(self.name, "critique", **out)
+                return out
+            scores = {k: max(0, min(3, int(d.get(k, 0) or 0))) for k in ("accuracy", "appropriateness", "actionability")}
+            fix = d.get("fix") or None
+        total = sum(scores.values())
+        out = {"attempt": attempt, "scores": scores, "total": total, "passed": total >= self.PASS, "fix": fix if total < self.PASS else None, "source": source}
+        self.trace.step(self.name, "critique", **out)
+        return out
+
+
 class Reporter:
     name = "reporter"
 
     def __init__(self, llm, trace):
         self.llm, self.trace = llm, trace
 
-    def report(self, task: Task, a: Assessment, memory_context: str, rounds: int, world_context: str = "") -> str:
+    def template_summary(self, a: Assessment) -> str:
+        first = a.reasons[0] if a.reasons else "no reason recorded"
+        nxt = f" Next: {a.next_steps[0]}." if a.next_steps else " No further action required."
+        return f"Verdict {a.verdict}: {first}.{nxt}"
+
+    def draft_summary(self, task: Task, a: Assessment) -> str:
+        """The proposer's draft (3-5 sentences for a colleague). Deterministic template without a model,
+        or when the model is unavailable or returns nothing usable."""
+        if self.llm.name == "stub":
+            return self.template_summary(a)
+        try:
+            text = self._summary(task, a)
+        except LLMError as exc:
+            self.trace.step(self.name, "model_unavailable", error=str(exc)[:200], fallback="template summary")
+            return self.template_summary(a)
+        return text or self.template_summary(a)
+
+    def revise(self, task: Task, a: Assessment, summary: str, fix: str) -> str:
+        """One revision after the Critic's fix. Without a model: drop sentences carrying unsupported references."""
+        self.trace.step(self.name, "revise", fix=fix)
+        if self.llm.name == "stub":
+            supported = _supported_tokens(a, task)
+            kept = [sent for sent in re.split(r"(?<=[.!?])\s+", summary) if all(t in supported for t in TOKEN.findall(sent))]
+            text = " ".join(kept).strip()
+            if a.verdict and a.verdict not in text:
+                text = f"Verdict {a.verdict}: {a.reasons[0] if a.reasons else ''}. " + text
+            if a.next_steps and not any(n[:30].lower() in text.lower() for n in a.next_steps):
+                text += f" Next: {a.next_steps[0]}."
+            return text.strip()
+        system = ("Revise the summary below according to the reviewer's fix. Use ONLY the facts listed; remove anything they do not support. "
+                  "3-5 sentences, verdict and main reason first, name what could not be confirmed.")
+        user = (f"Reviewer's fix: {fix}\nVerdict: {a.verdict}\nReasons: {a.reasons}\nFacts:\n" + "\n".join(f"- {f.text}" for f in a.facts)
+                + f"\nUnconfirmed: {a.gaps}\n\nSummary to revise:\n{summary}")
+        try:
+            text, meta = self.llm.chat(system, user, max_tokens=1500)
+        except LLMError as exc:
+            self.trace.step(self.name, "model_unavailable", error=str(exc)[:200], fallback="template summary")
+            return self.template_summary(a)
+        self.trace.step(self.name, "llm", **meta)
+        return text.strip() or self.template_summary(a)
+
+    def report(self, task: Task, a: Assessment, memory_context: str, rounds: int, world_context: str = "",
+               summary: str | None = None, critique: dict | None = None, second_opinion: dict | None = None) -> str:
         redacted = 0
         lines = [f"# Export-alert triage: {task.alert_id}", "", f"**Verdict: {a.verdict}**", ""]
         if a.reasons:
             lines += ["Why:"] + [f"- {r}" for r in a.reasons] + [""]
-        summary = self._summary(task, a)
+        if summary is None:
+            summary = self.draft_summary(task, a)
         if summary:
             s, k = redact(summary); redacted += k; lines += [s, ""]
         lines += ["## Evidence (table.column | query step)"]
@@ -502,6 +645,22 @@ class Reporter:
                   f"- accessed but not needed: {', '.join(d['accessed_but_unused']) or 'none'}",
                   f"- sensitive columns touched: {', '.join(d['sensitive_columns_touched']) or 'none'}",
                   f"- values redacted in this report: {redacted}"]
+        if second_opinion:
+            src = f" ({second_opinion.get('source')})" if second_opinion.get("source") else ""
+            if second_opinion.get("agrees") is None:
+                head = f"- no usable opinion: the model reply was {second_opinion.get('verdict')}{src}; the rules-based verdict stands"
+            else:
+                head = f"- {'agrees' if second_opinion['agrees'] else 'DISAGREES'}: model verdict {second_opinion.get('verdict')} vs rules {second_opinion.get('rules_verdict', a.verdict)}{src}"
+            lines += ["", "## Second opinion (Evaluator, model-backed)", head] + [f"  - {r}" for r in second_opinion.get("reasons", [])[:3]]
+        if critique:
+            sc = critique.get("scores")
+            if sc is None:
+                lines += ["", "## Review (Critic, 0-3 x 3 rubric)", f"- unavailable: {critique.get('note')} ({critique.get('source')})"]
+            else:
+                lines += ["", "## Review (Critic, 0-3 x 3 rubric)",
+                          f"- accuracy {sc['accuracy']}, appropriateness {sc['appropriateness']}, actionability {sc['actionability']} = {critique['total']}/9 "
+                          f"({'pass' if critique['passed'] else 'fail'}; attempt {critique['attempt']})"
+                          + (f"; fix applied: {critique.get('fix_applied')}" if critique.get("fix_applied") else "")]
         if world_context:
             lines += ["", "## World state (Meterless World Model)", world_context]
         if memory_context:
@@ -515,6 +674,6 @@ class Reporter:
                   "never add a claim that is not in the list; state the verdict and its main reason first; name what could not be confirmed.")
         user = (f"Verdict: {a.verdict}\nReasons: {a.reasons}\nFacts:\n" + "\n".join(f"- {f.text}" for f in a.facts)
                 + f"\nConflicts: {a.conflicts}\nUnconfirmed: {a.gaps}")
-        text, meta = self.llm.chat(system, user, max_tokens=350)
+        text, meta = self.llm.chat(system, user, max_tokens=1500)
         self.trace.step(self.name, "llm", **meta)
         return text.strip()

@@ -97,6 +97,17 @@ with right:
             st.warning(f"{s['t']:.1f}s · planner rejected model SQL for {s['step']}: {s['why']}")
         elif k == "assess":
             st.markdown(f"**{s['t']:.1f}s · evaluator** round {s['round']}: " + (f"verdict **{s['verdict']}**" if s["verdict"] else "needs more: " + ", ".join(s["missing"])))
+        elif k == "second_opinion":
+            ag = s.get("agrees")
+            (st.success if ag else st.warning)(f"{s['t']:.1f}s · evaluator second opinion ({s.get('source')}): model says **{s.get('verdict')}**, rules say **{s.get('rules_verdict')}** → " + ("agrees" if ag else "no usable opinion; rules stand" if ag is None else "disagrees, escalating"))
+        elif k == "critique":
+            sc = s.get("scores")
+            if sc is None:
+                st.warning(f"{s['t']:.1f}s · critic unavailable: {s.get('note')}")
+            else:
+                (st.success if s["passed"] else st.warning)(f"{s['t']:.1f}s · critic attempt {s['attempt']}: accuracy {sc['accuracy']} · appropriateness {sc['appropriateness']} · actionability {sc['actionability']} = {s['total']}/9" + (f" → fix: {s['fix']}" if s.get('fix') else ""))
+        elif k == "revise":
+            st.info(f"{s['t']:.1f}s · reporter revised the summary once")
         elif k == "llm":
             st.caption(f"{s['t']:.1f}s · {s['agent']} ← {s.get('routed_model') or s.get('model_served')} ({(s.get('usage') or {}).get('total_tokens', '?')} tokens)")
         elif k == "recall":

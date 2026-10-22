@@ -24,8 +24,9 @@ sys.path.insert(0, str(ROOT))
 AGENTS = [
     {"name": "Planner", "role": "Decides which evidence classes the verdict still lacks and drafts their SQL (Nemotron via Nightshift; validator-gated)"},
     {"name": "Retriever", "role": "Runs read-only SQL against Zetaris (three sources, one schema) and records the access footprint"},
-    {"name": "Evaluator", "role": "Applies the decision rules, finds conflicts and gaps, sends the Planner back for more evidence (max 3 rounds)"},
-    {"name": "Reporter", "role": "Writes the verdict with per-claim citations, what could not be confirmed, next checks, redacted"},
+    {"name": "Evaluator", "role": "Applies the decision rules, finds conflicts and gaps, sends the Planner back for more evidence (max 3 rounds); then asks the model for an independent second opinion and escalates to a human on disagreement"},
+    {"name": "Reporter", "role": "Proposer: drafts the summary and the report with per-claim citations, what could not be confirmed, next checks, redacted"},
+    {"name": "Critic", "role": "Scores the summary on a 0-3 x 3 rubric (accuracy, appropriateness, actionability); below 7/9 returns one fix and the Reporter revises once"},
     {"name": "H-MEM (Meterless engine)", "role": "Remembers findings with provenance across investigations; re-verification raises confidence, changes supersede"},
     {"name": "World Model (Meterless engine)", "role": "Shared entity graph: accounts, datasets, tickets, exceptions; dossier feeds the Planner and Evaluator"},
 ]

@@ -69,3 +69,34 @@ def test_simulated_outage_degrades_to_cannot_confirm(monkeypatch, source):
     assert out["verdict"] == "cannot-confirm"
     assert out["gaps"], "an unreachable source must be reported as a gap"
     assert not any(r.startswith("evidence budget exhausted") for r in out["reasons"])
+
+
+def test_second_opinion_and_critic_on_every_alert():
+    import csv
+    for aid in [r["alert_id"] for r in csv.DictReader(open(ROOT / "data/sample/ground_truth.csv"))]:
+        _, out = agent_main.run(Task(alert_id=aid))
+        assert out["second_opinion"]["agrees"], aid
+        assert out["critic"]["total"] >= 7 and out["critic"]["passed"], (aid, out["critic"])
+        assert out["verdict"] in out["summary"]
+
+
+def test_disagreeing_second_opinion_escalates_to_human(monkeypatch):
+    monkeypatch.setenv("SECOND_OPINION_FORCE", "compliant")
+    _, out = agent_main.run(Task(alert_id="AL-004"))      # rules: investigate
+    assert out["verdict"] == "needs-human"
+    assert any("second opinion" in c for c in out["conflicts"])
+    assert out["next_steps"][0].startswith("human review")
+
+
+def test_critic_catches_fabricated_claim_and_reporter_revises(monkeypatch):
+    from agent import roles
+
+    def bad_draft(self, task, a):
+        return f"Verdict {a.verdict}: ticket T-4242 approved 99999 rows for this export. Next: {a.next_steps[0] if a.next_steps else 'none'}."
+
+    monkeypatch.setattr(roles.Reporter, "draft_summary", bad_draft)
+    _, out = agent_main.run(Task(alert_id="AL-004"))
+    c = out["critic"]
+    assert c["attempt"] == 2 and c["first_total"] < 7 and c["passed"], c
+    assert "T-4242" not in out["summary"] and "99999" not in out["summary"]
+    assert "T-4242" in c["fix_applied"]

@@ -16,7 +16,8 @@ from . import config
 LOG_DIR = config.ROOT / "logs"
 ACTION = {"plan": "plan_evidence", "query": "query_zetaris", "query_failed": "query_zetaris", "rejected_llm_sql": "validate_model_sql",
           "assess": "evaluate_evidence", "llm": "model_call", "recall": "hmem_recall", "remember": "hmem_store",
-          "dossier": "world_model_read", "ingest": "world_model_write"}
+          "dossier": "world_model_read", "ingest": "world_model_write", "second_opinion": "evaluate_second_opinion",
+          "critique": "critique_report", "revise": "revise_report", "model_unavailable": "model_fallback"}
 
 
 class Trace:
@@ -75,6 +76,22 @@ class Trace:
             line.update(output_summary=f"World Model: account {'known' if p.get('known') else 'new'}, prior alerts {[a['alert'] for a in p.get('prior_alerts', [])]}")
         elif kind == "ingest":
             line.update(output_summary=f"World Model: +{p.get('appended')} events ({p.get('entities')} entities, {p.get('events')} events)")
+        elif kind == "second_opinion":
+            ag = p.get("agrees")
+            line.update(model=p.get("source"), output_summary=f"model verdict {p.get('verdict')} vs rules {p.get('rules_verdict')}: " + ("agrees" if ag else "no usable opinion" if ag is None else "DISAGREES"),
+                        status="success" if ag else ("error" if ag is None else "escalated"), target_agent="reporter" if ag is not False else "planner")
+        elif kind == "critique":
+            sc = p.get("scores") or {}
+            if p.get("passed") is None:
+                line.update(model=p.get("source"), output_summary=f"critic unavailable: {p.get('note')}", status="error")
+            else:
+                line.update(model=p.get("source"), output_summary=f"rubric {sc.get('accuracy')}/{sc.get('appropriateness')}/{sc.get('actionability')} = {p.get('total')}/9 "
+                            f"{'pass' if p.get('passed') else 'FAIL: ' + str(p.get('fix'))}", status="success" if p.get("passed") else "recovered", target_agent="reporter",
+                            retry_count=(p.get("attempt", 1) - 1))
+        elif kind == "model_unavailable":
+            line.update(output_summary=f"model unavailable ({p.get('error', '')[:120]}); fallback: {p.get('fallback')}", status="recovered")
+        elif kind == "revise":
+            line.update(input_summary=str(p.get("fix"))[:200], output_summary="summary revised once after the critic's fix", status="recovered")
         else:
             line.update(output_summary=json.dumps(p, default=str)[:300])
         return line
