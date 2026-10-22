@@ -17,7 +17,7 @@ MEMORY_DIR = config.ROOT / "memory"
 class Memory:
     def __init__(self, persist: bool = True, clock=None):
         from .hmem import HMEM  # the Python port of the Meterless H-MEM spec (agent/hmem/)
-        kwargs = {"actor": "depriskr"}
+        kwargs = {"actor": "exportwhy"}
         if persist:
             MEMORY_DIR.mkdir(exist_ok=True)
             kwargs["persist_dir"] = str(MEMORY_DIR)
