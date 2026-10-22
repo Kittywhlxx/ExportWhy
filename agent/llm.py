@@ -16,7 +16,7 @@ import time
 
 from . import config
 
-APP_ID = "depriskr"
+APP_ID = "exportwhy"
 
 
 class LLMError(RuntimeError):
