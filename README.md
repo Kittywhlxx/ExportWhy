@@ -167,6 +167,35 @@ All three sources are synthetic and generated with a seed; judges can pick a see
 saw and the ground truth comes with it. See [data/README.md](data/README.md) for the schema, the ten
 injected scenarios and the regeneration commands.
 
+## Accuracy across seeds
+
+The generator writes the ground truth with every seed, so the agent can be scored on worlds its author
+never looked at (`scripts/seed_sweep.py`, full tables in [docs/seed_sweep.md](docs/seed_sweep.md)).
+
+| | |
+|---|---|
+| seeds | 1, 2, 3, 5, 7, 11, 13, 19, 23, 42, 99, 2026 |
+| triages | 12 x 13 = 156, offline (SQLite twin, rule verdicts, stub model) |
+| verdicts matching ground truth | **156 / 156** |
+| live backend (Zetaris, seed 7) | 13 / 13 with the stub model and 13 / 13 with Nemotron drafting the SQL |
+
+| scenario | expected | compliant | investigate | cannot-confirm |
+|---|---|---:|---:|---:|
+| valid_ticket (x2 per seed) | compliant | 24 | 0 | 0 |
+| policy_exception (x2) | compliant | 24 | 0 | 0 |
+| within_policy | compliant | 12 | 0 | 0 |
+| expired_ticket | investigate | 0 | 12 | 0 |
+| scope_mismatch | investigate | 0 | 12 | 0 |
+| no_authorization (x2) | investigate | 0 | 24 | 0 |
+| terminated_account | investigate | 0 | 12 | 0 |
+| unknown_account | cannot-confirm | 0 | 0 | 12 |
+| missing_policy | cannot-confirm | 0 | 0 | 12 |
+| ticket_not_found | cannot-confirm | 0 | 0 | 12 |
+
+Two generator leaks were found by exactly this sweep and fixed (a background ticket that happened to
+authorise an injected alert on seed 11; an account with a named exception reused by another scenario on
+seed 3). Pick any other seed: `python data/gen_data.py --seed N && python data/build_sample.py && SAMPLE_MODE=true python -m agent.main evaluate`.
+
 ## Does the disclosure controller change anything? (ablation)
 
 Same 13 alerts, same evidence loop, same verdict rules. Only how the queries are written differs.
