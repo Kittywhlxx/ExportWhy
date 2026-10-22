@@ -108,14 +108,30 @@ with right:
     with st.expander("Raw JSON trace"):
         st.json(trace)
 
-# ------------------------------------------------------------------ memory
+# ------------------------------------------------------------------ correct the agent (H-MEM feedback)
 st.divider()
-with st.expander("What the agent remembers (H-MEM trust ledger)"):
-    try:
-        mem = Memory()
-        rows = [m for m in mem.all() if alert_id in (m.get("tags") or [f"alert:{alert_id}"]) or f"alert:{alert_id}" in (m.get("tags") or [])]
-        for m in rows[:30]:
-            st.markdown(f"`{m['id']}` conf {float(m['confidence']):.2f}{' (superseded)' if m['superseded'] else ''} — {m['content']}")
-        st.caption(f"ledger: {mem.ledger_stats()}")
-    except Exception as exc:  # noqa: BLE001
-        st.caption(f"memory unavailable: {exc}")
+st.subheader("Correct the agent")
+st.caption("Each fact above was stored in H-MEM with its provenance. Mark one as wrong and the trust ledger records the change: "
+           "confidence drops by 0.20, the record gets a `review` tag and ranks lower in the next investigation. Helpful adds 0.05.")
+try:
+    mem = Memory()
+    records = [m for m in mem.for_alert(alert_id) if "kind:verdict" not in (m.get("tags") or [])]
+    if "flash" in st.session_state:
+        st.success(st.session_state.pop("flash"))
+    for m in records:
+        c_text, c_conf, c_ok, c_bad = st.columns([7, 1.2, 1, 1])
+        flags = (" · superseded" if m["superseded"] else "") + (" · review" if "review" in (m.get("tags") or []) else "")
+        c_text.markdown(f"`{m['id']}` {m['content']}")
+        c_conf.markdown(f"**{float(m['confidence']):.2f}**{flags}")
+        if c_ok.button("helpful", key=f"ok-{m['id']}"):
+            mem.feedback(m["id"], "helpful"); st.session_state["flash"] = f"{m['id']}: helpful, +0.05 confidence, ledger entry written"; st.rerun()
+        if c_bad.button("wrong", key=f"bad-{m['id']}", type="primary"):
+            mem.feedback(m["id"], "wrong"); st.session_state["flash"] = f"{m['id']}: marked wrong, -0.20 confidence, tagged review, ledger entry written"; st.rerun()
+    pick = st.selectbox("Trust-ledger history for", [m["id"] for m in records] or ["-"], key="ledger-pick")
+    if records:
+        hist = mem.history(pick)
+        st.table([{"action": h["action"], "actor": h["actor"], "confidence": f"{h['confidence_before']} → {h['confidence_after']}" if h["confidence_before"] is not None else (h["confidence_after"] if h["confidence_after"] is not None else ""),
+                   "details": json.dumps(h["details"])[:80]} for h in hist])
+    st.caption(f"ledger totals: {mem.ledger_stats()}")
+except Exception as exc:  # noqa: BLE001
+    st.caption(f"memory unavailable: {exc}")

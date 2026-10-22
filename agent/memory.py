@@ -71,6 +71,20 @@ class Memory:
     def ledger_stats(self) -> dict:
         return self.h.ledger.stats()
 
+    def history(self, memory_id: str) -> list[dict]:
+        """The trust-ledger entries for one memory, oldest first (action, actor, confidence before/after)."""
+        out = []
+        for e in self.h.ledger.history(memory_id):
+            prev, new = _g(e, "previousState") or {}, _g(e, "newState") or {}
+            out.append({"action": _g(e, "action"), "actor": _g(e, "actor"), "timestamp": _g(e, "timestamp"),
+                        "confidence_before": _g(prev, "confidence"), "confidence_after": _g(new, "confidence"),
+                        "details": _g(e, "details") or {}})
+        return out
+
+    def for_alert(self, alert_id: str) -> list[dict]:
+        tag = f"alert:{alert_id}"
+        return [m for m in self.all() if tag in (m.get("tags") or [])]
+
 
 def _g(obj, name):
     if isinstance(obj, dict):
