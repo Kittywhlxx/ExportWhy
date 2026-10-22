@@ -1,0 +1,121 @@
+"""ExportWhy: single-page UI for the demo. Everything is produced by the same agent loop as the CLI
+(agent.main.run); this page only renders the report and the trace.
+
+    .venv/bin/streamlit run ui/app.py
+"""
+from __future__ import annotations
+
+import json
+import os
+import sys
+from pathlib import Path
+
+import streamlit as st
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from agent import config  # noqa: E402
+from agent.main import run  # noqa: E402
+from agent.memory import Memory  # noqa: E402
+from agent.roles import Task  # noqa: E402
+from agent.zetaris import DataLayerError, get_backend  # noqa: E402
+
+st.set_page_config(page_title="ExportWhy", page_icon="🔎", layout="wide")
+VERDICT_STYLE = {"compliant": "success", "investigate": "error", "cannot-confirm": "warning"}
+
+# ------------------------------------------------------------------ sidebar: mode + alert
+with st.sidebar:
+    st.title("ExportWhy")
+    st.caption("Why does this export alert need investigation? Evidence from three sources, federated by Zetaris.")
+    mode = st.radio("Run mode", ["Live (Zetaris + Nightshift)", "Live data, stub model", "Offline sample (SQLite + stub)"], index=2)
+    os.environ["SAMPLE_MODE"] = "true" if mode.startswith("Offline") else "false"
+    os.environ["LLM_STUB"] = "true" if mode.startswith("Live data") else "false"
+    try:
+        backend = get_backend()
+        alerts = backend.query("SELECT a.alert_id, a.rule, a.severity, e.account_id, e.dataset_id, e.rows_exported "
+                               "FROM dexa.alerts a JOIN dexa.export_events e ON e.event_id = a.event_id ORDER BY a.alert_id", limit=200).rows
+    except DataLayerError as exc:
+        st.error(f"data layer: {exc}"); alerts = []
+    labels = {r["alert_id"]: f"{r['alert_id']} · {r['severity']} · {r['account_id']} → {r['dataset_id']} ({r['rows_exported']} rows)" for r in alerts}
+    alert_id = st.selectbox("Alert", list(labels), format_func=lambda k: labels[k]) if labels else None
+    if alert_id:
+        st.caption(next(r["rule"] for r in alerts if r["alert_id"] == alert_id))
+    go = st.button("Triage this alert", type="primary", disabled=not alert_id, use_container_width=True)
+    st.divider()
+    st.caption(f"data: {backend.name if alerts else '-'} · model: {'stub' if os.environ['SAMPLE_MODE'] == 'true' or os.environ['LLM_STUB'] == 'true' else 'nightshift'}")
+
+# ------------------------------------------------------------------ run
+if go and alert_id:
+    with st.spinner(f"Investigating {alert_id} ..."):
+        try:
+            report, outcome = run(Task(alert_id=alert_id))
+            st.session_state["last"] = (alert_id, report, outcome)
+        except DataLayerError as exc:
+            st.error(f"data layer error: {exc}")
+
+if "last" not in st.session_state:
+    st.markdown("### Pick an alert on the left and press **Triage this alert**.")
+    st.markdown("The agent plans which evidence it needs, queries Zetaris (access log, policy and tickets as one schema), "
+                "checks whether the evidence is sufficient and consistent, and reports a verdict with a citation per claim, "
+                "the conflicts it found, what it could not confirm, and which tables and sensitive columns it touched.")
+    st.stop()
+
+alert_id, report, outcome = st.session_state["last"]
+trace_path = config.TRACE_DIR / f"{[p for p in sorted(config.TRACE_DIR.glob('*.json'))][-1].name}" if config.TRACE_DIR.exists() else None
+trace = json.loads(trace_path.read_text()) if trace_path else {}
+
+# ------------------------------------------------------------------ verdict banner
+verdict = outcome["verdict"]
+getattr(st, VERDICT_STYLE.get(verdict, "info"))(f"**{alert_id} → {verdict.upper()}**  —  " + ("; ".join(outcome["reasons"]) or "no reasons recorded"))
+c1, c2, c3, c4, c5 = st.columns(5)
+c1.metric("evaluator rounds", outcome["rounds"])
+c2.metric("facts cited", outcome["facts"])
+c3.metric("conflicts", len(outcome["conflicts"]))
+c4.metric("cannot confirm", len(outcome["gaps"]))
+c5.metric("sensitive columns read", len(outcome["disclosure"]["sensitive_columns_touched"]))
+
+# ------------------------------------------------------------------ report + trace
+left, right = st.columns([3, 2])
+with left:
+    body = report.split("\n_trace:")[0]
+    st.markdown(body.replace("# Export-alert triage", "## Export-alert triage"))
+with right:
+    st.subheader("How the agent got there")
+    for s in trace.get("steps", []):
+        k = s["kind"]
+        if k == "plan":
+            st.markdown(f"**{s['t']:.1f}s · planner** → {', '.join(s['evidence'])}  \n_{s['reason'][:140]}_" + (f"  \nmodel drafted {s['llm_drafted']} SQL" if s.get("llm_drafted") else ""))
+        elif k == "query":
+            with st.expander(f"{s['t']:.1f}s · {s['step']} {s['evidence']} → {s['rows']} rows ({s['backend']}, {s['elapsed_ms']} ms)"):
+                st.code(s["sql"], language="sql")
+        elif k == "query_failed":
+            st.error(f"{s['t']:.1f}s · {s['step']} {s['evidence']} failed: {s['error'][:160]}")
+        elif k == "rejected_llm_sql":
+            st.warning(f"{s['t']:.1f}s · planner rejected model SQL for {s['step']}: {s['why']}")
+        elif k == "assess":
+            st.markdown(f"**{s['t']:.1f}s · evaluator** round {s['round']}: " + (f"verdict **{s['verdict']}**" if s["verdict"] else "needs more: " + ", ".join(s["missing"])))
+        elif k == "llm":
+            st.caption(f"{s['t']:.1f}s · {s['agent']} ← {s.get('routed_model') or s.get('model_served')} ({(s.get('usage') or {}).get('total_tokens', '?')} tokens)")
+        elif k == "recall":
+            st.caption(f"{s['t']:.1f}s · H-MEM recalled {len(s['hits'])} memories")
+        elif k == "dossier":
+            st.caption(f"{s['t']:.1f}s · World Model: account {'known' if s['known'] else 'new'}, {len(s['prior_alerts'])} prior alert(s)")
+        elif k == "remember":
+            st.caption(f"{s['t']:.1f}s · H-MEM: {len(s['created'])} created, {len(s['reconfirmed'])} re-verified, {len(s['superseded'])} superseded")
+        elif k == "ingest":
+            st.caption(f"{s['t']:.1f}s · World Model: +{s['appended']} events ({s['entities']} entities, {s['events']} events total)")
+    with st.expander("Raw JSON trace"):
+        st.json(trace)
+
+# ------------------------------------------------------------------ memory
+st.divider()
+with st.expander("What the agent remembers (H-MEM trust ledger)"):
+    try:
+        mem = Memory()
+        rows = [m for m in mem.all() if alert_id in (m.get("tags") or [f"alert:{alert_id}"]) or f"alert:{alert_id}" in (m.get("tags") or [])]
+        for m in rows[:30]:
+            st.markdown(f"`{m['id']}` conf {float(m['confidence']):.2f}{' (superseded)' if m['superseded'] else ''} — {m['content']}")
+        st.caption(f"ledger: {mem.ledger_stats()}")
+    except Exception as exc:  # noqa: BLE001
+        st.caption(f"memory unavailable: {exc}")
