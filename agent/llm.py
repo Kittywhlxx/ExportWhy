@@ -44,16 +44,22 @@ class Nightshift:
         ids = [m.id for m in models.data]
         return {"online": any(i.startswith("meterless/") for i in ids), "models": ids[:20], "selected": self.model}
 
-    def chat(self, system: str, user: str, json_mode: bool = False) -> tuple[str, dict]:
+    def chat(self, system: str, user: str, json_mode: bool = False, max_tokens: int = 700) -> tuple[str, dict]:
         delays = [2, 4, 8]
+        # Nemotron reasoning models honour "/no_think"; without it a 20-token answer can carry 500 tokens of
+        # thinking and a minute of latency. The routed model is recorded per call from the compute receipt.
+        system = "/no_think " + system
         for attempt in range(4):
             try:
                 resp = self.client.chat.completions.create(
-                    model=self.model, temperature=0.1,
+                    model=self.model, temperature=0.1, max_tokens=max_tokens,
                     messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
                     extra_headers={"meterless-scope": "user"})
-                text = resp.choices[0].message.content or ""
+                text = strip_thinking(resp.choices[0].message.content or "")
+                extra = getattr(resp, "model_extra", None) or {}
+                receipt = extra.get("meterless") if isinstance(extra, dict) else None
                 meta = {"provider": self.name, "model_requested": self.model, "model_served": getattr(resp, "model", None),
+                        "routed_model": (receipt or {}).get("routed_model"), "receipt_id": (receipt or {}).get("receipt_id"),
                         "usage": getattr(resp, "usage", None) and resp.usage.model_dump()}
                 return text, meta
             except Exception as exc:  # noqa: BLE001 - provider errors are heterogeneous
@@ -80,6 +86,14 @@ def get_llm():
     if config.sample_mode() or (config.env("LLM_STUB", "false") or "").lower() in ("1", "true", "yes"):
         return StubLLM()
     return Nightshift()
+
+
+THINK = re.compile(r"<think>.*?</think>|^.*?</think>", re.S)
+
+
+def strip_thinking(text: str) -> str:
+    """Reasoning models may leak a <think>...</think> block (or its tail) into the content."""
+    return THINK.sub("", text).strip()
 
 
 def extract_json(text: str):

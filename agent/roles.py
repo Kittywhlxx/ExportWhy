@@ -78,7 +78,9 @@ TEMPLATES: dict[str, tuple[str, str]] = {
         "WHERE account_id = '{account_id}' AND dataset_id = '{dataset_id}' AND ts < '{ts}'"),
 }
 
-ROUND1 = ["alert", "account", "dataset", "sensitivity"]
+# Classes whose SQL is fully determined by the alert's keys: the model adds nothing, so they are never
+# sent for drafting (keeps a triage at <= 3 model calls: two planning rounds and one summary).
+NO_DRAFT = {"alert", "account", "sensitivity", "destination", "account_history"}
 
 
 # ------------------------------------------------------------------ planner --------------------
@@ -93,7 +95,8 @@ class Planner:
     def plan(self, task: Task, classes: list[str], memory_context: str, reason: str) -> list[Step]:
         params = {k: (v if v is not None else "") for k, v in vars(task).items()}
         steps = [self._template(c, params) for c in classes]
-        drafted = self._llm_refine(task, steps, memory_context, reason) if self.llm.name != "stub" else 0
+        draftable = [st for st in steps if st.evidence not in NO_DRAFT]
+        drafted = self._llm_refine(task, draftable, memory_context, reason) if self.llm.name != "stub" and draftable else 0
         self.trace.step(self.name, "plan", reason=reason, evidence=classes, llm_drafted=drafted,
                         steps=[{"id": s.sid, "evidence": s.evidence, "origin": s.origin, "sql": s.sql} for s in steps])
         return steps
@@ -137,7 +140,7 @@ class Planner:
         for ref in re.findall(r"\b([a-z_]+)\.([a-z_]+)\b", sql, re.I):
             if ref[0].lower() == catalog.SCHEMA and ref[1].lower() not in catalog.TABLES:
                 return False, f"unknown table {ref[1]}"
-        keys = [k for k in (task.alert_id, task.account_id, task.dataset_id, task.ticket_ref) if k]
+        keys = [k for k in (task.alert_id, task.event_id, task.account_id, task.dataset_id, task.ticket_ref) if k]
         if "field_sensitivity" not in sql and not any(k in sql for k in keys):
             return False, "does not filter on this alert's keys"
         return True, ""
@@ -502,6 +505,6 @@ class Reporter:
                   "never add a claim that is not in the list; state the verdict and its main reason first; name what could not be confirmed.")
         user = (f"Verdict: {a.verdict}\nReasons: {a.reasons}\nFacts:\n" + "\n".join(f"- {f.text}" for f in a.facts)
                 + f"\nConflicts: {a.conflicts}\nUnconfirmed: {a.gaps}")
-        text, meta = self.llm.chat(system, user)
+        text, meta = self.llm.chat(system, user, max_tokens=350)
         self.trace.step(self.name, "llm", **meta)
         return text.strip()
