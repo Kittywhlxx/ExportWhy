@@ -164,6 +164,22 @@ All three sources are synthetic and generated with a seed; judges can pick a see
 saw and the ground truth comes with it. See [data/README.md](data/README.md) for the schema, the ten
 injected scenarios and the regeneration commands.
 
+## Does the disclosure controller change anything? (ablation)
+
+Same 13 alerts, same evidence loop, same verdict rules. Only how the queries are written differs.
+Counts are distinct sensitive columns read, summed over the 13 triages (`scripts/ablation_disclosure.py`,
+full table in [docs/ablation_disclosure.md](docs/ablation_disclosure.md)).
+
+| planner | pii | confidential | internal | sensitive total | verdicts vs ground truth |
+|---|---:|---:|---:|---:|---|
+| naive: every evidence query is `SELECT *` | 52 | 26 | 35 | 113 | 13/13 |
+| this system: column-scoped evidence queries | 0 | 3 | 0 | 3 | 13/13 |
+| this system + Nemotron-drafted SQL, validator-gated (live run) | 0 | 5 | 0 | 5 | 13/13 |
+
+The three confidential reads are the `destination` column, fetched only for the alerts whose export left
+the internal share and whose verdict was not "compliant". Identical verdicts, 38x less sensitive data read:
+minimal disclosure is a policy of the planner, not a loss of accuracy.
+
 ## Tests
 
 `pytest -q` runs the H-MEM conformance vectors, the World Model conformance cases, and the

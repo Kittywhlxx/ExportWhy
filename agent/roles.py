@@ -7,6 +7,7 @@ round found (a cited ticket that fails a check triggers a search for other autho
 from __future__ import annotations
 
 import datetime as dt
+import os
 import re
 from dataclasses import dataclass, field
 
@@ -104,7 +105,11 @@ class Planner:
     def _template(self, cls: str, params: dict) -> Step:
         self.counter += 1
         purpose, sql = TEMPLATES[cls]
-        return Step(sid=f"q{self.counter}", evidence=cls, purpose=purpose, sql=sql.format(**params))
+        sql = sql.format(**params)
+        if os.environ.get("PLANNER", "").lower() == "naive":
+            # ablation: same tables, joins and filters, but SELECT * (no column scoping)
+            sql = re.sub(r"^SELECT\s.*?\sFROM\s", "SELECT * FROM ", sql, count=1, flags=re.S | re.I)
+        return Step(sid=f"q{self.counter}", evidence=cls, purpose=purpose, sql=sql)
 
     def _llm_refine(self, task: Task, steps: list[Step], memory_context: str, reason: str) -> int:
         """Let the model write the SQL per evidence class; keep a draft only if it is read-only, uses known
