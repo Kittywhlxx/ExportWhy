@@ -1,0 +1,147 @@
+{
+ "info": {
+  "name": "python-jose",
+  "version": "3.3.0",
+  "summary": "JOSE implementation in Python",
+  "license": "MIT",
+  "license_expression": null,
+  "classifiers": [
+   "Development Status :: 5 - Production/Stable",
+   "Intended Audience :: Developers",
+   "License :: OSI Approved :: MIT License",
+   "Natural Language :: English",
+   "Programming Language :: Python",
+   "Programming Language :: Python :: 3",
+   "Programming Language :: Python :: 3 :: Only",
+   "Programming Language :: Python :: 3.6",
+   "Programming Language :: Python :: 3.7",
+   "Programming Language :: Python :: 3.8",
+   "Programming Language :: Python :: 3.9",
+   "Programming Language :: Python :: Implementation :: PyPy",
+   "Topic :: Utilities"
+  ],
+  "requires_python": "",
+  "requires_dist": [
+   "ecdsa (!=0.15)",
+   "rsa",
+   "pyasn1",
+   "cryptography (>=3.4.0) ; extra == 'cryptography'",
+   "pycrypto (<2.7.0,>=2.6.0) ; extra == 'pycrypto'",
+   "pyasn1 ; extra == 'pycrypto'",
+   "pycryptodome (<4.0.0,>=3.3.1) ; extra == 'pycryptodome'",
+   "pyasn1 ; extra == 'pycryptodome'"
+  ],
+  "home_page": "http://github.com/mpdavis/python-jose",
+  "project_urls": {
+   "Changelog": "https://github.com/mpdavis/python-jose/blob/master/CHANGELOG.md",
+   "Documentation": "https://python-jose.readthedocs.io/en/latest/",
+   "Homepage": "http://github.com/mpdavis/python-jose",
+   "Source": "https://github.com/mpdavis/python-jose/",
+   "Tracker": "https://github.com/mpdavis/python-jose/issues/"
+  },
+  "author": "Michael Davis",
+  "yanked": false,
+  "yanked_reason": null
+ },
+ "vulnerabilities": [
+  {
+   "aliases": [
+    "CVE-2024-33664",
+    "PYSEC-2024-233"
+   ],
+   "details": "python-jose through 3.3.0 allows attackers to cause a denial of service (resource consumption) during a decode via a crafted JSON Web Encryption (JWE) token with a high compression ratio, aka a \"JWT bomb.\" This is similar to CVE-2024-21319.",
+   "fixed_in": [
+    "3.4.0"
+   ],
+   "id": "GHSA-cjwg-qfpm-7377",
+   "link": "https://osv.dev/vulnerability/GHSA-cjwg-qfpm-7377",
+   "source": "osv",
+   "summary": null,
+   "withdrawn": null
+  },
+  {
+   "aliases": [
+    "CVE-2024-33663",
+    "CVE-2026-85394",
+    "PYSEC-2024-232"
+   ],
+   "details": "python-jose through 3.3.0 has algorithm confusion with OpenSSH ECDSA keys and other key formats. This is similar to CVE-2022-29217.",
+   "fixed_in": [
+    "3.4.0"
+   ],
+   "id": "GHSA-6c5p-j8vq-pqhj",
+   "link": "https://osv.dev/vulnerability/GHSA-6c5p-j8vq-pqhj",
+   "source": "osv",
+   "summary": null,
+   "withdrawn": null
+  },
+  {
+   "aliases": [
+    "CVE-2024-33663",
+    "GHSA-6c5p-j8vq-pqhj"
+   ],
+   "details": "python-jose through 3.3.0 has algorithm confusion with OpenSSH ECDSA keys and other key formats. This is similar to CVE-2022-29217.",
+   "fixed_in": [
+    "3.4.0"
+   ],
+   "id": "PYSEC-2024-232",
+   "link": "https://osv.dev/vulnerability/PYSEC-2024-232",
+   "source": "osv",
+   "summary": null,
+   "withdrawn": null
+  },
+  {
+   "aliases": [
+    "CVE-2024-33664",
+    "GHSA-cjwg-qfpm-7377"
+   ],
+   "details": "python-jose through 3.3.0 allows attackers to cause a denial of service (resource consumption) during a decode via a crafted JSON Web Encryption (JWE) token with a high compression ratio, aka a \"JWT bomb.\" This is similar to CVE-2024-21319.",
+   "fixed_in": [
+    "3.4.0"
+   ],
+   "id": "PYSEC-2024-233",
+   "link": "https://osv.dev/vulnerability/PYSEC-2024-233",
+   "source": "osv",
+   "summary": null,
+   "withdrawn": null
+  },
+  {
+   "aliases": [
+    "CVE-2024-29370"
+   ],
+   "details": "In python-jose 3.3.0 (specifically jwe.decrypt), a vulnerability allows an attacker to cause a Denial-of-Service (DoS) condition by crafting a malicious JSON Web Encryption (JWE) token with an exceptionally high compression ratio. When this token is processed by the server, it results in significant memory allocation and processing time during decompression.",
+   "fixed_in": [],
+   "id": "PYSEC-2025-185",
+   "link": "https://osv.dev/vulnerability/PYSEC-2025-185",
+   "source": "osv",
+   "summary": null,
+   "withdrawn": null
+  },
+  {
+   "aliases": [
+    "CVE-2026-85394"
+   ],
+   "details": "python-jose through 3.5.0 fails to properly validate asymmetric keys in HMAC initialization, accepting DER-encoded public keys that lack PEM armor or SSH prefixes. Attackers holding the service's public key can forge HS256 tokens that pass verification when algorithms are not explicitly restricted. This is an incomplete fix for CVE-2024-33663.",
+   "fixed_in": [],
+   "id": "GHSA-3qf3-8w2g-rqmx",
+   "link": "https://osv.dev/vulnerability/GHSA-3qf3-8w2g-rqmx",
+   "source": "osv",
+   "summary": null,
+   "withdrawn": null
+  },
+  {
+   "aliases": [
+    "CVE-2026-85394",
+    "GHSA-3qf3-8w2g-rqmx"
+   ],
+   "details": "python-jose through 3.5.0 fails to properly validate asymmetric keys in HMAC initialization, accepting DER-encoded public keys that lack PEM armor or SSH prefixes. Attackers holding the service's public key can forge HS256 tokens that pass verification when algorithms are not explicitly restricted. This is an incomplete fix for CVE-2024-33663.",
+   "fixed_in": [],
+   "id": "PYSEC-2026-4298",
+   "link": "https://osv.dev/vulnerability/PYSEC-2026-4298",
+   "source": "osv",
+   "summary": null,
+   "withdrawn": null
+  }
+ ],
+ "_source_url": "https://pypi.org/pypi/python-jose/3.3.0/json"
+}

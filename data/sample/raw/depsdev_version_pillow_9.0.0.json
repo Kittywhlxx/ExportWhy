@@ -1,0 +1,237 @@
+{
+ "versionKey": {
+  "system": "PYPI",
+  "name": "pillow",
+  "version": "9.0.0"
+ },
+ "publishedAt": "2022-01-02T22:14:14Z",
+ "isDefault": false,
+ "isDeprecated": false,
+ "deprecatedReason": "",
+ "licenses": [
+  "HPND"
+ ],
+ "advisoryKeys": [
+  {
+   "id": "GHSA-22hg-r758-rrw9"
+  },
+  {
+   "id": "GHSA-254f-3936-288h"
+  },
+  {
+   "id": "GHSA-27h8-gf7j-v5hc"
+  },
+  {
+   "id": "GHSA-332p-7hrc-92wf"
+  },
+  {
+   "id": "GHSA-3f63-hfp8-52jq"
+  },
+  {
+   "id": "GHSA-44wm-f244-xhp3"
+  },
+  {
+   "id": "GHSA-4558-3h8r-v8xp"
+  },
+  {
+   "id": "GHSA-45hq-cxwh-f6vc"
+  },
+  {
+   "id": "GHSA-462x-pgg6-55fp"
+  },
+  {
+   "id": "GHSA-4x4j-2g7c-83w6"
+  },
+  {
+   "id": "GHSA-58r4-6rv3-gfh8"
+  },
+  {
+   "id": "GHSA-5x94-69rx-g8h2"
+  },
+  {
+   "id": "GHSA-5xm2-6676-qcp9"
+  },
+  {
+   "id": "GHSA-62p4-gmf7-7g93"
+  },
+  {
+   "id": "GHSA-6r8x-57c9-28j4"
+  },
+  {
+   "id": "GHSA-74r2-7ff9-mjj2"
+  },
+  {
+   "id": "GHSA-7mwm-ghpf-9vrm"
+  },
+  {
+   "id": "GHSA-8g5g-8vmr-9782"
+  },
+  {
+   "id": "GHSA-8ghj-p4vj-mr35"
+  },
+  {
+   "id": "GHSA-8v84-f9pq-wr9x"
+  },
+  {
+   "id": "GHSA-8vj2-vxx3-667w"
+  },
+  {
+   "id": "GHSA-9hw9-ch79-4vh6"
+  },
+  {
+   "id": "GHSA-9j59-75qj-795w"
+  },
+  {
+   "id": "GHSA-c6hw-5grf-ff96"
+  },
+  {
+   "id": "GHSA-f2g6-542v-9j58"
+  },
+  {
+   "id": "GHSA-fj7v-r99m-22gq"
+  },
+  {
+   "id": "GHSA-gg2r-wvfm-q9rx"
+  },
+  {
+   "id": "GHSA-j7hp-h8jx-5ppr"
+  },
+  {
+   "id": "GHSA-jg86-v3jv-hrpm"
+  },
+  {
+   "id": "GHSA-jjj6-mw9f-p565"
+  },
+  {
+   "id": "GHSA-m2vv-5vj5-2hm7"
+  },
+  {
+   "id": "GHSA-p4wg-p73j-c528"
+  },
+  {
+   "id": "GHSA-pchr-8j38-3x4p"
+  },
+  {
+   "id": "GHSA-phj9-mv4w-65pm"
+  },
+  {
+   "id": "GHSA-q45j-58j2-45rg"
+  },
+  {
+   "id": "GHSA-r73j-pqj5-w3x7"
+  },
+  {
+   "id": "GHSA-vjc4-5qp5-m44j"
+  },
+  {
+   "id": "GHSA-vx6w-vv9f-6gvg"
+  },
+  {
+   "id": "GHSA-w889-685w-c8fh"
+  },
+  {
+   "id": "GHSA-wjx4-4jcj-g98j"
+  },
+  {
+   "id": "GHSA-xgh8-jp6q-p5x8"
+  },
+  {
+   "id": "GHSA-xj96-63gp-2gmr"
+  },
+  {
+   "id": "GHSA-xvh5-g6gv-559v"
+  },
+  {
+   "id": "PYSEC-2022-168"
+  },
+  {
+   "id": "PYSEC-2022-42979"
+  },
+  {
+   "id": "PYSEC-2023-175"
+  },
+  {
+   "id": "PYSEC-2023-227"
+  },
+  {
+   "id": "PYSEC-2026-165"
+  },
+  {
+   "id": "PYSEC-2026-1793"
+  },
+  {
+   "id": "PYSEC-2026-1794"
+  },
+  {
+   "id": "PYSEC-2026-2253"
+  },
+  {
+   "id": "PYSEC-2026-2254"
+  },
+  {
+   "id": "PYSEC-2026-2255"
+  },
+  {
+   "id": "PYSEC-2026-2256"
+  },
+  {
+   "id": "PYSEC-2026-2257"
+  },
+  {
+   "id": "PYSEC-2026-2874"
+  },
+  {
+   "id": "PYSEC-2026-3451"
+  },
+  {
+   "id": "PYSEC-2026-3453"
+  },
+  {
+   "id": "PYSEC-2026-3454"
+  },
+  {
+   "id": "PYSEC-2026-3493"
+  },
+  {
+   "id": "PYSEC-2026-3494"
+  },
+  {
+   "id": "PYSEC-2026-3495"
+  },
+  {
+   "id": "PYSEC-2026-3496"
+  },
+  {
+   "id": "PYSEC-2026-457"
+  }
+ ],
+ "links": [
+  {
+   "label": "DOCUMENTATION",
+   "url": "https://pillow.readthedocs.io"
+  },
+  {
+   "label": "SOURCE_REPO",
+   "url": "https://github.com/python-pillow/Pillow"
+  }
+ ],
+ "slsaProvenances": [],
+ "attestations": [],
+ "registries": [
+  "https://pypi.org/simple"
+ ],
+ "relatedProjects": [
+  {
+   "projectKey": {
+    "id": "github.com/python-pillow/pillow"
+   },
+   "relationProvenance": "UNVERIFIED_METADATA",
+   "relationType": "SOURCE_REPO"
+  }
+ ],
+ "projectStatus": {
+  "status": "active",
+  "reason": ""
+ },
+ "_source_url": "https://api.deps.dev/v3/systems/pypi/packages/pillow/versions/9.0.0"
+}

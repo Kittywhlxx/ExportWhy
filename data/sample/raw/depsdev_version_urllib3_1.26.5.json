@@ -1,0 +1,116 @@
+{
+ "versionKey": {
+  "system": "PYPI",
+  "name": "urllib3",
+  "version": "1.26.5"
+ },
+ "publishedAt": "2021-05-26T17:02:33Z",
+ "isDefault": false,
+ "isDeprecated": false,
+ "deprecatedReason": "",
+ "licenses": [
+  "MIT"
+ ],
+ "advisoryKeys": [
+  {
+   "id": "GHSA-2xpw-w6gg-jr37"
+  },
+  {
+   "id": "GHSA-34jh-p97f-mpxf"
+  },
+  {
+   "id": "GHSA-38jv-5279-wg99"
+  },
+  {
+   "id": "GHSA-8988-9cw3-xx77"
+  },
+  {
+   "id": "GHSA-g4mx-q9vg-27p4"
+  },
+  {
+   "id": "GHSA-gm62-xv2j-4w53"
+  },
+  {
+   "id": "GHSA-pq67-6m6q-mj2v"
+  },
+  {
+   "id": "GHSA-qccp-gfcp-xxvc"
+  },
+  {
+   "id": "GHSA-v845-jxx5-vc9f"
+  },
+  {
+   "id": "GHSA-vxq7-64xx-v4gw"
+  },
+  {
+   "id": "PYSEC-2023-192"
+  },
+  {
+   "id": "PYSEC-2023-212"
+  },
+  {
+   "id": "PYSEC-2026-141"
+  },
+  {
+   "id": "PYSEC-2026-1994"
+  },
+  {
+   "id": "PYSEC-2026-1995"
+  },
+  {
+   "id": "PYSEC-2026-1996"
+  },
+  {
+   "id": "PYSEC-2026-1998"
+  },
+  {
+   "id": "PYSEC-2026-1999"
+  },
+  {
+   "id": "PYSEC-2026-4175"
+  },
+  {
+   "id": "PYSEC-2026-4177"
+  }
+ ],
+ "links": [
+  {
+   "label": "DOCUMENTATION",
+   "url": "https://urllib3.readthedocs.io/"
+  },
+  {
+   "label": "ISSUE_TRACKER",
+   "url": "https://github.com/urllib3/urllib3/issues"
+  },
+  {
+   "label": "SOURCE_REPO",
+   "url": "https://github.com/urllib3/urllib3"
+  }
+ ],
+ "slsaProvenances": [],
+ "attestations": [],
+ "registries": [
+  "https://pypi.org/simple"
+ ],
+ "relatedProjects": [
+  {
+   "projectKey": {
+    "id": "github.com/urllib3/urllib3"
+   },
+   "relationProvenance": "UNVERIFIED_METADATA",
+   "relationType": "ISSUE_TRACKER"
+  },
+  {
+   "projectKey": {
+    "id": "github.com/urllib3/urllib3"
+   },
+   "relationProvenance": "UNVERIFIED_METADATA",
+   "relationType": "SOURCE_REPO"
+  }
+ ],
+ "projectStatus": {
+  "status": "active",
+  "reason": ""
+ },
+ "_source_url": "https://api.deps.dev/v3/systems/pypi/packages/urllib3/versions/1.26.5"
+}

@@ -1,0 +1,5 @@
+service,owner_team,tier,language
+auth-service,identity,1,python
+payments-api,payments,1,python
+reporting-batch,data-platform,2,python
+web-portal,frontend,2,python

@@ -1,0 +1,9 @@
+.DS_Store
+.env
+*.zip
+memory/
+traces/*.json
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/

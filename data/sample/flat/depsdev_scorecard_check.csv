@@ -1,0 +1,113 @@
+project_id,package,check_name,score,reason,source_url
+github.com/pyca/cryptography,cryptography,Maintained,10,30 commit(s) and 17 issue activity found in the last 90 days -- score normalized to 10,https://api.deps.dev/v3/projects/github.com%2Fpyca%2Fcryptography
+github.com/pyca/cryptography,cryptography,Code-Review,10,all changesets reviewed,https://api.deps.dev/v3/projects/github.com%2Fpyca%2Fcryptography
+github.com/pyca/cryptography,cryptography,Security-Policy,10,security policy file detected,https://api.deps.dev/v3/projects/github.com%2Fpyca%2Fcryptography
+github.com/pyca/cryptography,cryptography,CII-Best-Practices,0,no effort to earn an OpenSSF best practices badge detected,https://api.deps.dev/v3/projects/github.com%2Fpyca%2Fcryptography
+github.com/pyca/cryptography,cryptography,Packaging,-1,packaging workflow not detected,https://api.deps.dev/v3/projects/github.com%2Fpyca%2Fcryptography
+github.com/pyca/cryptography,cryptography,Dangerous-Workflow,10,no dangerous workflow patterns detected,https://api.deps.dev/v3/projects/github.com%2Fpyca%2Fcryptography
+github.com/pyca/cryptography,cryptography,Token-Permissions,9,detected GitHub workflow tokens with excessive permissions,https://api.deps.dev/v3/projects/github.com%2Fpyca%2Fcryptography
+github.com/pyca/cryptography,cryptography,License,9,license file detected,https://api.deps.dev/v3/projects/github.com%2Fpyca%2Fcryptography
+github.com/pyca/cryptography,cryptography,Binary-Artifacts,10,no binaries found in the repo,https://api.deps.dev/v3/projects/github.com%2Fpyca%2Fcryptography
+github.com/pyca/cryptography,cryptography,Fuzzing,10,project is fuzzed,https://api.deps.dev/v3/projects/github.com%2Fpyca%2Fcryptography
+github.com/pyca/cryptography,cryptography,Signed-Releases,-1,no releases found,https://api.deps.dev/v3/projects/github.com%2Fpyca%2Fcryptography
+github.com/pyca/cryptography,cryptography,Branch-Protection,-1,internal error: error during branchesHandler.setup: internal error: some github tokens can't read classic branch protection rules: https://github.com/ossf/scorecard-action/blob/main/docs/authenticatio,https://api.deps.dev/v3/projects/github.com%2Fpyca%2Fcryptography
+github.com/pyca/cryptography,cryptography,Pinned-Dependencies,5,dependency not pinned by hash detected -- score normalized to 5,https://api.deps.dev/v3/projects/github.com%2Fpyca%2Fcryptography
+github.com/pyca/cryptography,cryptography,SAST,0,SAST tool is not run on all commits -- score normalized to 0,https://api.deps.dev/v3/projects/github.com%2Fpyca%2Fcryptography
+github.com/encode/httpx,httpx,Code-Review,9,Found 24/26 approved changesets -- score normalized to 9,https://api.deps.dev/v3/projects/github.com%2Fencode%2Fhttpx
+github.com/encode/httpx,httpx,Packaging,-1,packaging workflow not detected,https://api.deps.dev/v3/projects/github.com%2Fencode%2Fhttpx
+github.com/encode/httpx,httpx,Dangerous-Workflow,10,no dangerous workflow patterns detected,https://api.deps.dev/v3/projects/github.com%2Fencode%2Fhttpx
+github.com/encode/httpx,httpx,Maintained,0,0 commit(s) and 0 issue activity found in the last 90 days -- score normalized to 0,https://api.deps.dev/v3/projects/github.com%2Fencode%2Fhttpx
+github.com/encode/httpx,httpx,Token-Permissions,0,detected GitHub workflow tokens with excessive permissions,https://api.deps.dev/v3/projects/github.com%2Fencode%2Fhttpx
+github.com/encode/httpx,httpx,Binary-Artifacts,10,no binaries found in the repo,https://api.deps.dev/v3/projects/github.com%2Fencode%2Fhttpx
+github.com/encode/httpx,httpx,CII-Best-Practices,0,no effort to earn an OpenSSF best practices badge detected,https://api.deps.dev/v3/projects/github.com%2Fencode%2Fhttpx
+github.com/encode/httpx,httpx,Pinned-Dependencies,0,dependency not pinned by hash detected -- score normalized to 0,https://api.deps.dev/v3/projects/github.com%2Fencode%2Fhttpx
+github.com/encode/httpx,httpx,Security-Policy,0,security policy file not detected,https://api.deps.dev/v3/projects/github.com%2Fencode%2Fhttpx
+github.com/encode/httpx,httpx,Fuzzing,10,project is fuzzed,https://api.deps.dev/v3/projects/github.com%2Fencode%2Fhttpx
+github.com/encode/httpx,httpx,License,10,license file detected,https://api.deps.dev/v3/projects/github.com%2Fencode%2Fhttpx
+github.com/encode/httpx,httpx,Signed-Releases,-1,no releases found,https://api.deps.dev/v3/projects/github.com%2Fencode%2Fhttpx
+github.com/encode/httpx,httpx,Branch-Protection,-1,internal error: error during branchesHandler.setup: internal error: some github tokens can't read classic branch protection rules: https://github.com/ossf/scorecard-action/blob/main/docs/authenticatio,https://api.deps.dev/v3/projects/github.com%2Fencode%2Fhttpx
+github.com/encode/httpx,httpx,SAST,0,SAST tool is not run on all commits -- score normalized to 0,https://api.deps.dev/v3/projects/github.com%2Fencode%2Fhttpx
+github.com/python-pillow/pillow,pillow,Security-Policy,10,security policy file detected,https://api.deps.dev/v3/projects/github.com%2Fpython-pillow%2Fpillow
+github.com/python-pillow/pillow,pillow,Code-Review,5,Found 10/17 approved changesets -- score normalized to 5,https://api.deps.dev/v3/projects/github.com%2Fpython-pillow%2Fpillow
+github.com/python-pillow/pillow,pillow,Maintained,10,30 commit(s) and 14 issue activity found in the last 90 days -- score normalized to 10,https://api.deps.dev/v3/projects/github.com%2Fpython-pillow%2Fpillow
+github.com/python-pillow/pillow,pillow,Dangerous-Workflow,10,no dangerous workflow patterns detected,https://api.deps.dev/v3/projects/github.com%2Fpython-pillow%2Fpillow
+github.com/python-pillow/pillow,pillow,Token-Permissions,10,GitHub workflow tokens follow principle of least privilege,https://api.deps.dev/v3/projects/github.com%2Fpython-pillow%2Fpillow
+github.com/python-pillow/pillow,pillow,CII-Best-Practices,5,badge detected: Passing,https://api.deps.dev/v3/projects/github.com%2Fpython-pillow%2Fpillow
+github.com/python-pillow/pillow,pillow,Binary-Artifacts,10,no binaries found in the repo,https://api.deps.dev/v3/projects/github.com%2Fpython-pillow%2Fpillow
+github.com/python-pillow/pillow,pillow,License,9,license file detected,https://api.deps.dev/v3/projects/github.com%2Fpython-pillow%2Fpillow
+github.com/python-pillow/pillow,pillow,Fuzzing,10,project is fuzzed,https://api.deps.dev/v3/projects/github.com%2Fpython-pillow%2Fpillow
+github.com/python-pillow/pillow,pillow,Pinned-Dependencies,4,dependency not pinned by hash detected -- score normalized to 4,https://api.deps.dev/v3/projects/github.com%2Fpython-pillow%2Fpillow
+github.com/python-pillow/pillow,pillow,Signed-Releases,-1,no releases found,https://api.deps.dev/v3/projects/github.com%2Fpython-pillow%2Fpillow
+github.com/python-pillow/pillow,pillow,SAST,0,SAST tool is not run on all commits -- score normalized to 0,https://api.deps.dev/v3/projects/github.com%2Fpython-pillow%2Fpillow
+github.com/python-pillow/pillow,pillow,Packaging,10,packaging workflow detected,https://api.deps.dev/v3/projects/github.com%2Fpython-pillow%2Fpillow
+github.com/python-pillow/pillow,pillow,Branch-Protection,3,branch protection is not maximal on development and all release branches,https://api.deps.dev/v3/projects/github.com%2Fpython-pillow%2Fpillow
+github.com/jpadilla/pyjwt,pyjwt,Code-Review,3,Found 7/22 approved changesets -- score normalized to 3,https://api.deps.dev/v3/projects/github.com%2Fjpadilla%2Fpyjwt
+github.com/jpadilla/pyjwt,pyjwt,Dangerous-Workflow,10,no dangerous workflow patterns detected,https://api.deps.dev/v3/projects/github.com%2Fjpadilla%2Fpyjwt
+github.com/jpadilla/pyjwt,pyjwt,Binary-Artifacts,10,no binaries found in the repo,https://api.deps.dev/v3/projects/github.com%2Fjpadilla%2Fpyjwt
+github.com/jpadilla/pyjwt,pyjwt,Maintained,1,0 commit(s) and 2 issue activity found in the last 90 days -- score normalized to 1,https://api.deps.dev/v3/projects/github.com%2Fjpadilla%2Fpyjwt
+github.com/jpadilla/pyjwt,pyjwt,Security-Policy,10,security policy file detected,https://api.deps.dev/v3/projects/github.com%2Fjpadilla%2Fpyjwt
+github.com/jpadilla/pyjwt,pyjwt,Pinned-Dependencies,0,dependency not pinned by hash detected -- score normalized to 0,https://api.deps.dev/v3/projects/github.com%2Fjpadilla%2Fpyjwt
+github.com/jpadilla/pyjwt,pyjwt,Token-Permissions,10,GitHub workflow tokens follow principle of least privilege,https://api.deps.dev/v3/projects/github.com%2Fjpadilla%2Fpyjwt
+github.com/jpadilla/pyjwt,pyjwt,CII-Best-Practices,0,no effort to earn an OpenSSF best practices badge detected,https://api.deps.dev/v3/projects/github.com%2Fjpadilla%2Fpyjwt
+github.com/jpadilla/pyjwt,pyjwt,License,10,license file detected,https://api.deps.dev/v3/projects/github.com%2Fjpadilla%2Fpyjwt
+github.com/jpadilla/pyjwt,pyjwt,Fuzzing,10,project is fuzzed,https://api.deps.dev/v3/projects/github.com%2Fjpadilla%2Fpyjwt
+github.com/jpadilla/pyjwt,pyjwt,Signed-Releases,-1,no releases found,https://api.deps.dev/v3/projects/github.com%2Fjpadilla%2Fpyjwt
+github.com/jpadilla/pyjwt,pyjwt,Branch-Protection,-1,internal error: error during branchesHandler.setup: internal error: some github tokens can't read classic branch protection rules: https://github.com/ossf/scorecard-action/blob/main/docs/authenticatio,https://api.deps.dev/v3/projects/github.com%2Fjpadilla%2Fpyjwt
+github.com/jpadilla/pyjwt,pyjwt,SAST,5,SAST tool is not run on all commits -- score normalized to 5,https://api.deps.dev/v3/projects/github.com%2Fjpadilla%2Fpyjwt
+github.com/jpadilla/pyjwt,pyjwt,Packaging,10,packaging workflow detected,https://api.deps.dev/v3/projects/github.com%2Fjpadilla%2Fpyjwt
+github.com/mpdavis/python-jose,python-jose,Maintained,0,0 commit(s) and 0 issue activity found in the last 90 days -- score normalized to 0,https://api.deps.dev/v3/projects/github.com%2Fmpdavis%2Fpython-jose
+github.com/mpdavis/python-jose,python-jose,Dangerous-Workflow,10,no dangerous workflow patterns detected,https://api.deps.dev/v3/projects/github.com%2Fmpdavis%2Fpython-jose
+github.com/mpdavis/python-jose,python-jose,Code-Review,6,Found 17/27 approved changesets -- score normalized to 6,https://api.deps.dev/v3/projects/github.com%2Fmpdavis%2Fpython-jose
+github.com/mpdavis/python-jose,python-jose,Packaging,-1,packaging workflow not detected,https://api.deps.dev/v3/projects/github.com%2Fmpdavis%2Fpython-jose
+github.com/mpdavis/python-jose,python-jose,Binary-Artifacts,10,no binaries found in the repo,https://api.deps.dev/v3/projects/github.com%2Fmpdavis%2Fpython-jose
+github.com/mpdavis/python-jose,python-jose,Token-Permissions,0,detected GitHub workflow tokens with excessive permissions,https://api.deps.dev/v3/projects/github.com%2Fmpdavis%2Fpython-jose
+github.com/mpdavis/python-jose,python-jose,Pinned-Dependencies,0,dependency not pinned by hash detected -- score normalized to 0,https://api.deps.dev/v3/projects/github.com%2Fmpdavis%2Fpython-jose
+github.com/mpdavis/python-jose,python-jose,CII-Best-Practices,0,no effort to earn an OpenSSF best practices badge detected,https://api.deps.dev/v3/projects/github.com%2Fmpdavis%2Fpython-jose
+github.com/mpdavis/python-jose,python-jose,Security-Policy,0,security policy file not detected,https://api.deps.dev/v3/projects/github.com%2Fmpdavis%2Fpython-jose
+github.com/mpdavis/python-jose,python-jose,Fuzzing,10,project is fuzzed,https://api.deps.dev/v3/projects/github.com%2Fmpdavis%2Fpython-jose
+github.com/mpdavis/python-jose,python-jose,License,10,license file detected,https://api.deps.dev/v3/projects/github.com%2Fmpdavis%2Fpython-jose
+github.com/mpdavis/python-jose,python-jose,Signed-Releases,-1,no releases found,https://api.deps.dev/v3/projects/github.com%2Fmpdavis%2Fpython-jose
+github.com/mpdavis/python-jose,python-jose,Branch-Protection,-1,internal error: error during branchesHandler.setup: internal error: some github tokens can't read classic branch protection rules: https://github.com/ossf/scorecard-action/blob/main/docs/authenticatio,https://api.deps.dev/v3/projects/github.com%2Fmpdavis%2Fpython-jose
+github.com/mpdavis/python-jose,python-jose,SAST,0,SAST tool is not run on all commits -- score normalized to 0,https://api.deps.dev/v3/projects/github.com%2Fmpdavis%2Fpython-jose
+github.com/yaml/pyyaml,pyyaml,Maintained,0,1 commit(s) and 0 issue activity found in the last 90 days -- score normalized to 0,https://api.deps.dev/v3/projects/github.com%2Fyaml%2Fpyyaml
+github.com/yaml/pyyaml,pyyaml,Packaging,-1,packaging workflow not detected,https://api.deps.dev/v3/projects/github.com%2Fyaml%2Fpyyaml
+github.com/yaml/pyyaml,pyyaml,Dangerous-Workflow,10,no dangerous workflow patterns detected,https://api.deps.dev/v3/projects/github.com%2Fyaml%2Fpyyaml
+github.com/yaml/pyyaml,pyyaml,Code-Review,2,Found 6/30 approved changesets -- score normalized to 2,https://api.deps.dev/v3/projects/github.com%2Fyaml%2Fpyyaml
+github.com/yaml/pyyaml,pyyaml,Security-Policy,10,security policy file detected,https://api.deps.dev/v3/projects/github.com%2Fyaml%2Fpyyaml
+github.com/yaml/pyyaml,pyyaml,Token-Permissions,0,detected GitHub workflow tokens with excessive permissions,https://api.deps.dev/v3/projects/github.com%2Fyaml%2Fpyyaml
+github.com/yaml/pyyaml,pyyaml,Binary-Artifacts,10,no binaries found in the repo,https://api.deps.dev/v3/projects/github.com%2Fyaml%2Fpyyaml
+github.com/yaml/pyyaml,pyyaml,CII-Best-Practices,0,no effort to earn an OpenSSF best practices badge detected,https://api.deps.dev/v3/projects/github.com%2Fyaml%2Fpyyaml
+github.com/yaml/pyyaml,pyyaml,Pinned-Dependencies,0,dependency not pinned by hash detected -- score normalized to 0,https://api.deps.dev/v3/projects/github.com%2Fyaml%2Fpyyaml
+github.com/yaml/pyyaml,pyyaml,Fuzzing,10,project is fuzzed,https://api.deps.dev/v3/projects/github.com%2Fyaml%2Fpyyaml
+github.com/yaml/pyyaml,pyyaml,License,10,license file detected,https://api.deps.dev/v3/projects/github.com%2Fyaml%2Fpyyaml
+github.com/yaml/pyyaml,pyyaml,Signed-Releases,-1,no releases found,https://api.deps.dev/v3/projects/github.com%2Fyaml%2Fpyyaml
+github.com/yaml/pyyaml,pyyaml,Branch-Protection,-1,internal error: error during branchesHandler.setup: internal error: some github tokens can't read classic branch protection rules: https://github.com/ossf/scorecard-action/blob/main/docs/authenticatio,https://api.deps.dev/v3/projects/github.com%2Fyaml%2Fpyyaml
+github.com/yaml/pyyaml,pyyaml,SAST,0,SAST tool is not run on all commits -- score normalized to 0,https://api.deps.dev/v3/projects/github.com%2Fyaml%2Fpyyaml
+github.com/psf/requests,requests,Code-Review,8,Found 11/13 approved changesets -- score normalized to 8,https://api.deps.dev/v3/projects/github.com%2Fpsf%2Frequests
+github.com/psf/requests,requests,Security-Policy,10,security policy file detected,https://api.deps.dev/v3/projects/github.com%2Fpsf%2Frequests
+github.com/psf/requests,requests,Dangerous-Workflow,10,no dangerous workflow patterns detected,https://api.deps.dev/v3/projects/github.com%2Fpsf%2Frequests
+github.com/psf/requests,requests,Maintained,10,26 commit(s) and 7 issue activity found in the last 90 days -- score normalized to 10,https://api.deps.dev/v3/projects/github.com%2Fpsf%2Frequests
+github.com/psf/requests,requests,Binary-Artifacts,10,no binaries found in the repo,https://api.deps.dev/v3/projects/github.com%2Fpsf%2Frequests
+github.com/psf/requests,requests,Token-Permissions,10,GitHub workflow tokens follow principle of least privilege,https://api.deps.dev/v3/projects/github.com%2Fpsf%2Frequests
+github.com/psf/requests,requests,Pinned-Dependencies,5,dependency not pinned by hash detected -- score normalized to 5,https://api.deps.dev/v3/projects/github.com%2Fpsf%2Frequests
+github.com/psf/requests,requests,CII-Best-Practices,0,no effort to earn an OpenSSF best practices badge detected,https://api.deps.dev/v3/projects/github.com%2Fpsf%2Frequests
+github.com/psf/requests,requests,Fuzzing,10,project is fuzzed,https://api.deps.dev/v3/projects/github.com%2Fpsf%2Frequests
+github.com/psf/requests,requests,License,10,license file detected,https://api.deps.dev/v3/projects/github.com%2Fpsf%2Frequests
+github.com/psf/requests,requests,Signed-Releases,0,Project has not signed or included provenance with any releases.,https://api.deps.dev/v3/projects/github.com%2Fpsf%2Frequests
+github.com/psf/requests,requests,Branch-Protection,-1,internal error: error during branchesHandler.setup: internal error: some github tokens can't read classic branch protection rules: https://github.com/ossf/scorecard-action/blob/main/docs/authenticatio,https://api.deps.dev/v3/projects/github.com%2Fpsf%2Frequests
+github.com/psf/requests,requests,Packaging,10,packaging workflow detected,https://api.deps.dev/v3/projects/github.com%2Fpsf%2Frequests
+github.com/psf/requests,requests,SAST,10,SAST tool is run on all commits,https://api.deps.dev/v3/projects/github.com%2Fpsf%2Frequests
+github.com/urllib3/urllib3,urllib3,Code-Review,9,Found 18/19 approved changesets -- score normalized to 9,https://api.deps.dev/v3/projects/github.com%2Furllib3%2Furllib3
+github.com/urllib3/urllib3,urllib3,Dangerous-Workflow,10,no dangerous workflow patterns detected,https://api.deps.dev/v3/projects/github.com%2Furllib3%2Furllib3
+github.com/urllib3/urllib3,urllib3,Maintained,10,30 commit(s) and 15 issue activity found in the last 90 days -- score normalized to 10,https://api.deps.dev/v3/projects/github.com%2Furllib3%2Furllib3
+github.com/urllib3/urllib3,urllib3,Security-Policy,10,security policy file detected,https://api.deps.dev/v3/projects/github.com%2Furllib3%2Furllib3
+github.com/urllib3/urllib3,urllib3,Binary-Artifacts,10,no binaries found in the repo,https://api.deps.dev/v3/projects/github.com%2Furllib3%2Furllib3
+github.com/urllib3/urllib3,urllib3,Token-Permissions,10,GitHub workflow tokens follow principle of least privilege,https://api.deps.dev/v3/projects/github.com%2Furllib3%2Furllib3
+github.com/urllib3/urllib3,urllib3,Pinned-Dependencies,8,dependency not pinned by hash detected -- score normalized to 8,https://api.deps.dev/v3/projects/github.com%2Furllib3%2Furllib3
+github.com/urllib3/urllib3,urllib3,CII-Best-Practices,5,badge detected: Passing,https://api.deps.dev/v3/projects/github.com%2Furllib3%2Furllib3
+github.com/urllib3/urllib3,urllib3,Fuzzing,10,project is fuzzed,https://api.deps.dev/v3/projects/github.com%2Furllib3%2Furllib3
+github.com/urllib3/urllib3,urllib3,License,10,license file detected,https://api.deps.dev/v3/projects/github.com%2Furllib3%2Furllib3
+github.com/urllib3/urllib3,urllib3,Branch-Protection,8,branch protection is not maximal on development and all release branches,https://api.deps.dev/v3/projects/github.com%2Furllib3%2Furllib3
+github.com/urllib3/urllib3,urllib3,Signed-Releases,0,Project has not signed or included provenance with any releases.,https://api.deps.dev/v3/projects/github.com%2Furllib3%2Furllib3
+github.com/urllib3/urllib3,urllib3,Packaging,10,packaging workflow detected,https://api.deps.dev/v3/projects/github.com%2Furllib3%2Furllib3
+github.com/urllib3/urllib3,urllib3,SAST,10,SAST tool is run on all commits,https://api.deps.dev/v3/projects/github.com%2Furllib3%2Furllib3

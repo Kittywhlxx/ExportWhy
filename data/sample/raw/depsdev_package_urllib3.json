@@ -1,0 +1,1163 @@
+{
+ "packageKey": {
+  "system": "PYPI",
+  "name": "urllib3"
+ },
+ "versions": [
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "0.3.0"
+   },
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.0.0"
+   },
+   "publishedAt": "2011-10-09T23:46:31Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.0.1"
+   },
+   "publishedAt": "2011-10-11T03:58:44Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.0.2"
+   },
+   "publishedAt": "2011-11-04T19:22:58Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.1.0"
+   },
+   "publishedAt": "2012-01-07T23:43:51Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.10.0"
+   },
+   "publishedAt": "2014-12-14T21:26:13Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.10.1"
+   },
+   "publishedAt": "2015-02-11T02:49:01Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.10.2"
+   },
+   "publishedAt": "2015-02-25T23:19:48Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.10.3"
+   },
+   "publishedAt": "2015-04-21T20:06:25Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.10.4"
+   },
+   "publishedAt": "2015-05-03T14:14:24Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.11.0"
+   },
+   "publishedAt": "2015-07-21T13:43:35Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.12.0"
+   },
+   "publishedAt": "2015-09-06T18:41:26Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.13.0"
+   },
+   "publishedAt": "2015-12-14T21:11:21Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.13.1"
+   },
+   "publishedAt": "2015-12-18T22:48:34Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.14.0"
+   },
+   "publishedAt": "2015-12-29T20:28:31Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.15.0"
+   },
+   "publishedAt": "2016-04-06T19:17:18Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.15.1"
+   },
+   "publishedAt": "2016-04-11T17:26:25Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.16.0"
+   },
+   "publishedAt": "2016-06-11T20:34:52Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.17.0"
+   },
+   "publishedAt": "2016-09-06T14:41:20Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.18.0"
+   },
+   "publishedAt": "2016-09-26T08:50:34Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.18.1"
+   },
+   "publishedAt": "2016-10-27T11:25:19Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.19.0"
+   },
+   "publishedAt": "2016-11-03T15:19:26Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.19.1"
+   },
+   "publishedAt": "2016-11-16T10:13:26Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.2.0"
+   },
+   "publishedAt": "2012-01-30T00:57:13Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.2.1"
+   },
+   "publishedAt": "2012-02-05T21:13:40Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.2.2"
+   },
+   "publishedAt": "2012-02-06T17:01:47Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.20.0"
+   },
+   "publishedAt": "2017-01-19T09:53:40Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.21.0"
+   },
+   "publishedAt": "2017-04-25T11:12:26Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.21.1"
+   },
+   "publishedAt": "2017-05-02T10:58:32Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.22.0"
+   },
+   "publishedAt": "2017-07-20T09:05:46Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.23.0"
+   },
+   "publishedAt": "2018-06-05T03:25:49Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.24.0"
+   },
+   "publishedAt": "2018-10-16T17:54:20Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.24.1"
+   },
+   "publishedAt": "2018-11-02T19:11:17Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.24.2"
+   },
+   "publishedAt": "2019-04-17T17:49:45Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.24.3"
+   },
+   "publishedAt": "2019-05-02T15:37:44Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.25.0"
+   },
+   "publishedAt": "2019-04-22T14:06:44Z",
+   "isDefault": false,
+   "isDeprecated": true,
+   "deprecatedReason": "Broken release"
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.25.1"
+   },
+   "publishedAt": "2019-04-24T17:05:21Z",
+   "isDefault": false,
+   "isDeprecated": true,
+   "deprecatedReason": "Broken release"
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.25.10"
+   },
+   "publishedAt": "2020-07-22T15:47:32Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.25.11"
+   },
+   "publishedAt": "2020-10-19T14:17:20Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.25.2"
+   },
+   "publishedAt": "2019-04-29T13:11:29Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.25.3"
+   },
+   "publishedAt": "2019-05-23T19:01:44Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.25.4"
+   },
+   "publishedAt": "2019-09-19T14:49:01Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.25.5"
+   },
+   "publishedAt": "2019-09-20T01:35:54Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.25.6"
+   },
+   "publishedAt": "2019-09-24T14:35:10Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.25.7"
+   },
+   "publishedAt": "2019-11-11T15:10:09Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.25.8"
+   },
+   "publishedAt": "2020-01-21T20:41:23Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.25.9"
+   },
+   "publishedAt": "2020-04-16T15:44:06Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.26.0"
+   },
+   "publishedAt": "2020-11-10T20:08:59Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.26.1"
+   },
+   "publishedAt": "2020-11-11T20:29:26Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.26.10"
+   },
+   "publishedAt": "2022-07-07T15:12:47Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.26.11"
+   },
+   "publishedAt": "2022-07-25T13:02:21Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.26.12"
+   },
+   "publishedAt": "2022-08-22T13:27:19Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.26.13"
+   },
+   "publishedAt": "2022-11-23T22:34:29Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.26.14"
+   },
+   "publishedAt": "2023-01-11T13:04:57Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.26.15"
+   },
+   "publishedAt": "2023-03-11T00:01:39Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.26.16"
+   },
+   "publishedAt": "2023-05-23T12:18:41Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.26.17"
+   },
+   "publishedAt": "2023-10-02T17:22:28Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.26.18"
+   },
+   "publishedAt": "2023-10-17T17:47:01Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.26.19"
+   },
+   "publishedAt": "2024-06-17T14:53:31Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.26.2"
+   },
+   "publishedAt": "2020-11-12T22:16:52Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.26.20"
+   },
+   "publishedAt": "2024-08-29T15:43:08Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.26.3"
+   },
+   "publishedAt": "2021-01-26T18:58:16Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.26.4"
+   },
+   "publishedAt": "2021-03-15T15:04:35Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.26.5"
+   },
+   "publishedAt": "2021-05-26T17:02:33Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.26.6"
+   },
+   "publishedAt": "2021-06-25T13:24:15Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.26.7"
+   },
+   "publishedAt": "2021-09-22T18:01:15Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.26.8"
+   },
+   "publishedAt": "2022-01-07T15:56:31Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.26.9"
+   },
+   "publishedAt": "2022-03-16T13:28:16Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.3.0"
+   },
+   "publishedAt": "2012-03-25T20:22:58Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.4.0"
+   },
+   "publishedAt": "2012-06-16T22:51:41Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.5.0"
+   },
+   "publishedAt": "2012-08-02T19:16:31Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.6.0"
+   },
+   "publishedAt": "2013-04-25T18:49:52Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.7.0"
+   },
+   "publishedAt": "2013-08-14T21:45:48Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.7.1"
+   },
+   "publishedAt": "2013-09-25T16:06:42Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.8.0"
+   },
+   "publishedAt": "2014-03-06T00:25:58Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.8.2"
+   },
+   "publishedAt": "2014-04-18T06:40:18Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.8.3"
+   },
+   "publishedAt": "2014-06-24T18:22:57Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.9.0"
+   },
+   "publishedAt": "2014-07-07T20:57:43Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "1.9.1"
+   },
+   "publishedAt": "2014-09-13T18:24:32Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "2.0.0"
+   },
+   "publishedAt": "2023-04-26T17:21:22Z",
+   "isDefault": false,
+   "isDeprecated": true,
+   "deprecatedReason": "Truncated response bodies when streaming a large compressed body. Upgrade to at least 2.0.2 (See: https://github.com/urllib3/urllib3/issues/3009)"
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "2.0.0a1"
+   },
+   "publishedAt": "2022-11-15T15:43:16Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "2.0.0a2"
+   },
+   "publishedAt": "2022-11-23T22:50:07Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "2.0.0a3"
+   },
+   "publishedAt": "2023-01-11T13:04:31Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "2.0.0a4"
+   },
+   "publishedAt": "2023-04-25T18:57:08Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "2.0.1"
+   },
+   "publishedAt": "2023-04-30T09:00:04Z",
+   "isDefault": false,
+   "isDeprecated": true,
+   "deprecatedReason": "Truncated response bodies when streaming a large compressed body. Upgrade to at least 2.0.2 (See: https://github.com/urllib3/urllib3/issues/3009)"
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "2.0.2"
+   },
+   "publishedAt": "2023-05-03T22:37:13Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "2.0.3"
+   },
+   "publishedAt": "2023-06-07T10:59:09Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "2.0.4"
+   },
+   "publishedAt": "2023-07-19T15:51:22Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "2.0.5"
+   },
+   "publishedAt": "2023-09-20T07:30:33Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "2.0.6"
+   },
+   "publishedAt": "2023-10-02T17:22:34Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "2.0.7"
+   },
+   "publishedAt": "2023-10-17T17:46:48Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "2.1.0"
+   },
+   "publishedAt": "2023-11-13T12:29:42Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "2.2.0"
+   },
+   "publishedAt": "2024-01-30T15:18:04Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "2.2.1"
+   },
+   "publishedAt": "2024-02-18T03:55:54Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "2.2.2"
+   },
+   "publishedAt": "2024-06-17T13:40:07Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "2.2.3"
+   },
+   "publishedAt": "2024-09-12T10:52:16Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "2.3.0"
+   },
+   "publishedAt": "2024-12-22T07:47:28Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "2.4.0"
+   },
+   "publishedAt": "2025-04-10T15:23:37Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "2.5.0"
+   },
+   "publishedAt": "2025-06-18T14:07:40Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "2.6.0"
+   },
+   "publishedAt": "2025-12-05T15:08:45Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "2.6.1"
+   },
+   "publishedAt": "2025-12-08T15:25:25Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "2.6.2"
+   },
+   "publishedAt": "2025-12-11T15:56:38Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "2.6.3"
+   },
+   "publishedAt": "2026-01-07T16:24:42Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "2.7.0"
+   },
+   "publishedAt": "2026-05-07T16:13:17Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "urllib3",
+    "version": "2.8.0"
+   },
+   "publishedAt": "2026-09-15T19:29:34Z",
+   "isDefault": true,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  }
+ ],
+ "_source_url": "https://api.deps.dev/v3/systems/pypi/packages/urllib3"
+}

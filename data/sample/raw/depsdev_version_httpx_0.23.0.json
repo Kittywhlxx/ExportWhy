@@ -1,0 +1,44 @@
+{
+ "versionKey": {
+  "system": "PYPI",
+  "name": "httpx",
+  "version": "0.23.0"
+ },
+ "publishedAt": "2022-05-23T15:32:35Z",
+ "isDefault": false,
+ "isDeprecated": false,
+ "deprecatedReason": "",
+ "licenses": [
+  "non-standard"
+ ],
+ "advisoryKeys": [],
+ "links": [
+  {
+   "label": "DOCUMENTATION",
+   "url": "https://www.python-httpx.org"
+  },
+  {
+   "label": "SOURCE_REPO",
+   "url": "https://github.com/encode/httpx"
+  }
+ ],
+ "slsaProvenances": [],
+ "attestations": [],
+ "registries": [
+  "https://pypi.org/simple"
+ ],
+ "relatedProjects": [
+  {
+   "projectKey": {
+    "id": "github.com/encode/httpx"
+   },
+   "relationProvenance": "UNVERIFIED_METADATA",
+   "relationType": "SOURCE_REPO"
+  }
+ ],
+ "projectStatus": {
+  "status": "active",
+  "reason": ""
+ },
+ "_source_url": "https://api.deps.dev/v3/systems/pypi/packages/httpx/versions/0.23.0"
+}

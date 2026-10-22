@@ -1,0 +1,98 @@
+{
+ "versionKey": {
+  "system": "PYPI",
+  "name": "pyjwt",
+  "version": "1.7.1"
+ },
+ "publishedAt": "2018-12-07T13:40:06Z",
+ "isDefault": false,
+ "isDeprecated": false,
+ "deprecatedReason": "",
+ "licenses": [
+  "MIT"
+ ],
+ "advisoryKeys": [
+  {
+   "id": "GHSA-2gx3-rcp4-g85q"
+  },
+  {
+   "id": "GHSA-752w-5fwx-jx9f"
+  },
+  {
+   "id": "GHSA-9v7f-9g4p-ffgj"
+  },
+  {
+   "id": "GHSA-ffc3-869f-jxw9"
+  },
+  {
+   "id": "GHSA-ffqj-6fqr-9h24"
+  },
+  {
+   "id": "GHSA-hxm8-2xgr-2p9m"
+  },
+  {
+   "id": "GHSA-jwrc-g2q2-pq5p"
+  },
+  {
+   "id": "GHSA-xgmm-8j9v-c9wx"
+  },
+  {
+   "id": "PYSEC-2022-202"
+  },
+  {
+   "id": "PYSEC-2025-183"
+  },
+  {
+   "id": "PYSEC-2026-120"
+  },
+  {
+   "id": "PYSEC-2026-175"
+  },
+  {
+   "id": "PYSEC-2026-177"
+  },
+  {
+   "id": "PYSEC-2026-179"
+  },
+  {
+   "id": "PYSEC-2026-4140"
+  },
+  {
+   "id": "PYSEC-2026-4144"
+  },
+  {
+   "id": "PYSEC-2026-4145"
+  },
+  {
+   "id": "PYSEC-2026-4147"
+  },
+  {
+   "id": "PYSEC-2026-4148"
+  }
+ ],
+ "links": [
+  {
+   "label": "SOURCE_REPO",
+   "url": "http://github.com/jpadilla/pyjwt"
+  }
+ ],
+ "slsaProvenances": [],
+ "attestations": [],
+ "registries": [
+  "https://pypi.org/simple"
+ ],
+ "relatedProjects": [
+  {
+   "projectKey": {
+    "id": "github.com/jpadilla/pyjwt"
+   },
+   "relationProvenance": "UNVERIFIED_METADATA",
+   "relationType": "SOURCE_REPO"
+  }
+ ],
+ "projectStatus": {
+  "status": "active",
+  "reason": ""
+ },
+ "_source_url": "https://api.deps.dev/v3/systems/pypi/packages/pyjwt/versions/1.7.1"
+}

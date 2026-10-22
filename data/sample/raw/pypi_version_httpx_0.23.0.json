@@ -1,0 +1,52 @@
+{
+ "info": {
+  "name": "httpx",
+  "version": "0.23.0",
+  "summary": "The next generation HTTP client.",
+  "license": "BSD",
+  "license_expression": null,
+  "classifiers": [
+   "Development Status :: 4 - Beta",
+   "Environment :: Web Environment",
+   "Framework :: AsyncIO",
+   "Framework :: Trio",
+   "Intended Audience :: Developers",
+   "License :: OSI Approved :: BSD License",
+   "Operating System :: OS Independent",
+   "Programming Language :: Python :: 3",
+   "Programming Language :: Python :: 3 :: Only",
+   "Programming Language :: Python :: 3.10",
+   "Programming Language :: Python :: 3.6",
+   "Programming Language :: Python :: 3.7",
+   "Programming Language :: Python :: 3.8",
+   "Programming Language :: Python :: 3.9",
+   "Topic :: Internet :: WWW/HTTP"
+  ],
+  "requires_python": ">=3.7",
+  "requires_dist": [
+   "certifi",
+   "sniffio",
+   "rfc3986[idna2008] (<2,>=1.3)",
+   "httpcore (<0.16.0,>=0.15.0)",
+   "brotlicffi ; (platform_python_implementation != \"CPython\") and extra == 'brotli'",
+   "brotli ; (platform_python_implementation == \"CPython\") and extra == 'brotli'",
+   "click (==8.*) ; extra == 'cli'",
+   "rich (<13,>=10) ; extra == 'cli'",
+   "pygments (==2.*) ; extra == 'cli'",
+   "h2 (<5,>=3) ; extra == 'http2'",
+   "socksio (==1.*) ; extra == 'socks'"
+  ],
+  "home_page": "https://github.com/encode/httpx",
+  "project_urls": {
+   "Changelog": "https://github.com/encode/httpx/blob/master/CHANGELOG.md",
+   "Documentation": "https://www.python-httpx.org",
+   "Homepage": "https://github.com/encode/httpx",
+   "Source": "https://github.com/encode/httpx"
+  },
+  "author": "Tom Christie",
+  "yanked": false,
+  "yanked_reason": null
+ },
+ "vulnerabilities": [],
+ "_source_url": "https://pypi.org/pypi/httpx/0.23.0/json"
+}

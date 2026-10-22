@@ -1,0 +1,66 @@
+{
+ "versionKey": {
+  "system": "PYPI",
+  "name": "python-jose",
+  "version": "3.3.0"
+ },
+ "publishedAt": "2021-06-05T03:30:38Z",
+ "isDefault": false,
+ "isDeprecated": false,
+ "deprecatedReason": "",
+ "licenses": [
+  "MIT"
+ ],
+ "advisoryKeys": [
+  {
+   "id": "GHSA-3qf3-8w2g-rqmx"
+  },
+  {
+   "id": "GHSA-6c5p-j8vq-pqhj"
+  },
+  {
+   "id": "GHSA-cjwg-qfpm-7377"
+  },
+  {
+   "id": "PYSEC-2024-232"
+  },
+  {
+   "id": "PYSEC-2024-233"
+  },
+  {
+   "id": "PYSEC-2025-185"
+  },
+  {
+   "id": "PYSEC-2026-4298"
+  }
+ ],
+ "links": [
+  {
+   "label": "DOCUMENTATION",
+   "url": "https://python-jose.readthedocs.io/en/latest/"
+  },
+  {
+   "label": "SOURCE_REPO",
+   "url": "http://github.com/mpdavis/python-jose"
+  }
+ ],
+ "slsaProvenances": [],
+ "attestations": [],
+ "registries": [
+  "https://pypi.org/simple"
+ ],
+ "relatedProjects": [
+  {
+   "projectKey": {
+    "id": "github.com/mpdavis/python-jose"
+   },
+   "relationProvenance": "UNVERIFIED_METADATA",
+   "relationType": "SOURCE_REPO"
+  }
+ ],
+ "projectStatus": {
+  "status": "active",
+  "reason": ""
+ },
+ "_source_url": "https://api.deps.dev/v3/systems/pypi/packages/python-jose/versions/3.3.0"
+}

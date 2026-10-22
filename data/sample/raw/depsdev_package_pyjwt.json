@@ -1,0 +1,1027 @@
+{
+ "packageKey": {
+  "system": "PYPI",
+  "name": "pyjwt"
+ },
+ "versions": [
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.1.1"
+   },
+   "publishedAt": "2011-03-06T21:04:22Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.1.1-py2.5"
+   },
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.1.1-py2.6"
+   },
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.1.1-py2.7"
+   },
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.1.2"
+   },
+   "publishedAt": "2011-03-22T02:38:08Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.1.2-py2.5"
+   },
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.1.2-py2.6"
+   },
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.1.2-py2.7"
+   },
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.1.3"
+   },
+   "publishedAt": "2011-04-05T20:52:44Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.1.3-py2.5"
+   },
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.1.3-py2.6"
+   },
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.1.3-py2.7"
+   },
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.1.4"
+   },
+   "publishedAt": "2011-04-06T05:33:46Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.1.4-py2.5"
+   },
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.1.4-py2.6"
+   },
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.1.4-py2.7"
+   },
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.1.5"
+   },
+   "publishedAt": "2012-10-29T03:18:09Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.1.5-py2.5"
+   },
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.1.5-py2.6"
+   },
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.1.5-py2.7"
+   },
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.1.6"
+   },
+   "publishedAt": "2013-08-18T03:25:48Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.1.6-py2.5"
+   },
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.1.6-py2.6"
+   },
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.1.6-py2.7"
+   },
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.1.7"
+   },
+   "publishedAt": "2014-01-17T21:30:32Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.1.7-py2.5"
+   },
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.1.7-py2.6"
+   },
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.1.7-py2.7"
+   },
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.1.7-py3.3"
+   },
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.1.8"
+   },
+   "publishedAt": "2014-01-23T01:41:04Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.1.8-py2.5"
+   },
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.1.8-py2.6"
+   },
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.1.8-py2.7"
+   },
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.1.8-py3.3"
+   },
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.1.9"
+   },
+   "publishedAt": "2014-02-08T06:37:50Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.1.9-py2.6"
+   },
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.1.9-py2.7"
+   },
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.1.9-py3.3"
+   },
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.2.0"
+   },
+   "publishedAt": "2014-03-26T00:30:48Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.2.0-py2.6"
+   },
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.2.0-py2.7"
+   },
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.2.0-py3.3"
+   },
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.2.1"
+   },
+   "publishedAt": "2014-04-28T17:10:41Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.2.1-py2.6"
+   },
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.2.1-py2.7"
+   },
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.2.1-py3.3"
+   },
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.2.3"
+   },
+   "publishedAt": "2014-10-16T04:07:49Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.2.3-py2.6"
+   },
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.2.3-py2.7"
+   },
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.2.3-py3.3"
+   },
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.3.0"
+   },
+   "publishedAt": "2014-10-22T05:37:43Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.3.1"
+   },
+   "publishedAt": "2014-12-03T13:06:53Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.3.2"
+   },
+   "publishedAt": "2014-12-13T22:27:09Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.4.0"
+   },
+   "publishedAt": "2014-12-23T12:12:48Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.4.1"
+   },
+   "publishedAt": "2015-01-08T16:23:41Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.4.2"
+   },
+   "publishedAt": "2015-02-18T19:12:12Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "0.4.3"
+   },
+   "publishedAt": "2015-02-18T20:35:33Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "1.0.0"
+   },
+   "publishedAt": "2015-03-18T17:10:14Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "1.0.1"
+   },
+   "publishedAt": "2015-03-26T21:10:36Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "1.1.0"
+   },
+   "publishedAt": "2015-04-15T20:54:42Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "1.3.0"
+   },
+   "publishedAt": "2015-05-22T15:51:23Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "1.4.0"
+   },
+   "publishedAt": "2015-07-17T01:30:31Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "1.4.1"
+   },
+   "publishedAt": "2016-07-13T11:22:43Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "1.4.2"
+   },
+   "publishedAt": "2016-08-08T20:07:56Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "1.5.0"
+   },
+   "publishedAt": "2017-04-19T14:38:21Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "1.5.1"
+   },
+   "publishedAt": "2017-06-22T14:56:58Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "1.5.2"
+   },
+   "publishedAt": "2017-06-22T16:31:28Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "1.5.3"
+   },
+   "publishedAt": "2017-09-05T18:21:33Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "1.6.0"
+   },
+   "publishedAt": "2018-03-03T16:53:23Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "1.6.1"
+   },
+   "publishedAt": "2018-03-18T13:38:21Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "1.6.3"
+   },
+   "publishedAt": "2018-05-19T17:13:41Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "1.6.4"
+   },
+   "publishedAt": "2018-05-24T02:46:59Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "1.7.0"
+   },
+   "publishedAt": "2018-12-02T03:49:20Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "1.7.1"
+   },
+   "publishedAt": "2018-12-07T13:40:06Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "2.0.0"
+   },
+   "publishedAt": "2020-12-22T14:14:33Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "2.0.0a1"
+   },
+   "publishedAt": "2020-11-02T12:52:01Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "2.0.0a2"
+   },
+   "publishedAt": "2020-12-20T00:11:14Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "2.0.1"
+   },
+   "publishedAt": "2021-01-17T17:57:18Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "2.1.0"
+   },
+   "publishedAt": "2021-04-28T12:02:52Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "2.10.0"
+   },
+   "publishedAt": "2024-11-17T10:19:46Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "2.10.1"
+   },
+   "publishedAt": "2024-11-28T03:43:27Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "2.11.0"
+   },
+   "publishedAt": "2026-01-30T19:59:54Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "2.12.0"
+   },
+   "publishedAt": "2026-03-12T17:15:29Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "2.12.1"
+   },
+   "publishedAt": "2026-03-13T19:27:35Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "2.13.0"
+   },
+   "publishedAt": "2026-05-21T19:54:35Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "2.14.0"
+   },
+   "publishedAt": "2026-09-11T13:11:53Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "2.15.0"
+   },
+   "publishedAt": "2026-09-23T16:55:59Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "2.15.1"
+   },
+   "publishedAt": "2026-09-28T18:40:41Z",
+   "isDefault": true,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "2.2.0"
+   },
+   "publishedAt": "2021-10-06T22:30:17Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "2.3.0"
+   },
+   "publishedAt": "2021-10-16T15:54:52Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "2.4.0"
+   },
+   "publishedAt": "2022-05-12T18:58:19Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "2.5.0"
+   },
+   "publishedAt": "2022-09-17T14:01:55Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "2.6.0"
+   },
+   "publishedAt": "2022-10-20T01:09:09Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "2.7.0"
+   },
+   "publishedAt": "2023-05-09T20:04:39Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "2.8.0"
+   },
+   "publishedAt": "2023-07-18T20:02:21Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  },
+  {
+   "versionKey": {
+    "system": "PYPI",
+    "name": "pyjwt",
+    "version": "2.9.0"
+   },
+   "publishedAt": "2024-08-01T15:01:06Z",
+   "isDefault": false,
+   "isDeprecated": false,
+   "deprecatedReason": ""
+  }
+ ],
+ "_source_url": "https://api.deps.dev/v3/systems/pypi/packages/pyjwt"
+}

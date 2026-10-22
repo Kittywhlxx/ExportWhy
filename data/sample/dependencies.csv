@@ -1,0 +1,14 @@
+service,package,pinned_version,scope,added_on
+auth-service,python-jose,3.3.0,direct,2023-02-14
+auth-service,pyjwt,1.7.1,direct,2021-09-01
+auth-service,cryptography,3.3.2,transitive,2021-09-01
+auth-service,requests,2.31.0,direct,2023-06-10
+payments-api,requests,2.31.0,direct,2023-06-10
+payments-api,urllib3,1.26.5,transitive,2021-07-20
+payments-api,pyyaml,5.3.1,direct,2020-09-03
+payments-api,httpx,0.23.0,direct,2022-08-15
+reporting-batch,pillow,9.0.0,direct,2022-01-20
+reporting-batch,pyyaml,5.3.1,direct,2020-09-03
+reporting-batch,requests,2.31.0,transitive,2023-06-10
+web-portal,httpx,0.23.0,direct,2022-08-15
+web-portal,pyjwt,1.7.1,direct,2021-09-01

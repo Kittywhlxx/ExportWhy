@@ -1,0 +1,9 @@
+project_id,package,stars,forks,open_issues,license,scorecard_overall,scorecard_date,source_url
+github.com/pyca/cryptography,cryptography,7817,1828,50,non-standard,8.3,2026-08-24T00:00:00Z,https://api.deps.dev/v3/projects/github.com%2Fpyca%2Fcryptography
+github.com/encode/httpx,httpx,15656,3898,140,BSD-3-Clause,4.9,2026-08-24T00:00:00Z,https://api.deps.dev/v3/projects/github.com%2Fencode%2Fhttpx
+github.com/python-pillow/pillow,pillow,13912,2548,133,non-standard,7.6,2026-08-24T00:00:00Z,https://api.deps.dev/v3/projects/github.com%2Fpython-pillow%2Fpillow
+github.com/jpadilla/pyjwt,pyjwt,5717,813,59,MIT,6.9,2026-08-24T00:00:00Z,https://api.deps.dev/v3/projects/github.com%2Fjpadilla%2Fpyjwt
+github.com/mpdavis/python-jose,python-jose,1759,271,120,MIT,4.5,2026-08-24T00:00:00Z,https://api.deps.dev/v3/projects/github.com%2Fmpdavis%2Fpython-jose
+github.com/yaml/pyyaml,pyyaml,2957,628,385,MIT,4.8,2026-08-24T00:00:00Z,https://api.deps.dev/v3/projects/github.com%2Fyaml%2Fpyyaml
+github.com/psf/requests,requests,54535,12785,244,Apache-2.0,8.2,2026-08-24T00:00:00Z,https://api.deps.dev/v3/projects/github.com%2Fpsf%2Frequests
+github.com/urllib3/urllib3,urllib3,4076,1655,260,MIT,8.6,2026-08-24T00:00:00Z,https://api.deps.dev/v3/projects/github.com%2Furllib3%2Furllib3

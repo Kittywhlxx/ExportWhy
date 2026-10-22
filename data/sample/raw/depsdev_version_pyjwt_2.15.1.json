@@ -1,0 +1,63 @@
+{
+ "versionKey": {
+  "system": "PYPI",
+  "name": "pyjwt",
+  "version": "2.15.1"
+ },
+ "publishedAt": "2026-09-28T18:40:41Z",
+ "isDefault": true,
+ "isDeprecated": false,
+ "deprecatedReason": "",
+ "licenses": [
+  "MIT"
+ ],
+ "advisoryKeys": [],
+ "links": [
+  {
+   "label": "HOMEPAGE",
+   "url": "https://github.com/jpadilla/pyjwt"
+  },
+  {
+   "label": "SOURCE_REPO",
+   "url": "https://github.com/jpadilla/pyjwt"
+  },
+  {
+   "label": "ATTESTATION",
+   "url": "https://pypi.org/integrity/pyjwt/2.15.1/pyjwt-2.15.1-py3-none-any.whl/provenance"
+  }
+ ],
+ "slsaProvenances": [],
+ "attestations": [
+  {
+   "type": "https://docs.pypi.org/attestations/publish/v1",
+   "url": "https://pypi.org/integrity/pyjwt/2.15.1/pyjwt-2.15.1-py3-none-any.whl/provenance",
+   "verified": true,
+   "sourceRepository": "https://github.com/jpadilla/pyjwt",
+   "commit": "7d5ef55e42ce42221f58dc49943e92ccad1fa66a"
+  }
+ ],
+ "registries": [
+  "https://pypi.org/simple"
+ ],
+ "relatedProjects": [
+  {
+   "projectKey": {
+    "id": "github.com/jpadilla/pyjwt"
+   },
+   "relationProvenance": "UNVERIFIED_METADATA",
+   "relationType": "SOURCE_REPO"
+  },
+  {
+   "projectKey": {
+    "id": "github.com/jpadilla/pyjwt"
+   },
+   "relationProvenance": "PYPI_PUBLISH_ATTESTATION",
+   "relationType": "SOURCE_REPO"
+  }
+ ],
+ "projectStatus": {
+  "status": "active",
+  "reason": ""
+ },
+ "_source_url": "https://api.deps.dev/v3/systems/pypi/packages/pyjwt/versions/2.15.1"
+}

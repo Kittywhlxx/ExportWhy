@@ -1,0 +1,63 @@
+{
+ "versionKey": {
+  "system": "PYPI",
+  "name": "requests",
+  "version": "2.34.2"
+ },
+ "publishedAt": "2026-05-14T19:25:26Z",
+ "isDefault": true,
+ "isDeprecated": false,
+ "deprecatedReason": "",
+ "licenses": [
+  "Apache-2.0"
+ ],
+ "advisoryKeys": [],
+ "links": [
+  {
+   "label": "SOURCE_REPO",
+   "url": "https://github.com/psf/requests"
+  },
+  {
+   "label": "DOCUMENTATION",
+   "url": "https://requests.readthedocs.io"
+  },
+  {
+   "label": "ATTESTATION",
+   "url": "https://pypi.org/integrity/requests/2.34.2/requests-2.34.2-py3-none-any.whl/provenance"
+  }
+ ],
+ "slsaProvenances": [],
+ "attestations": [
+  {
+   "type": "https://docs.pypi.org/attestations/publish/v1",
+   "url": "https://pypi.org/integrity/requests/2.34.2/requests-2.34.2-py3-none-any.whl/provenance",
+   "verified": true,
+   "sourceRepository": "https://github.com/psf/requests",
+   "commit": "6e83187b8feb273ed4c6cdab5efd8d54901dfab3"
+  }
+ ],
+ "registries": [
+  "https://pypi.org/simple"
+ ],
+ "relatedProjects": [
+  {
+   "projectKey": {
+    "id": "github.com/psf/requests"
+   },
+   "relationProvenance": "UNVERIFIED_METADATA",
+   "relationType": "SOURCE_REPO"
+  },
+  {
+   "projectKey": {
+    "id": "github.com/psf/requests"
+   },
+   "relationProvenance": "PYPI_PUBLISH_ATTESTATION",
+   "relationType": "SOURCE_REPO"
+  }
+ ],
+ "projectStatus": {
+  "status": "active",
+  "reason": ""
+ },
+ "_source_url": "https://api.deps.dev/v3/systems/pypi/packages/requests/versions/2.34.2"
+}

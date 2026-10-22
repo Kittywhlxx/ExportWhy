@@ -1,0 +1,67 @@
+{
+ "versionKey": {
+  "system": "PYPI",
+  "name": "pillow",
+  "version": "13.0.0"
+ },
+ "publishedAt": "2026-10-16T22:16:39Z",
+ "isDefault": true,
+ "isDeprecated": false,
+ "deprecatedReason": "",
+ "licenses": [
+  "MIT-CMU"
+ ],
+ "advisoryKeys": [],
+ "links": [
+  {
+   "label": "HOMEPAGE",
+   "url": "https://python-pillow.org"
+  },
+  {
+   "label": "SOURCE_REPO",
+   "url": "https://github.com/python-pillow/Pillow"
+  },
+  {
+   "label": "DOCUMENTATION",
+   "url": "https://pillow.readthedocs.io"
+  },
+  {
+   "label": "ATTESTATION",
+   "url": "https://pypi.org/integrity/pillow/13.0.0/pillow-13.0.0-cp314-cp314-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl/provenance"
+  }
+ ],
+ "slsaProvenances": [],
+ "attestations": [
+  {
+   "type": "https://docs.pypi.org/attestations/publish/v1",
+   "url": "https://pypi.org/integrity/pillow/13.0.0/pillow-13.0.0-cp314-cp314-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl/provenance",
+   "verified": true,
+   "sourceRepository": "https://github.com/python-pillow/Pillow",
+   "commit": "293218ad059d994baf1777d882911bed6a49704a"
+  }
+ ],
+ "registries": [
+  "https://pypi.org/simple"
+ ],
+ "relatedProjects": [
+  {
+   "projectKey": {
+    "id": "github.com/python-pillow/pillow"
+   },
+   "relationProvenance": "UNVERIFIED_METADATA",
+   "relationType": "SOURCE_REPO"
+  },
+  {
+   "projectKey": {
+    "id": "github.com/python-pillow/pillow"
+   },
+   "relationProvenance": "PYPI_PUBLISH_ATTESTATION",
+   "relationType": "SOURCE_REPO"
+  }
+ ],
+ "projectStatus": {
+  "status": "active",
+  "reason": ""
+ },
+ "_source_url": "https://api.deps.dev/v3/systems/pypi/packages/pillow/versions/13.0.0"
+}

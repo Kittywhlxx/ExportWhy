@@ -1,0 +1,250 @@
+{
+ "projectKey": {
+  "id": "github.com/python-pillow/pillow"
+ },
+ "openIssuesCount": 133,
+ "starsCount": 13912,
+ "forksCount": 2548,
+ "license": "non-standard",
+ "description": "Python Imaging Library (fork)",
+ "homepage": "https://python-pillow.org",
+ "scorecard": {
+  "date": "2026-08-24T00:00:00Z",
+  "repository": {
+   "name": "github.com/python-pillow/Pillow",
+   "commit": "155330d63bcc95d7e514b998799731ce48eb293a"
+  },
+  "scorecard": {
+   "version": "v5.5.1-0.20260815060127-d1fab88f5463",
+   "commit": "d1fab88f54636ff366076edfc5c239f97b3c8e66"
+  },
+  "checks": [
+   {
+    "name": "Security-Policy",
+    "documentation": {
+     "shortDescription": "Determines if the project has published a security policy.",
+     "url": "https://github.com/ossf/scorecard/blob/d1fab88f54636ff366076edfc5c239f97b3c8e66/docs/checks.md#security-policy"
+    },
+    "score": 10,
+    "reason": "security policy file detected",
+    "details": [
+     "Info: security policy file detected: .github/SECURITY.md:1",
+     "Info: Found linked content: .github/SECURITY.md:1",
+     "Info: Found disclosure, vulnerability, and/or timelines in security policy: .github/SECURITY.md:1",
+     "Info: Found text in security policy: .github/SECURITY.md:1"
+    ]
+   },
+   {
+    "name": "Code-Review",
+    "documentation": {
+     "shortDescription": "Determines if the project requires human code review before pull requests (aka merge requests) are merged.",
+     "url": "https://github.com/ossf/scorecard/blob/d1fab88f54636ff366076edfc5c239f97b3c8e66/docs/checks.md#code-review"
+    },
+    "score": 5,
+    "reason": "Found 10/17 approved changesets -- score normalized to 5",
+    "details": []
+   },
+   {
+    "name": "Maintained",
+    "documentation": {
+     "shortDescription": "Determines if the project is \"actively maintained\".",
+     "url": "https://github.com/ossf/scorecard/blob/d1fab88f54636ff366076edfc5c239f97b3c8e66/docs/checks.md#maintained"
+    },
+    "score": 10,
+    "reason": "30 commit(s) and 14 issue activity found in the last 90 days -- score normalized to 10",
+    "details": []
+   },
+   {
+    "name": "Dangerous-Workflow",
+    "documentation": {
+     "shortDescription": "Determines if the project's GitHub Action workflows avoid dangerous patterns.",
+     "url": "https://github.com/ossf/scorecard/blob/d1fab88f54636ff366076edfc5c239f97b3c8e66/docs/checks.md#dangerous-workflow"
+    },
+    "score": 10,
+    "reason": "no dangerous workflow patterns detected",
+    "details": []
+   },
+   {
+    "name": "Token-Permissions",
+    "documentation": {
+     "shortDescription": "Determines if the project's workflows follow the principle of least privilege.",
+     "url": "https://github.com/ossf/scorecard/blob/d1fab88f54636ff366076edfc5c239f97b3c8e66/docs/checks.md#token-permissions"
+    },
+    "score": 10,
+    "reason": "GitHub workflow tokens follow principle of least privilege",
+    "details": [
+     "Warn: jobLevel 'contents' permission set to 'write': .github/workflows/release-drafter.yml:23",
+     "Info: found token with 'none' permissions: .github/workflows/test-docker.yml:110",
+     "Info: found token with 'none' permissions: .github/workflows/test-windows.yml:234",
+     "Info: found token with 'none' permissions: .github/workflows/test.yml:166",
+     "Warn: jobLevel 'contents' permission set to 'write': .github/workflows/wheels.yml:359",
+     "Info: topLevel 'contents' permission set to 'read': .github/workflows/benchmark.yml:18",
+     "Info: topLevel 'contents' permission set to 'read': .github/workflows/cifuzz.yml:18",
+     "Info: topLevel 'contents' permission set to 'read': .github/workflows/docs.yml:16",
+     "Info: found token with 'none' permissions: .github/workflows/lint.yml:1",
+     "Info: topLevel 'contents' permission set to 'read': .github/workflows/release-drafter.yml:11",
+     "Info: topLevel 'contents' permission set to 'read': .github/workflows/stale.yml:9",
+     "Info: topLevel 'contents' permission set to 'read': .github/workflows/test-docker.yml:18",
+     "Info: topLevel 'contents' permission set to 'read': .github/workflows/test-mingw.yml:18",
+     "Info: topLevel 'contents' permission set to 'read': .github/workflows/test-valgrind-memory.yml:24",
+     "Info: topLevel 'contents' permission set to 'read': .github/workflows/test-valgrind.yml:18",
+     "Info: topLevel 'contents' permission set to 'read': .github/workflows/test-windows.yml:18",
+     "Info: topLevel 'contents' permission set to 'read': .github/workflows/test.yml:18",
+     "Info: topLevel 'contents' permission set to 'read': .github/workflows/wheels.yml:33"
+    ]
+   },
+   {
+    "name": "CII-Best-Practices",
+    "documentation": {
+     "shortDescription": "Determines if the project has an OpenSSF (formerly CII) Best Practices Badge.",
+     "url": "https://github.com/ossf/scorecard/blob/d1fab88f54636ff366076edfc5c239f97b3c8e66/docs/checks.md#cii-best-practices"
+    },
+    "score": 5,
+    "reason": "badge detected: Passing",
+    "details": []
+   },
+   {
+    "name": "Binary-Artifacts",
+    "documentation": {
+     "shortDescription": "Determines if the project has generated executable (binary) artifacts in the source repository.",
+     "url": "https://github.com/ossf/scorecard/blob/d1fab88f54636ff366076edfc5c239f97b3c8e66/docs/checks.md#binary-artifacts"
+    },
+    "score": 10,
+    "reason": "no binaries found in the repo",
+    "details": []
+   },
+   {
+    "name": "License",
+    "documentation": {
+     "shortDescription": "Determines if the project has defined a license.",
+     "url": "https://github.com/ossf/scorecard/blob/d1fab88f54636ff366076edfc5c239f97b3c8e66/docs/checks.md#license"
+    },
+    "score": 9,
+    "reason": "license file detected",
+    "details": [
+     "Info: project has a license file: LICENSE:0",
+     "Warn: project license file does not contain an FSF or OSI license."
+    ]
+   },
+   {
+    "name": "Fuzzing",
+    "documentation": {
+     "shortDescription": "Determines if the project uses fuzzing.",
+     "url": "https://github.com/ossf/scorecard/blob/d1fab88f54636ff366076edfc5c239f97b3c8e66/docs/checks.md#fuzzing"
+    },
+    "score": 10,
+    "reason": "project is fuzzed",
+    "details": [
+     "Info: OSSFuzz integration found",
+     "Info: PythonAtherisFuzzer integration found: Tests/oss-fuzz/fuzz_font.py:18",
+     "Info: PythonAtherisFuzzer integration found: Tests/oss-fuzz/fuzz_pillow.py:16"
+    ]
+   },
+   {
+    "name": "Pinned-Dependencies",
+    "documentation": {
+     "shortDescription": "Determines if the project has declared and pinned the dependencies of its build process.",
+     "url": "https://github.com/ossf/scorecard/blob/d1fab88f54636ff366076edfc5c239f97b3c8e66/docs/checks.md#pinned-dependencies"
+    },
+    "score": 4,
+    "reason": "dependency not pinned by hash detected -- score normalized to 4",
+    "details": [
+     "Info: Possibly incomplete results: error parsing shell code: invalid parameter name: .github/workflows/test-docker.yml:80",
+     "Info: Possibly incomplete results: error parsing shell code: \"foo(\" must be followed by ): .github/workflows/test-docker.yml:95",
+     "Warn: pipCommand not pinned by hash: .ci/after_success.sh:4",
+     "Warn: pipCommand not pinned by hash: .ci/install.sh:25",
+     "Warn: pipCommand not pinned by hash: .ci/install.sh:26",
+     "Warn: pipCommand not pinned by hash: .ci/install.sh:27",
+     "Warn: pipCommand not pinned by hash: .ci/install.sh:28",
+     "Warn: pipCommand not pinned by hash: .ci/install.sh:29",
+     "Warn: pipCommand not pinned by hash: .ci/install.sh:30",
+     "Warn: pipCommand not pinned by hash: .ci/install.sh:31",
+     "Warn: pipCommand not pinned by hash: .ci/install.sh:32",
+     "Warn: pipCommand not pinned by hash: .ci/install.sh:33",
+     "Warn: pipCommand not pinned by hash: .ci/install.sh:35",
+     "Warn: pipCommand not pinned by hash: .ci/install.sh:36",
+     "Warn: pipCommand not pinned by hash: .ci/install.sh:42",
+     "Warn: pipCommand not pinned by hash: .github/workflows/macos-install.sh:8",
+     "Warn: pipCommand not pinned by hash: .github/workflows/macos-install.sh:9",
+     "Warn: pipCommand not pinned by hash: .github/workflows/macos-install.sh:10",
+     "Warn: pipCommand not pinned by hash: .github/workflows/macos-install.sh:11",
+     "Warn: pipCommand not pinned by hash: .github/workflows/macos-install.sh:12",
+     "Warn: pipCommand not pinned by hash: .github/workflows/macos-install.sh:13",
+     "Warn: pipCommand not pinned by hash: .github/workflows/macos-install.sh:14",
+     "Warn: pipCommand not pinned by hash: .github/workflows/macos-install.sh:16",
+     "Warn: pipCommand not pinned by hash: .github/workflows/macos-install.sh:17",
+     "Warn: pipCommand not pinned by hash: .github/workflows/wheels-dependencies.sh:164",
+     "Warn: pipCommand not pinned by hash: .github/workflows/wheels-dependencies.sh:177",
+     "Warn: pipCommand not pinned by hash: .github/workflows/wheels-dependencies.sh:374",
+     "Warn: pipCommand not pinned by hash: Tests/oss-fuzz/build.sh:18",
+     "Warn: pipCommand not pinned by hash: .github/workflows/test.yml:129",
+     "Warn: pipCommand not pinned by hash: .github/workflows/wheels.yml:147",
+     "Warn: pipCommand not pinned by hash: .github/workflows/wheels.yml:62",
+     "Info:  53 out of  53 GitHub-owned GitHubAction dependencies pinned",
+     "Info:  13 out of  13 third-party GitHubAction dependencies pinned",
+     "Info:   0 out of  29 pipCommand dependencies pinned"
+    ]
+   },
+   {
+    "name": "Signed-Releases",
+    "documentation": {
+     "shortDescription": "Determines if the project cryptographically signs release artifacts.",
+     "url": "https://github.com/ossf/scorecard/blob/d1fab88f54636ff366076edfc5c239f97b3c8e66/docs/checks.md#signed-releases"
+    },
+    "score": -1,
+    "reason": "no releases found",
+    "details": []
+   },
+   {
+    "name": "SAST",
+    "documentation": {
+     "shortDescription": "Determines if the project uses static code analysis.",
+     "url": "https://github.com/ossf/scorecard/blob/d1fab88f54636ff366076edfc5c239f97b3c8e66/docs/checks.md#sast"
+    },
+    "score": 0,
+    "reason": "SAST tool is not run on all commits -- score normalized to 0",
+    "details": [
+     "Warn: 0 commits out of 30 are checked with a SAST tool"
+    ]
+   },
+   {
+    "name": "Packaging",
+    "documentation": {
+     "shortDescription": "Determines if the project is published as a package that others can easily download, install, easily update, and uninstall.",
+     "url": "https://github.com/ossf/scorecard/blob/d1fab88f54636ff366076edfc5c239f97b3c8e66/docs/checks.md#packaging"
+    },
+    "score": 10,
+    "reason": "packaging workflow detected",
+    "details": [
+     "Info: Project packages its releases by way of GitHub Actions.: .github/workflows/wheels.yml:371"
+    ]
+   },
+   {
+    "name": "Branch-Protection",
+    "documentation": {
+     "shortDescription": "Determines if the default and release branches are protected with GitHub's branch protection settings.",
+     "url": "https://github.com/ossf/scorecard/blob/d1fab88f54636ff366076edfc5c239f97b3c8e66/docs/checks.md#branch-protection"
+    },
+    "score": 3,
+    "reason": "branch protection is not maximal on development and all release branches",
+    "details": [
+     "Info: 'allow deletion' disabled on branch 'main'",
+     "Info: 'force pushes' disabled on branch 'main'",
+     "Info: 'branch protection settings apply to administrators' is required to merge on branch 'main'",
+     "Warn: could not determine whether codeowners review is allowed",
+     "Warn: no status checks found to merge onto branch 'main'",
+     "Warn: PRs are not required to make changes on branch 'main'; or we don't have data to detect it.If you think it might be the latter, make sure to run Scorecard with a PAT or use Repo Rules (that are always public) instead of Branch Protection settings"
+    ]
+   }
+  ],
+  "overallScore": 7.6,
+  "metadata": []
+ },
+ "ossFuzz": {
+  "lineCount": 4096,
+  "lineCoverCount": 1322,
+  "date": "2026-10-20T00:00:00Z",
+  "configUrl": "https://github.com/google/oss-fuzz/tree/master/projects/pillow"
+ },
+ "_source_url": "https://api.deps.dev/v3/projects/github.com%2Fpython-pillow%2Fpillow"
+}

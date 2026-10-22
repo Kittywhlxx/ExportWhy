@@ -1,0 +1,47 @@
+{
+ "versionKey": {
+  "system": "PYPI",
+  "name": "pyyaml",
+  "version": "5.3.1"
+ },
+ "publishedAt": "2020-03-18T21:41:21Z",
+ "isDefault": false,
+ "isDeprecated": false,
+ "deprecatedReason": "",
+ "licenses": [
+  "MIT"
+ ],
+ "advisoryKeys": [
+  {
+   "id": "GHSA-8q59-q68h-6hv4"
+  },
+  {
+   "id": "PYSEC-2021-142"
+  }
+ ],
+ "links": [
+  {
+   "label": "SOURCE_REPO",
+   "url": "https://github.com/yaml/pyyaml"
+  }
+ ],
+ "slsaProvenances": [],
+ "attestations": [],
+ "registries": [
+  "https://pypi.org/simple"
+ ],
+ "relatedProjects": [
+  {
+   "projectKey": {
+    "id": "github.com/yaml/pyyaml"
+   },
+   "relationProvenance": "UNVERIFIED_METADATA",
+   "relationType": "SOURCE_REPO"
+  }
+ ],
+ "projectStatus": {
+  "status": "active",
+  "reason": ""
+ },
+ "_source_url": "https://api.deps.dev/v3/systems/pypi/packages/pyyaml/versions/5.3.1"
+}
