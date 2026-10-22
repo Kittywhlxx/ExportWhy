@@ -351,6 +351,8 @@ class Evaluator:
                             conflicts.append(f"ticket {t['ticket_id']} was cited but does not cover the export: " + "; ".join(cited_fails))
             if covering:
                 derived["verdict"] = "compliant"; reasons.append(f"approved ticket {covering} covers the account, dataset, {task.rows} rows and the time of export")
+            elif task.ticket_ref and "ticket_cited" not in fetched and "ticket_cited" not in failed:
+                pass   # read the cited ticket first; only widen the search if it does not cover the export
             else:
                 # the cited ticket is missing or fails: look for any other authorisation before deciding
                 need("tickets_account"); need("exceptions")
