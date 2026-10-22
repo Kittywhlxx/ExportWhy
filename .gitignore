@@ -7,3 +7,5 @@ traces/*.json
 __pycache__/
 *.pyc
 .pytest_cache/
+zetaris-platform/
+docs/*.pdf

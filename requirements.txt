@@ -1,0 +1,4 @@
+requests==2.34.2
+python-dotenv==1.2.4
+openai==3.36.1
+pytest==9.1.1
