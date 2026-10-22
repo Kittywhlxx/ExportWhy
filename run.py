@@ -52,7 +52,8 @@ def triage(request: dict) -> dict:
             raise ValueError("input.alert_id is required")
         report, out = run(Task(alert_id=str(alert_id)), run_id=run_id)
         return {"run_id": run_id, "status": "success",
-                "output": {"alert_id": out["alert_id"], "verdict": out["verdict"], "reasons": out["reasons"], "evidence": out["evidence"],
+                "output": {"alert_id": out["alert_id"], "verdict": out["verdict"], "confidence": out["confidence"], "priority": out["priority"],
+                           "triage_status": out["status"], "reasons": out["reasons"], "evidence": out["evidence"], "timeline": out["timeline"],
                            "conflicts": out["conflicts"], "cannot_confirm": out["gaps"], "next_steps": out["next_steps"],
                            "disclosure": out["disclosure"], "rounds": out["rounds"], "memory": out.get("memory"), "world_model": out.get("world"),
                            "report_markdown": report, "data_layer": out["backend"], "model_provider": out["llm"]},

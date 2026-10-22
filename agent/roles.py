@@ -200,6 +200,10 @@ class Assessment:
     disclosure: dict
     derived: dict
 
+    @property
+    def priority(self) -> dict | None:
+        return self.derived.get("priority") if self.verdict in ("investigate", "needs-human") else None
+
 
 def _ts(s) -> dt.datetime | None:
     if s in (None, ""):
@@ -472,6 +476,25 @@ class Evaluator:
                       "pii_columns_touched": [x for x in touched_sensitive if "(pii)" in x]}
         derived["sensitivity"] = sens
         verdict = derived.get("verdict")
+        # priority for the analyst's queue: what was exported, how much, where to, by whom (0-10, P1/P2/P3)
+        ev = (rows.get("alert") or [None])[0]; ds = (rows.get("dataset") or [None])[0]; acc = (rows.get("account") or [None])[0]
+        score = 0.0; why = []
+        sens_w = {"restricted": 4, "confidential": 3, "internal": 1, "public": 0}.get(str((ds or {}).get("sensitivity")).lower(), 2)
+        score += sens_w; why.append(f"dataset {(ds or {}).get('sensitivity', 'unknown')} (+{sens_w})")
+        try:
+            r = int((ev or {}).get("rows_exported") or 0)
+            rw = 0 if r < 1000 else 1 if r < 10000 else 2 if r < 50000 else 3
+            score += rw; why.append(f"{r} rows (+{rw})")
+        except ValueError:
+            pass
+        if str((ev or {}).get("destination_type")) in ("email", "cloud-bucket", "usb"):
+            score += 2; why.append("external destination (+2)")
+        if acc and str(acc.get("status")).lower() in ("terminated", "offboarding"):
+            score += 2; why.append(f"account {acc.get('status')} (+2)")
+        if not acc and "account" in rows:
+            score += 1; why.append("unknown account (+1)")
+        score = min(10.0, score)
+        derived["priority"] = {"score": score, "bucket": "P1" if score >= 8 else "P2" if score >= 5 else "P3", "factors": why}
         if derived.get("blocked_by_failure") and verdict != "investigate":
             # a decision-critical source was unreachable: never upgrade to "compliant" on partial evidence
             verdict = "cannot-confirm"; derived["verdict"] = verdict
@@ -613,9 +636,22 @@ class Reporter:
         return text.strip() or self.template_summary(a)
 
     def report(self, task: Task, a: Assessment, memory_context: str, rounds: int, world_context: str = "",
-               summary: str | None = None, critique: dict | None = None, second_opinion: dict | None = None) -> str:
+               summary: str | None = None, critique: dict | None = None, second_opinion: dict | None = None,
+               confidence: dict | None = None, timeline: list[dict] | None = None, memory_updates: dict | None = None,
+               status: str = "complete") -> str:
         redacted = 0
-        lines = [f"# Export-alert triage: {task.alert_id}", "", f"**Verdict: {a.verdict}**", ""]
+        head = f"**Verdict: {a.verdict}**"
+        if confidence:
+            head += f" · confidence {confidence['score']:.2f} ({confidence['label']})"
+        if a.priority:
+            head += f" · priority {a.priority['bucket']} ({a.priority['score']:.0f}/10)"
+        if status != "complete":
+            head += f" · **{status}**"
+        lines = [f"# Export-alert triage: {task.alert_id}", "", head, ""]
+        if confidence and confidence.get("factors"):
+            lines += ["Confidence: " + "; ".join(confidence["factors"]), ""]
+        if a.priority:
+            lines += ["Priority: " + "; ".join(a.priority["factors"]), ""]
         if a.reasons:
             lines += ["Why:"] + [f"- {r}" for r in a.reasons] + [""]
         if summary is None:
@@ -661,10 +697,19 @@ class Reporter:
                           f"- accuracy {sc['accuracy']}, appropriateness {sc['appropriateness']}, actionability {sc['actionability']} = {critique['total']}/9 "
                           f"({'pass' if critique['passed'] else 'fail'}; attempt {critique['attempt']})"
                           + (f"; fix applied: {critique.get('fix_applied')}" if critique.get("fix_applied") else "")]
+        if timeline:
+            lines += ["", "## Investigation timeline"]
+            for st in timeline:
+                lines.append(f"- {st['t']:>6.1f}s · {st['agent']} · {st['what']}")
         if world_context:
             lines += ["", "## World state (Meterless World Model)", world_context]
         if memory_context:
             m, k = redact(memory_context); lines += ["", "## Memory used (H-MEM)", m]
+        if memory_updates:
+            lines += ["", "## Memory updated (H-MEM, with provenance)"]
+            for kind, items in memory_updates.items():
+                for it in items:
+                    t, _ = redact(it["content"]); lines.append(f"- {kind}: `{it['id']}` {t[:140]}  <{it['source']}>")
         return "\n".join(lines)
 
     def _summary(self, task: Task, a: Assessment) -> str:

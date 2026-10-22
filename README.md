@@ -199,6 +199,7 @@ python -m agent.main alert <ALERT-ID> --simulate-outage tickets   fail a source 
 python -m agent.main evaluate [--write-examples]   triage every alert, score against data/sample/ground_truth.csv
 python -m agent.main memory                  what H-MEM remembers
 python -m agent.main feedback <mem-id> wrong correct a memory (helpful | not_helpful | wrong); logged in the trust ledger
+python -m agent.main feedback-verdict <ALERT-ID> agree|disagree [--note ...]   analyst feedback on the verdict; calibration tally
 python -m agent.main health                  data layer + model provider status
 ```
 
@@ -215,6 +216,23 @@ gets one JSON file per run (every plan, query, rejection, evaluation round and m
 All three sources are synthetic and generated with a seed; judges can pick a seed the author never
 saw and the ground truth comes with it. See [data/README.md](data/README.md) for the schema, the ten
 injected scenarios and the regeneration commands.
+
+## What a triage returns
+
+Every verdict carries a **confidence** (evidence completeness, second-opinion agreement, critic score,
+open gaps), a **priority** for the analyst's queue when it needs work (dataset sensitivity, rows,
+external destination, account status → P1/P2/P3), a **status** (complete, partial, timed-out: the
+whole triage has a wall-clock budget, `TRIAGE_TIMEOUT_S`, default 480 s, and returns what it has with
+"manual review" instead of hanging), the **investigation timeline** (every plan, query with row counts,
+evaluation round, second opinion and critique, in order), and the **memory updates** it made, each with
+its source. Analysts can agree or disagree with the verdict itself (`feedback-verdict`, or the buttons in
+the UI); the trust ledger keeps it and the calibration tally is shown per verdict type.
+
+`evaluate` also prints a trajectory table (rounds, queries, zero-row queries, sensitive columns,
+confidence per alert, and the count of compliant verdicts that would rest on a zero-row authorisation
+query, which must be 0). Alert-Bench (NeurIPS 2026) found that revision stages overturn more correct
+decisions than they repair; here the second opinion and the critic can only make a verdict more
+conservative (needs-human) or edit prose, never flip it to compliant.
 
 ## Accuracy across seeds
 
@@ -265,8 +283,8 @@ minimal disclosure is a policy of the planner, not a loss of accuracy.
 
 `pytest -q` runs the H-MEM conformance vectors, the World Model conformance cases, and the
 end-to-end loop in `SAMPLE_MODE` (ground truth, cross-alert world state, outage injection per source,
-redaction, second-opinion escalation, critic-driven revision). 39 tests, one expected-fail that pins a
-known reference-implementation behaviour.
+redaction, second-opinion escalation, critic-driven revision, confidence/priority/timeline, time budget,
+verdict feedback). 42 tests, one expected-fail that pins a known reference-implementation behaviour.
 
 ## Limits and honest notes
 

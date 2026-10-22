@@ -69,13 +69,28 @@ trace = json.loads(trace_path.read_text()) if trace_path else {}
 
 # ------------------------------------------------------------------ verdict banner
 verdict = outcome["verdict"]
-getattr(st, VERDICT_STYLE.get(verdict, "info"))(f"**{alert_id} → {verdict.upper()}**  —  " + ("; ".join(outcome["reasons"]) or "no reasons recorded"))
-c1, c2, c3, c4, c5 = st.columns(5)
-c1.metric("evaluator rounds", outcome["rounds"])
-c2.metric("facts cited", outcome["facts"])
-c3.metric("conflicts", len(outcome["conflicts"]))
+conf = outcome.get("confidence") or {}; prio = outcome.get("priority"); tstatus = outcome.get("status", "complete")
+banner = f"**{alert_id} → {verdict.upper()}**  —  " + ("; ".join(outcome["reasons"]) or "no reasons recorded")
+if tstatus != "complete":
+    banner = f"[{tstatus.upper()}] " + banner
+getattr(st, VERDICT_STYLE.get(verdict, "info"))(banner)
+c0, c1, c2, c3, c4, c5 = st.columns(6)
+c0.metric("confidence", f"{conf.get('score', 0):.2f}", conf.get("label"))
+c1.metric("priority", prio["bucket"] if prio else "—", f"{prio['score']:.0f}/10" if prio else "not queued")
+c2.metric("evaluator rounds", outcome["rounds"])
+c3.metric("facts cited", outcome["facts"])
 c4.metric("cannot confirm", len(outcome["gaps"]))
 c5.metric("sensitive columns read", len(outcome["disclosure"]["sensitive_columns_touched"]))
+if conf.get("factors"):
+    st.caption("confidence: " + "; ".join(conf["factors"]) + ((" · priority: " + "; ".join(prio["factors"])) if prio else ""))
+fb1, fb2, fb3 = st.columns([1, 1, 6])
+if fb1.button("👍 agree with verdict", key="v-agree"):
+    st.session_state["cal"] = Memory().verdict_feedback(alert_id, True); st.rerun()
+if fb2.button("👎 disagree", key="v-disagree"):
+    st.session_state["cal"] = Memory().verdict_feedback(alert_id, False); st.rerun()
+cal = st.session_state.get("cal") or Memory().calibration()
+if cal:
+    fb3.caption("calibration (analyst feedback on verdicts): " + "; ".join(f"{k}: {v['agree']} agree / {v['disagree']} disagree over {v['verdicts']} verdict(s)" for k, v in cal.items()))
 
 # ------------------------------------------------------------------ report + trace
 left, right = st.columns([3, 2])

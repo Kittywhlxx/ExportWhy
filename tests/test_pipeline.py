@@ -100,3 +100,29 @@ def test_critic_catches_fabricated_claim_and_reporter_revises(monkeypatch):
     assert c["attempt"] == 2 and c["first_total"] < 7 and c["passed"], c
     assert "T-4242" not in out["summary"] and "99999" not in out["summary"]
     assert "T-4242" in c["fix_applied"]
+
+
+def test_confidence_priority_timeline_present():
+    _, out = agent_main.run(Task(alert_id="AL-004"))
+    assert 0.0 <= out["confidence"]["score"] <= 1.0 and out["confidence"]["label"] in ("high", "medium", "low")
+    assert out["priority"]["bucket"] in ("P1", "P2", "P3") and out["priority"]["factors"]
+    assert out["status"] == "complete"
+    agents = {t["agent"] for t in out["timeline"]}
+    assert {"planner", "retriever", "evaluator", "critic"} <= agents
+    _, clean = agent_main.run(Task(alert_id="AL-001"))         # compliant: not queued
+    assert clean["priority"] is None
+
+
+def test_time_budget_exhausted_returns_partial_result(monkeypatch):
+    monkeypatch.setenv("TRIAGE_TIMEOUT_S", "0")
+    report, out = agent_main.run(Task(alert_id="AL-004"))
+    assert out["status"] == "timed-out" and out["verdict"] == "cannot-confirm"
+    assert out["confidence"]["score"] <= 0.4 and "timed-out" in report
+
+
+def test_verdict_feedback_is_recorded_in_ledger_and_calibration():
+    from agent.memory import Memory
+    agent_main.run(Task(alert_id="AL-004"))
+    stats = Memory().verdict_feedback("AL-004", agree=False, note="scope amended later")
+    assert stats["investigate"]["disagree"] == 1
+    assert Memory().verdict_feedback("AL-999", agree=True) is None

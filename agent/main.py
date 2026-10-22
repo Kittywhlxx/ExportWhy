@@ -15,6 +15,7 @@ import argparse
 import csv
 import os
 import sys
+import time
 from pathlib import Path
 
 from . import catalog, config
@@ -66,9 +67,15 @@ def run(task: Task, persist_memory: bool = True, run_id: str | None = None) -> t
     trace.step("world", "dossier", known=dossier["known"], prior_alerts=dossier["prior_alerts"], status_history=dossier["status_history"])
     planner_context = "\n".join(x for x in (memory_context, world_context) if x)
 
+    budget_s = float(config.env("TRIAGE_TIMEOUT_S", "480") or 480)   # whole-triage wall clock; beyond it: partial result, manual review
+    deadline = trace.started + budget_s
+    status = "complete"
+
     rounds = 0
     reason = "evidence the verdict needs: " + ", ".join(assessment.missing) + (" (memory holds earlier findings on this account/dataset; re-verifying)" if recalled else "")
     while assessment.verdict is None and assessment.missing and rounds < MAX_ROUNDS:
+        if time.time() > deadline:
+            status = "timed-out"; trace.step("system", "timeout", budget_s=budget_s, phase="evidence rounds"); break
         rounds += 1
         classes = [m for m in assessment.missing if m not in done]
         if not classes:
@@ -79,9 +86,18 @@ def run(task: Task, persist_memory: bool = True, run_id: str | None = None) -> t
         reason = "evaluator: " + (", ".join(assessment.conflicts + assessment.gaps) or "evidence still insufficient") + " -> fetch " + ", ".join(assessment.missing)
     if assessment.verdict is None:
         assessment.verdict = assessment.derived.get("verdict") or "cannot-confirm"
+    if status == "timed-out":
+        assessment.verdict = "cannot-confirm"
+        assessment.reasons.insert(0, f"time budget of {budget_s:.0f}s exhausted before the evidence was complete; manual review needed")
+        assessment.next_steps.insert(0, "re-run the triage, or review the partial evidence below by hand")
 
     # second opinion: the model judges the same evidence; a disagreement buys one more evidence round, then escalates
-    opinion = evaluator.second_opinion(task, assessment)
+    if time.time() > deadline:
+        status = status if status != "complete" else "partial"
+        opinion = {"verdict": "skipped", "reasons": ["skipped: time budget exhausted"], "missing_evidence": [], "usable": False, "agrees": None, "source": "none"}
+        trace.step("evaluator", "second_opinion", rules_verdict=assessment.verdict, **opinion)
+    else:
+        opinion = evaluator.second_opinion(task, assessment)
     if opinion.get("usable") and not opinion["agrees"]:
         extra = [m for m in opinion.get("missing_evidence", []) if m not in done]
         if extra and rounds < MAX_ROUNDS:
@@ -100,47 +116,103 @@ def run(task: Task, persist_memory: bool = True, run_id: str | None = None) -> t
     trace.data["rounds"] = rounds
 
     # proposer + critic: draft the summary, score it, revise once if it fails the rubric
-    summary = reporter.draft_summary(task, assessment)
-    critique = critic.review(task, assessment, summary, attempt=1)
-    if critique["passed"] is False and critique.get("fix"):
-        summary = reporter.revise(task, assessment, summary, critique["fix"])
-        second = critic.review(task, assessment, summary, attempt=2)
-        second["fix_applied"] = critique["fix"]; second["first_total"] = critique["total"]
-        critique = second
+    if time.time() > deadline:
+        status = status if status != "complete" else "partial"
+        summary = reporter.template_summary(assessment)
+        critique = {"attempt": 0, "scores": None, "total": None, "passed": None, "fix": None, "source": "none", "note": "skipped: time budget exhausted"}
+        trace.step("critic", "critique", **critique)
+    else:
+        summary = reporter.draft_summary(task, assessment)
+        critique = critic.review(task, assessment, summary, attempt=1)
+        if critique["passed"] is False and critique.get("fix"):
+            summary = reporter.revise(task, assessment, summary, critique["fix"])
+            second = critic.review(task, assessment, summary, attempt=2)
+            second["fix_applied"] = critique["fix"]; second["first_total"] = critique["total"]
+            critique = second
+
+    # confidence in the verdict: evidence completeness, second-opinion agreement, critic score, open gaps
+    # evidence completeness: the decision-critical classes this alert needed, and how many actually returned
+    needed = ["account", "policy"] + (["ticket_cited"] if task.ticket_ref else [])
+    if assessment.derived.get("needs_auth") and not (task.ticket_ref and not any(c.startswith("ticket ") for c in assessment.conflicts) and (rows_tc := [st for st in done.get("ticket_cited", []) if st.result and st.result.rows])):
+        needed += ["tickets_account", "exceptions"]          # widened search was required
+    got = [c for c in needed if any(st.result for st in done.get(c, []))]
+    completeness = len(got) / max(1, len(needed))
+    agree_term = 1.0 if opinion.get("agrees") else (0.5 if opinion.get("agrees") is None else 0.0)
+    critic_term = (critique["total"] / 9) if critique.get("total") is not None else 0.5
+    conf = 0.5 * completeness + 0.3 * agree_term + 0.2 * critic_term
+    if assessment.gaps:
+        conf = min(conf, 0.6)
+    if assessment.verdict == "needs-human" or status != "complete":
+        conf = min(conf, 0.4)
+    confidence = {"score": round(conf, 2), "label": "high" if conf >= 0.8 else "medium" if conf >= 0.6 else "low",
+                  "factors": [f"evidence completeness {completeness:.2f}", "second opinion " + ("agrees" if opinion.get("agrees") else "unavailable" if opinion.get("agrees") is None else "disagrees"),
+                              f"critic {critique.get('total', '-')}/9" if critique.get("total") is not None else "critic unavailable"] + ([f"{len(assessment.gaps)} open gap(s)"] if assessment.gaps else [])}
+    trace.step("evaluator", "confidence", **confidence)
 
     rows_by_class = {cls: [r for st in steps if st.result for r in st.result.rows] for cls, steps in done.items()}
     world_stats = world.ingest_run(task, assessment, rows_by_class, trace.run_id)
     trace.step("world", "ingest", **world_stats, **world.stats())
-    report = reporter.report(task, assessment, memory_context, rounds, world_context, summary=summary, critique=critique, second_opinion=opinion)
 
-    # remember what this investigation established (keys make re-runs idempotent)
+    # remember what this investigation established (keys make re-runs idempotent) -- before the report, so it can list the updates
     actions: dict[str, list[str]] = {"created": [], "reconfirmed": [], "superseded": []}
+    updates: dict[str, list[dict]] = {"created": [], "reconfirmed": [], "superseded": []}
     for f in assessment.facts:
         c = f.cites[0]
         rec, action = memory.remember(f.text, source=f"zetaris:{c['table']}:{c['step']}:{trace.run_id}", refs=[],
                                       tags=[f"alert:{task.alert_id}", f"account:{task.account_id}", f"dataset:{task.dataset_id}", f"kind:{f.kind}"],
                                       confidence=0.9 if f.kind != "gap" else 0.6, goal_run_id=trace.run_id, key=f"fact:{task.alert_id}:{f.key}")
-        actions[action].append(rec.id)
+        actions[action].append(rec.id); updates[action].append({"id": rec.id, "content": f.text, "source": f"{c['table']} via {c['step']}"})
     rec, action = memory.remember(f"Alert {task.alert_id}: verdict {assessment.verdict}; " + "; ".join(assessment.reasons), source=f"verdict:{trace.run_id}", refs=[],
                                   tags=[f"alert:{task.alert_id}", f"account:{task.account_id}", f"dataset:{task.dataset_id}", "kind:verdict"],
                                   confidence=0.85, goal_run_id=trace.run_id, key=f"verdict:{task.alert_id}")
-    actions[action].append(rec.id)
+    actions[action].append(rec.id); updates[action].append({"id": rec.id, "content": f"verdict {assessment.verdict}", "source": "evaluator"})
     d = assessment.disclosure
     fp, _ = memory.remember(f"Run {trace.run_id} ({task.alert_id}) accessed {', '.join(d['tables_accessed'])}; sensitive columns touched: {', '.join(d['sensitive_columns_touched']) or 'none'}; "
                             f"unnecessary tables: {', '.join(d['accessed_but_unused']) or 'none'}.", source=f"trace:{trace.run_id}", refs=[], tags=["footprint"], confidence=1.0,
                             mtype="general", goal_run_id=trace.run_id)
     trace.step("memory", "remember", **actions, footprint=fp.id, ledger=memory.ledger_stats())
 
+    timeline = _timeline(trace)
+    report = reporter.report(task, assessment, memory_context, rounds, world_context, summary=summary, critique=critique, second_opinion=opinion,
+                             confidence=confidence, timeline=timeline, memory_updates=updates, status=status)
+
     outcome = {"alert_id": task.alert_id, "verdict": assessment.verdict, "reasons": assessment.reasons, "conflicts": assessment.conflicts, "gaps": assessment.gaps,
                "missing": assessment.missing, "facts": len(assessment.facts), "rounds": rounds, "disclosure": {k: v for k, v in d.items() if k != "columns_seen"},
                "evidence": [{"text": redact(f.text)[0], "kind": f.kind, "cites": f.cites} for f in assessment.facts],
                "next_steps": assessment.next_steps, "run_id": trace.run_id, "log_file": str(trace.log_file.relative_to(config.ROOT)),
-               "summary": redact(summary)[0], "second_opinion": opinion, "critic": critique,
+               "summary": redact(summary)[0], "second_opinion": opinion, "critic": critique, "confidence": confidence,
+               "priority": assessment.priority, "status": status, "timeline": timeline,
                "memory_recalled": len(recalled), "memory": {k: len(v) for k, v in actions.items()}, "world": world_stats, "backend": backend.name, "llm": llm.name}
     path = trace.finish(outcome)
     shown = path.relative_to(config.ROOT) if config.ROOT in path.parents else path
     report += f"\n\n_trace: {shown} | evaluator rounds: {rounds} | data: {backend.name} | model: {llm.name}_\n"
     return report, outcome
+
+
+def _timeline(trace) -> list[dict]:
+    """Compact, judge-readable list of what happened, in order (from the trace)."""
+    out = []
+    for st in trace.data["steps"]:
+        k = st["kind"]
+        if k == "plan":
+            out.append({"t": st["t"], "agent": "planner", "what": "fetch " + ", ".join(st["evidence"]) + (f" (model drafted {st['llm_drafted']} SQL)" if st.get("llm_drafted") else "")})
+        elif k == "query":
+            out.append({"t": st["t"], "agent": "retriever", "what": f"{st['step']} {st['evidence']}: {st['rows']} rows from {', '.join(st['tables'])} ({st['backend']}, {st['elapsed_ms']} ms)"})
+        elif k == "query_failed":
+            out.append({"t": st["t"], "agent": "retriever", "what": f"{st['step']} {st['evidence']} FAILED: {st['error'][:80]}"})
+        elif k == "assess":
+            out.append({"t": st["t"], "agent": "evaluator", "what": (f"verdict {st['verdict']}" if st["verdict"] else "needs more: " + ", ".join(st["missing"]))})
+        elif k == "second_opinion":
+            out.append({"t": st["t"], "agent": "evaluator", "what": f"second opinion {st.get('verdict')} ({'agrees' if st.get('agrees') else 'no usable opinion' if st.get('agrees') is None else 'DISAGREES'}; {st.get('source')})"})
+        elif k == "critique":
+            sc = st.get("scores"); out.append({"t": st["t"], "agent": "critic", "what": (f"rubric {st['total']}/9 attempt {st['attempt']}" + (f", fix: {st['fix']}" if st.get("fix") else "")) if sc else f"unavailable ({st.get('note')})"})
+        elif k == "revise":
+            out.append({"t": st["t"], "agent": "reporter", "what": "revised the summary once"})
+        elif k == "timeout":
+            out.append({"t": st["t"], "agent": "system", "what": f"time budget {st['budget_s']:.0f}s exhausted during {st['phase']}"})
+        elif k == "model_unavailable":
+            out.append({"t": st["t"], "agent": st["agent"], "what": f"model unavailable, fallback: {st.get('fallback')}"})
+    return out
 
 
 def evaluate(write_examples: bool) -> int:
@@ -151,7 +223,7 @@ def evaluate(write_examples: bool) -> int:
             truth = {r["alert_id"]: r for r in csv.DictReader(fh)}
     backend = get_backend()
     ids = [r["alert_id"] for r in backend.query(f"SELECT alert_id FROM {catalog.SCHEMA}.alerts ORDER BY alert_id", limit=500).rows]
-    hits = 0; rows = []
+    hits = 0; rows = []; traj = []
     for aid in ids:
         try:
             report, out = run(Task(alert_id=aid))
@@ -160,6 +232,13 @@ def evaluate(write_examples: bool) -> int:
         exp = truth.get(aid, {}).get("expected_verdict", "?")
         ok = out["verdict"] == exp; hits += ok
         rows.append((aid, out["verdict"], truth.get(aid, {}).get("scenario", ""), exp, "OK" if ok else "MISS"))
+        tl = out.get("timeline", [])
+        queries = [t for t in tl if t["agent"] == "retriever" and "rows from" in t["what"]]
+        zero = [t for t in queries if ": 0 rows" in t["what"]]
+        traj.append({"alert": aid, "verdict": out["verdict"], "rounds": out["rounds"], "queries": len(queries), "zero_row_queries": len(zero),
+                     "model_calls": sum(1 for t in tl if t["agent"] in ("evaluator", "critic") and ("second opinion" in t["what"] or "rubric" in t["what"])),
+                     "sensitive_cols": len(out["disclosure"]["sensitive_columns_touched"]), "confidence": out["confidence"]["score"],
+                     "compliant_on_zero_rows": out["verdict"] == "compliant" and any(("ticket" in t["what"] or "exceptions" in t["what"]) and ": 0 rows" in t["what"] and "tickets_account" not in t["what"] for t in queries)})
         if write_examples:
             (config.ROOT / "output_examples").mkdir(exist_ok=True); (config.ROOT / "input_examples").mkdir(exist_ok=True)
             (config.ROOT / "output_examples" / f"{aid}.md").write_text(report)
@@ -168,6 +247,14 @@ def evaluate(write_examples: bool) -> int:
     for r in rows:
         print(f"{r[0]:8s} {r[1]:15s} {r[2]:24s} {r[3]:15s} {r[4]}")
     print(f"\n{hits}/{len(rows)} verdicts match ground truth" + (" (ground truth file missing)" if not truth else ""))
+    if traj:
+        n = len(traj)
+        print("\ntrajectory (Alert-Bench style: judge the path, not only the decision)")
+        print(f"{'alert':8s} {'verdict':15s} rounds queries zero-row sens conf")
+        for t in traj:
+            print(f"{t['alert']:8s} {t['verdict']:15s} {t['rounds']:6d} {t['queries']:7d} {t['zero_row_queries']:8d} {t['sensitive_cols']:4d} {t['confidence']:.2f}")
+        print(f"mean rounds {sum(t['rounds'] for t in traj)/n:.1f}, mean queries {sum(t['queries'] for t in traj)/n:.1f}, "
+              f"mean confidence {sum(t['confidence'] for t in traj)/n:.2f}, compliant verdicts resting on a zero-row authorisation query: {sum(t['compliant_on_zero_rows'] for t in traj)}")
     return 0 if hits == len(rows) else 1
 
 
@@ -179,6 +266,7 @@ def main(argv=None) -> int:
     ev = sub.add_parser("evaluate"); ev.add_argument("--write-examples", action="store_true")
     sub.add_parser("memory")
     fb = sub.add_parser("feedback"); fb.add_argument("memory_id"); fb.add_argument("kind", choices=["helpful", "not_helpful", "wrong"])
+    fv = sub.add_parser("feedback-verdict"); fv.add_argument("alert_id"); fv.add_argument("judgement", choices=["agree", "disagree"]); fv.add_argument("--note", default="")
     sub.add_parser("health")
     args = ap.parse_args(argv)
 
@@ -199,6 +287,11 @@ def main(argv=None) -> int:
         return 0
     if args.cmd == "feedback":
         Memory().feedback(args.memory_id, args.kind); print("recorded in the trust ledger"); return 0
+    if args.cmd == "feedback-verdict":
+        stats = Memory().verdict_feedback(args.alert_id, args.judgement == "agree", args.note)
+        if stats is None:
+            print(f"no verdict memory for {args.alert_id}; triage it first"); return 1
+        print("recorded; calibration so far:", stats); return 0
     if args.cmd == "evaluate":
         return evaluate(args.write_examples)
     if getattr(args, "simulate_outage", None):

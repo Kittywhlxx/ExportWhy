@@ -17,7 +17,8 @@ LOG_DIR = config.ROOT / "logs"
 ACTION = {"plan": "plan_evidence", "query": "query_zetaris", "query_failed": "query_zetaris", "rejected_llm_sql": "validate_model_sql",
           "assess": "evaluate_evidence", "llm": "model_call", "recall": "hmem_recall", "remember": "hmem_store",
           "dossier": "world_model_read", "ingest": "world_model_write", "second_opinion": "evaluate_second_opinion",
-          "critique": "critique_report", "revise": "revise_report", "model_unavailable": "model_fallback"}
+          "critique": "critique_report", "revise": "revise_report", "model_unavailable": "model_fallback",
+          "confidence": "score_confidence", "timeout": "time_budget"}
 
 
 class Trace:
@@ -88,6 +89,10 @@ class Trace:
                 line.update(model=p.get("source"), output_summary=f"rubric {sc.get('accuracy')}/{sc.get('appropriateness')}/{sc.get('actionability')} = {p.get('total')}/9 "
                             f"{'pass' if p.get('passed') else 'FAIL: ' + str(p.get('fix'))}", status="success" if p.get("passed") else "recovered", target_agent="reporter",
                             retry_count=(p.get("attempt", 1) - 1))
+        elif kind == "confidence":
+            line.update(output_summary=f"confidence {p.get('score')} ({p.get('label')}): " + "; ".join(p.get("factors", [])))
+        elif kind == "timeout":
+            line.update(output_summary=f"time budget {p.get('budget_s')}s exhausted during {p.get('phase')}; partial result", status="escalated")
         elif kind == "model_unavailable":
             line.update(output_summary=f"model unavailable ({p.get('error', '')[:120]}); fallback: {p.get('fallback')}", status="recovered")
         elif kind == "revise":

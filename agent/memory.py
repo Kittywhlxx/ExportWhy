@@ -81,6 +81,32 @@ class Memory:
                         "details": _g(e, "details") or {}})
         return out
 
+    def verdict_feedback(self, alert_id: str, agree: bool, note: str = "") -> dict | None:
+        """Analyst feedback on the verdict itself (Google SecOps-style thumbs on the disposition). Applied to the
+        verdict memory as helpful/wrong, so the ledger keeps who-said-what and the next recall ranks it accordingly."""
+        rec = next((m for m in self.all() if f"alert:{alert_id}" in (m.get("tags") or []) and "kind:verdict" in (m.get("tags") or [])), None)
+        if rec is None:
+            return None
+        self.h.feedback(rec["id"], "helpful" if agree else "wrong")
+        if note:
+            self.remember(f"Analyst note on {alert_id}: {note}", source=f"analyst:{alert_id}", refs=[], tags=[f"alert:{alert_id}", "kind:analyst-note"], confidence=1.0, mtype="general")
+        return self.calibration()
+
+    def calibration(self) -> dict:
+        """How often analysts agreed with the verdicts, by verdict type, from the trust ledger."""
+        out: dict[str, dict] = {}
+        for m in self.all():
+            tags = m.get("tags") or []
+            if "kind:verdict" not in tags:
+                continue
+            verdict = (m["content"].split("verdict ", 1)[1].split(";")[0].strip() if "verdict " in m["content"] else "?")
+            hist = self.history(m["id"])
+            agree = sum(1 for h in hist if h["action"] == "feedback" and (h["details"] or {}).get("kind") == "helpful")
+            disagree = sum(1 for h in hist if h["action"] == "feedback" and (h["details"] or {}).get("kind") == "wrong")
+            d = out.setdefault(verdict, {"verdicts": 0, "agree": 0, "disagree": 0})
+            d["verdicts"] += 1; d["agree"] += agree; d["disagree"] += disagree
+        return out
+
     def for_alert(self, alert_id: str) -> list[dict]:
         tag = f"alert:{alert_id}"
         return [m for m in self.all() if tag in (m.get("tags") or [])]
