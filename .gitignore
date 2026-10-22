@@ -10,3 +10,4 @@ __pycache__/
 zetaris-platform/
 docs/*.pdf
 logs/*.jsonl
+docs/hackathon/
