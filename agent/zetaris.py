@@ -98,13 +98,13 @@ class ZetarisREST:
 
 
 def _normalise(payload) -> tuple[list[dict], list[str]]:
-    """The API returns {"data": [...]} where rows are lists or dicts depending on the call.
-    Flatten both to a list of dicts and an ordered column list."""
+    """/sql-editor/sqls/run returns {"headers": [...], "data": [[...], ...], "total": n, "timeUsed": ms};
+    every value is a string. Flatten to a list of dicts and an ordered column list (other shapes tolerated)."""
     if isinstance(payload, dict):
         data = payload.get("data")
         if data is None:
             data = payload.get("records") or payload.get("rows") or []
-        cols = payload.get("columns") or payload.get("schema") or []
+        cols = payload.get("headers") or payload.get("columns") or payload.get("schema") or []
     else:
         data, cols = payload, []
     if isinstance(cols, list) and cols and isinstance(cols[0], dict):

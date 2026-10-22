@@ -28,7 +28,8 @@ SOURCES = {"logsdb": ["accounts", "export_events", "alerts"],
 def statements(password: str) -> list[tuple[str, str]]:
     out = []
     for db in SOURCES:
-        out.append(("sources", f'CREATE DATASOURCE {db} DESCRIBE BY "Synthetic {db} (Postgres, infra/sources)" OPTIONS ('
+        # DESCRIBE BY accepts only alphanumerics and _ . - , (no spaces)
+        out.append(("sources", f'CREATE DATASOURCE {db} DESCRIBE BY "synthetic-{db}-postgres-infra-sources" OPTIONS ('
                                f'jdbcdriver "org.postgresql.Driver", jdbcurl "jdbc:postgresql://sources:5432/{db}", '
                                f'username "dexa", password "{password}", fetchsize "1000")'))
         out.append(("sources", f"REGISTER DATASOURCE TABLES FROM {db}"))
