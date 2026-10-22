@@ -146,6 +146,7 @@ METERLESS_MODEL=meterless/fast                       # a routing mode; the recei
 
 ```
 python -m agent.main alert <ALERT-ID>        triage one alert (report to stdout, JSON trace to traces/)
+python -m agent.main alert <ALERT-ID> --simulate-outage tickets   fail a source (logs | policy | tickets): the verdict degrades to cannot-confirm, never to a guess
 python -m agent.main evaluate [--write-examples]   triage every alert, score against data/sample/ground_truth.csv
 python -m agent.main memory                  what H-MEM remembers
 python -m agent.main feedback <mem-id> wrong correct a memory (helpful | not_helpful | wrong); logged in the trust ledger
@@ -153,7 +154,9 @@ python -m agent.main health                  data layer + model provider status
 ```
 
 Environment switches: `SAMPLE_MODE=true` (SQLite twin + deterministic stub, fully offline),
-`LLM_STUB=true` (real Zetaris, stub model). Without either, the real Zetaris and Nightshift are used.
+`LLM_STUB=true` (real Zetaris, stub model), `SIMULATE_OUTAGE=tickets,policy` (fail those sources), `PLANNER=naive` (ablation: `SELECT *` queries). Without any, the real Zetaris and Nightshift are used.
+
+UI: `.venv/bin/streamlit run ui/app.py` (same loop, with per-fact feedback into the H-MEM ledger and an outage switch).
 
 `input_examples/` and `output_examples/` hold one command and one report per alert; `traces/`
 gets one JSON file per run (every plan, query, rejection, evaluation round and model receipt).
