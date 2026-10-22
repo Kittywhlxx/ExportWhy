@@ -1,0 +1,10 @@
+table_name,column_name,level
+accounts,email,pii
+accounts,phone,pii
+accounts,display_name,pii
+accounts,manager_id,internal
+export_events,destination,confidential
+export_events,client_ip,confidential
+export_events,sample_record_ids,pii
+tickets,purpose,internal
+datasets,record_count,internal

@@ -1,42 +1,27 @@
-"""DepRisk: an agent that answers "should we adopt / keep this dependency?" from evidence spread
-across the internal inventory, PyPI and deps.dev, all reached through Zetaris as one SQL schema.
+"""ExportWhy: an agent that explains why a sensitive-data export alert does or does not need
+investigation, from evidence spread across access logs, data-access policies and approval tickets,
+all reached through Zetaris as one SQL schema.
 
-  python -m agent.main request ADR-2041         evaluate an adoption request
-  python -m agent.main audit auth-service       audit a service's pins
-  python -m agent.main memory                   list what the agent remembers
+  python -m agent.main alert AL-003             triage one alert
+  python -m agent.main evaluate                 triage every alert and score against ground truth
+  python -m agent.main memory                   what the agent remembers across investigations
   python -m agent.main feedback <mem-id> wrong  correct a memory (helpful | not_helpful | wrong)
   python -m agent.main health                   data layer + model provider status
-Set SAMPLE_MODE=true to run fully offline (SQLite + deterministic stub).
+SAMPLE_MODE=true runs fully offline (SQLite twin + deterministic stub).
 """
 from __future__ import annotations
 
 import argparse
+import csv
 import sys
+from pathlib import Path
 
 from . import catalog, config
 from .llm import get_llm
 from .memory import Memory
-from .roles import INITIAL, MAX_ROUNDS, Evaluator, Planner, Reporter, Retriever, Task
+from .roles import MAX_ROUNDS, Evaluator, Planner, Reporter, Retriever, Task
 from .trace import Trace
 from .zetaris import DataLayerError, get_backend
-
-
-def build_task(args) -> Task:
-    if args.cmd == "request":
-        return Task(kind="request", text=f"evaluate {args.id}", request_id=args.id)
-    if args.cmd == "audit":
-        return Task(kind="audit", text=f"audit {args.service}", service=args.service)
-    raise SystemExit("unknown task")
-
-
-def resolve_request(task: Task, backend, trace) -> None:
-    """Round 0: the request row tells us package/version/service; everything else keys off it."""
-    r = backend.query(f"SELECT service, package, requested_version FROM {catalog.SCHEMA}.adoption_requests WHERE request_id = '{task.request_id}'")
-    trace.step("retriever", "query", step="q0", evidence="resolve", backend=r.source, query_id=r.query_id, rows=len(r.rows), sql=r.sql)
-    if not r.rows:
-        raise DataLayerError(f"adoption request {task.request_id} not found")
-    row = r.rows[0]
-    task.service, task.package, task.version = row["service"], row["package"], row["requested_version"]
 
 
 def run(task: Task, persist_memory: bool = True) -> tuple[str, dict]:
@@ -46,64 +31,97 @@ def run(task: Task, persist_memory: bool = True) -> tuple[str, dict]:
     memory = Memory(persist=persist_memory)
     planner, retriever, evaluator, reporter = Planner(llm, trace), Retriever(backend, trace), Evaluator(trace), Reporter(llm, trace)
 
-    if task.kind == "request":
-        resolve_request(task, backend, trace)
-    mem_query = f"{task.package or task.service} {task.version or ''} risk license vulnerability".strip()
-    memory_context, recalled = memory.recall(mem_query)
-    trace.step("memory", "recall", query=mem_query, hits=[{k: v for k, v in m.items() if k != "content"} | {"content": m["content"][:120]} for m in recalled])
-
+    # round 0: identify the alert and its export event, then the exporting account (keys for everything else)
     done: dict[str, list] = {}
-    classes = list(INITIAL[task.kind])
-    reason = "initial evidence for the decision" + (" (memory recalled earlier findings; re-verifying against live sources)" if recalled else "")
-    assessment = None
-    for rounds in range(1, MAX_ROUNDS + 1):
-        steps = planner.plan(task, classes, memory_context, reason)
-        for s in retriever.run(steps):
-            done.setdefault(s.evidence, []).append(s)
-        assessment = evaluator.assess(task, done, retriever.footprint, rounds)
-        trace.data["rounds"] = rounds
-        if assessment.verdict is not None:
-            break
+    for s in retriever.run(planner.plan(task, ["alert"], "", "identify the alert and its export event")):
+        done.setdefault(s.evidence, []).append(s)
+    assessment = evaluator.assess(task, done, retriever.footprint, 0)
+    if not task.event_id:
+        raise DataLayerError(f"alert {task.alert_id} not found")
+    for s in retriever.run(planner.plan(task, ["account"], "", "identify the exporting account")):
+        done.setdefault(s.evidence, []).append(s)
+    assessment = evaluator.assess(task, done, retriever.footprint, 0)
+
+    mem_query = f"{task.account_id} {task.dataset_id} export alert ticket exception"
+    memory_context, recalled = memory.recall(mem_query)
+    trace.step("memory", "recall", query=mem_query, hits=[{**{k: v for k, v in m.items() if k != "content"}, "content": m["content"][:120]} for m in recalled])
+
+    rounds = 0
+    reason = "evidence the verdict needs: " + ", ".join(assessment.missing) + (" (memory holds earlier findings on this account/dataset; re-verifying)" if recalled else "")
+    while assessment.verdict is None and assessment.missing and rounds < MAX_ROUNDS:
+        rounds += 1
         classes = [m for m in assessment.missing if m not in done]
         if not classes:
             break
-        reason = "evaluator found the evidence insufficient: " + ", ".join(classes)
+        for s in retriever.run(planner.plan(task, classes, memory_context, reason)):
+            done.setdefault(s.evidence, []).append(s)
+        assessment = evaluator.assess(task, done, retriever.footprint, rounds)
+        reason = "evaluator: " + (", ".join(assessment.conflicts + assessment.gaps) or "evidence still insufficient") + " -> fetch " + ", ".join(assessment.missing)
+    trace.data["rounds"] = rounds
     if assessment.verdict is None:
-        assessment.verdict = assessment.derived.get("verdict", "needs-review")
+        assessment.verdict = assessment.derived.get("verdict") or "cannot-confirm"
 
-    report = reporter.report(task, assessment, memory_context, trace.data["rounds"])
+    report = reporter.report(task, assessment, memory_context, rounds)
 
-    # remember what this run established (facts carry their Zetaris provenance; keys make re-runs idempotent)
-    subject = f"{task.package}:{task.version}" if task.kind == "request" else f"service:{task.service}"
+    # remember what this investigation established (keys make re-runs idempotent)
     actions: dict[str, list[str]] = {"created": [], "reconfirmed": [], "superseded": []}
     for f in assessment.facts:
         c = f.cites[0]
-        rec, action = memory.remember(f.text, source=f"zetaris:{c['table']}:{c['step']}:{trace.run_id}",
-                                      refs=[u for u in [c.get("source_url")] if u],
-                                      tags=[f"package:{task.package or task.service}", f"kind:{task.kind}"],
-                                      confidence=0.9 if not assessment.conflicts else 0.7, goal_run_id=trace.run_id,
-                                      key=f"fact:{subject}:{f.key}")
+        rec, action = memory.remember(f.text, source=f"zetaris:{c['table']}:{c['step']}:{trace.run_id}", refs=[],
+                                      tags=[f"alert:{task.alert_id}", f"account:{task.account_id}", f"dataset:{task.dataset_id}", f"kind:{f.kind}"],
+                                      confidence=0.9 if f.kind != "gap" else 0.6, goal_run_id=trace.run_id, key=f"fact:{task.alert_id}:{f.key}")
         actions[action].append(rec.id)
+    rec, action = memory.remember(f"Alert {task.alert_id}: verdict {assessment.verdict}; " + "; ".join(assessment.reasons), source=f"verdict:{trace.run_id}", refs=[],
+                                  tags=[f"alert:{task.alert_id}", f"account:{task.account_id}", f"dataset:{task.dataset_id}", "kind:verdict"],
+                                  confidence=0.85, goal_run_id=trace.run_id, key=f"verdict:{task.alert_id}")
+    actions[action].append(rec.id)
     d = assessment.disclosure
-    fp, _ = memory.remember(f"Run {trace.run_id} for {task.describe()} accessed {', '.join(d['tables_accessed'])}; unnecessary: {', '.join(d['accessed_but_unused']) or 'none'}.",
-                            source=f"trace:{trace.run_id}", refs=[], tags=["footprint"], confidence=1.0, mtype="general", goal_run_id=trace.run_id)
+    fp, _ = memory.remember(f"Run {trace.run_id} ({task.alert_id}) accessed {', '.join(d['tables_accessed'])}; sensitive columns touched: {', '.join(d['sensitive_columns_touched']) or 'none'}; "
+                            f"unnecessary tables: {', '.join(d['accessed_but_unused']) or 'none'}.", source=f"trace:{trace.run_id}", refs=[], tags=["footprint"], confidence=1.0,
+                            mtype="general", goal_run_id=trace.run_id)
     trace.step("memory", "remember", **actions, footprint=fp.id, ledger=memory.ledger_stats())
-    stored = actions["created"] + actions["superseded"]
 
-    outcome = {"verdict": assessment.verdict, "reasons": assessment.reasons, "conflicts": assessment.conflicts, "missing": assessment.missing,
-               "facts": len(assessment.facts), "disclosure": assessment.disclosure, "memory_recalled": len(recalled),
-               "memory": {k: len(v) for k, v in actions.items()},
-               "backend": backend.name, "llm": llm.name}
+    outcome = {"alert_id": task.alert_id, "verdict": assessment.verdict, "reasons": assessment.reasons, "conflicts": assessment.conflicts, "gaps": assessment.gaps,
+               "missing": assessment.missing, "facts": len(assessment.facts), "rounds": rounds, "disclosure": {k: v for k, v in d.items() if k != "columns_seen"},
+               "memory_recalled": len(recalled), "memory": {k: len(v) for k, v in actions.items()}, "backend": backend.name, "llm": llm.name}
     path = trace.finish(outcome)
-    report += f"\n\n_trace: {path.relative_to(config.ROOT)} | rounds: {trace.data['rounds']} | data: {backend.name} | model: {llm.name}_\n"
+    report += f"\n\n_trace: {path.relative_to(config.ROOT)} | evaluator rounds: {rounds} | data: {backend.name} | model: {llm.name}_\n"
     return report, outcome
 
 
+def evaluate(write_examples: bool) -> int:
+    truth = {}
+    gt = config.ROOT / "data" / "sample" / "ground_truth.csv"
+    if gt.exists():
+        with open(gt, newline="") as fh:
+            truth = {r["alert_id"]: r for r in csv.DictReader(fh)}
+    backend = get_backend()
+    ids = [r["alert_id"] for r in backend.query(f"SELECT alert_id FROM {catalog.SCHEMA}.alerts ORDER BY alert_id", limit=500).rows]
+    hits = 0; rows = []
+    for aid in ids:
+        try:
+            report, out = run(Task(alert_id=aid))
+        except DataLayerError as exc:
+            rows.append((aid, "ERROR", str(exc)[:60], truth.get(aid, {}).get("expected_verdict", "?"), "")); continue
+        exp = truth.get(aid, {}).get("expected_verdict", "?")
+        ok = out["verdict"] == exp; hits += ok
+        rows.append((aid, out["verdict"], truth.get(aid, {}).get("scenario", ""), exp, "OK" if ok else "MISS"))
+        if write_examples:
+            (config.ROOT / "output_examples").mkdir(exist_ok=True); (config.ROOT / "input_examples").mkdir(exist_ok=True)
+            (config.ROOT / "output_examples" / f"{aid}.md").write_text(report)
+            (config.ROOT / "input_examples" / f"{aid}.txt").write_text(f"python -m agent.main alert {aid}\n")
+    print(f"{'alert':8s} {'verdict':15s} {'scenario':24s} {'expected':15s} result")
+    for r in rows:
+        print(f"{r[0]:8s} {r[1]:15s} {r[2]:24s} {r[3]:15s} {r[4]}")
+    print(f"\n{hits}/{len(rows)} verdicts match ground truth" + (" (ground truth file missing)" if not truth else ""))
+    return 0 if hits == len(rows) else 1
+
+
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(prog="depriskr", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(prog="exportwhy", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
-    sub.add_parser("request").add_argument("id")
-    sub.add_parser("audit").add_argument("service")
+    sub.add_parser("alert").add_argument("id")
+    ev = sub.add_parser("evaluate"); ev.add_argument("--write-examples", action="store_true")
     sub.add_parser("memory")
     fb = sub.add_parser("feedback"); fb.add_argument("memory_id"); fb.add_argument("kind", choices=["helpful", "not_helpful", "wrong"])
     sub.add_parser("health")
@@ -126,14 +144,14 @@ def main(argv=None) -> int:
         return 0
     if args.cmd == "feedback":
         Memory().feedback(args.memory_id, args.kind); print("recorded in the trust ledger"); return 0
-
-    task = build_task(args)
+    if args.cmd == "evaluate":
+        return evaluate(args.write_examples)
     try:
-        report, outcome = run(task)
+        report, outcome = run(Task(alert_id=args.id))
     except DataLayerError as exc:
         print(f"data layer error: {exc}", file=sys.stderr); return 2
     print(report)
-    return 0 if outcome["verdict"] else 1
+    return 0
 
 
 if __name__ == "__main__":

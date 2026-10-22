@@ -1,0 +1,14 @@
+alert_id,scenario,expected_verdict,expected_reason
+AL-001,S1 valid_ticket,compliant,"approved ticket covers account, dataset, rows and time"
+AL-002,S1 valid_ticket,compliant,"approved ticket covers account, dataset, rows and time"
+AL-003,S2a expired_ticket,investigate,cited ticket expired before the export
+AL-004,S2b scope_mismatch,investigate,rows exported exceed the ticket's max_rows
+AL-005,S3 policy_exception,compliant,policy exception X01 (incident-response window) covers role and dataset at that time
+AL-006,S3 policy_exception,compliant,account-scoped exception X03 covers the export
+AL-007,S4 no_authorization,investigate,"no ticket, no exception, policy requires a ticket above the cap"
+AL-008,S4 no_authorization,investigate,no ticket and no exception clause
+AL-009,S5a unknown_account,cannot-confirm,account not found in the directory; identity cannot be established
+AL-010,S5b missing_policy,cannot-confirm,no policy row for the role and dataset; entitlement cannot be determined
+AL-011,S5c ticket_not_found,cannot-confirm,the cited ticket does not exist in the ticket system
+AL-012,S6 terminated_account,investigate,account terminated before the export
+AL-013,S7 within_policy,compliant,"internal dataset, rows under the no-ticket cap; hours rule does not apply below the cap"

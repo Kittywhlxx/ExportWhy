@@ -1,0 +1,48 @@
+policy_id,role,dataset_id,allowed,allowed_hours_start,allowed_hours_end,max_rows_without_ticket,requires_ticket,notes
+P001,analyst,DS01,True,07:00,19:00,500,True,exports above the cap or outside hours need an approved ticket
+P002,analyst,DS02,True,07:00,19:00,500,True,exports above the cap or outside hours need an approved ticket
+P003,analyst,DS03,True,07:00,19:00,5000,True,exports above the cap or outside hours need an approved ticket
+P004,analyst,DS04,True,07:00,19:00,5000,True,exports above the cap or outside hours need an approved ticket
+P005,analyst,DS05,True,07:00,19:00,500,True,exports above the cap or outside hours need an approved ticket
+P006,analyst,DS06,True,07:00,19:00,50000,False,exports above the cap or outside hours need an approved ticket
+P007,analyst,DS07,True,07:00,19:00,5000,True,exports above the cap or outside hours need an approved ticket
+P008,analyst,DS08,True,00:00,23:59,1000000,False,exports above the cap or outside hours need an approved ticket
+P009,data-steward,DS01,True,07:00,19:00,500,True,exports above the cap or outside hours need an approved ticket
+P010,data-steward,DS02,True,07:00,19:00,500,True,exports above the cap or outside hours need an approved ticket
+P011,data-steward,DS03,True,07:00,19:00,5000,True,exports above the cap or outside hours need an approved ticket
+P012,data-steward,DS04,True,07:00,19:00,5000,True,exports above the cap or outside hours need an approved ticket
+P013,data-steward,DS05,True,07:00,19:00,500,True,exports above the cap or outside hours need an approved ticket
+P014,data-steward,DS06,True,07:00,19:00,50000,False,exports above the cap or outside hours need an approved ticket
+P015,data-steward,DS07,True,07:00,19:00,5000,True,exports above the cap or outside hours need an approved ticket
+P016,data-steward,DS08,True,00:00,23:59,1000000,False,exports above the cap or outside hours need an approved ticket
+P017,engineer,DS01,True,07:00,19:00,500,True,exports above the cap or outside hours need an approved ticket
+P018,engineer,DS02,True,07:00,19:00,500,True,exports above the cap or outside hours need an approved ticket
+P019,engineer,DS03,True,07:00,19:00,5000,True,exports above the cap or outside hours need an approved ticket
+P020,engineer,DS04,True,07:00,19:00,5000,True,exports above the cap or outside hours need an approved ticket
+P021,engineer,DS05,True,07:00,19:00,500,True,exports above the cap or outside hours need an approved ticket
+P022,engineer,DS06,True,07:00,19:00,50000,False,exports above the cap or outside hours need an approved ticket
+P023,engineer,DS07,True,07:00,19:00,5000,True,exports above the cap or outside hours need an approved ticket
+P024,engineer,DS08,True,00:00,23:59,1000000,False,exports above the cap or outside hours need an approved ticket
+P025,contractor,DS01,False,07:00,19:00,0,True,no export rights
+P026,contractor,DS03,True,07:00,19:00,200,True,exports above the cap or outside hours need an approved ticket
+P027,contractor,DS04,True,07:00,19:00,200,True,exports above the cap or outside hours need an approved ticket
+P028,contractor,DS05,False,07:00,19:00,0,True,no export rights
+P029,contractor,DS06,True,07:00,19:00,200,False,exports above the cap or outside hours need an approved ticket
+P030,contractor,DS07,True,07:00,19:00,200,True,exports above the cap or outside hours need an approved ticket
+P031,contractor,DS08,True,00:00,23:59,200,False,exports above the cap or outside hours need an approved ticket
+P032,support,DS01,False,07:00,19:00,0,True,no export rights
+P033,support,DS02,False,07:00,19:00,0,True,no export rights
+P034,support,DS03,True,07:00,19:00,200,True,exports above the cap or outside hours need an approved ticket
+P035,support,DS04,True,07:00,19:00,200,True,exports above the cap or outside hours need an approved ticket
+P036,support,DS05,False,07:00,19:00,0,True,no export rights
+P037,support,DS06,True,07:00,19:00,200,False,exports above the cap or outside hours need an approved ticket
+P038,support,DS07,True,07:00,19:00,200,True,exports above the cap or outside hours need an approved ticket
+P039,support,DS08,True,00:00,23:59,200,False,exports above the cap or outside hours need an approved ticket
+P040,finance,DS01,True,07:00,19:00,500,True,exports above the cap or outside hours need an approved ticket
+P041,finance,DS02,True,07:00,19:00,500,True,exports above the cap or outside hours need an approved ticket
+P042,finance,DS03,True,07:00,19:00,5000,True,exports above the cap or outside hours need an approved ticket
+P043,finance,DS04,True,07:00,19:00,5000,True,exports above the cap or outside hours need an approved ticket
+P044,finance,DS05,True,07:00,19:00,500,True,exports above the cap or outside hours need an approved ticket
+P045,finance,DS06,True,07:00,19:00,50000,False,exports above the cap or outside hours need an approved ticket
+P046,finance,DS07,True,07:00,19:00,5000,True,exports above the cap or outside hours need an approved ticket
+P047,finance,DS08,True,00:00,23:59,1000000,False,exports above the cap or outside hours need an approved ticket

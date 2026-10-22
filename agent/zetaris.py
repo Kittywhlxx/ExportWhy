@@ -2,8 +2,8 @@
 
 Two backends with the same interface:
   * ZetarisREST  -- the real thing: Zetaris REST API /sql-editor/sqls/run with an API key.
-  * SampleSQLite -- SAMPLE_MODE: a local SQLite file built from cached API responses and the
-                    same synthetic inventory, exposing the same `depriskr.<view>` names.
+  * SampleSQLite -- SAMPLE_MODE: a local SQLite file built from the same synthetic sources,
+                    exposing the same `<schema>.<view>` names.
 Only SELECT statements are allowed from the agent loop; registration scripts use run_ddl.
 """
 from __future__ import annotations
@@ -124,8 +124,8 @@ def _normalise(payload) -> tuple[list[dict], list[str]]:
 
 
 class SampleSQLite:
-    """SAMPLE_MODE backend. Tables live in an attached schema named `depriskr` so the
-    agent's SQL (depriskr.<view>) is identical to the Zetaris schemastore container."""
+    """SAMPLE_MODE backend. Tables live in an attached schema named after catalog.SCHEMA so the
+    agent's SQL (<schema>.<view>) is identical to the Zetaris schemastore container."""
 
     name = "sqlite"
 
@@ -133,7 +133,8 @@ class SampleSQLite:
         self.path = str(path or config.SAMPLE_DB)
         self.conn = sqlite3.connect(":memory:")
         self.conn.row_factory = sqlite3.Row
-        self.conn.execute("ATTACH DATABASE ? AS depriskr", (self.path,))
+        from .catalog import SCHEMA
+        self.conn.execute(f"ATTACH DATABASE ? AS {SCHEMA}", (self.path,))
 
     def query(self, sql: str, limit: int = 200) -> QueryResult:
         if not SELECT_ONLY.match(sql):

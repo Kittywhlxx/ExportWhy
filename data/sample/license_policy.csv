@@ -1,9 +1,0 @@
-license,decision,note
-MIT,allowed,
-Apache-2.0,allowed,
-BSD-3-Clause,allowed,
-BSD-2-Clause,allowed,
-HPND,review,historical permission notice; legal review required for redistribution
-non-standard,review,license string not recognised by deps.dev; legal review required
-GPL-3.0,denied,copyleft not permitted in shipped services
-AGPL-3.0,denied,copyleft not permitted in shipped services

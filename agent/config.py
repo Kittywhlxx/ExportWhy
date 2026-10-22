@@ -22,5 +22,5 @@ def sample_mode() -> bool:
 ZETARIS_REST_URL = env("ZETARIS_REST_URL", "http://localhost:8888/api/v1.0")
 ZETARIS_ORG_ID = env("ZETARIS_ORG_ID", "1")
 ZETARIS_API_KEY = env("ZETARIS_API_KEY")
-SAMPLE_DB = ROOT / "data" / "sample" / "depriskr_sample.sqlite"
+SAMPLE_DB = ROOT / "data" / "sample" / "dexa_sample.sqlite"
 TRACE_DIR = ROOT / "traces"

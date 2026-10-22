@@ -1,8 +1,8 @@
-"""The four roles. Planner -> Retriever -> Evaluator -> Reporter, with the Evaluator sending the
-Planner back for more evidence (bounded by MAX_ROUNDS). Rules decide; the LLM drafts SQL and prose.
+"""The four roles. Planner -> Retriever -> Evaluator -> Reporter; the Evaluator sends the Planner back
+for more evidence (bounded by MAX_ROUNDS). Rules decide the verdict; the model drafts SQL and prose.
 
-Evidence classes are the unit of planning: the Planner proposes queries per class, the Evaluator
-checks which classes the decision still lacks and whether the sources agree.
+Evidence classes are the unit of planning. Which classes a round needs depends on what the previous
+round found (a cited ticket that fails a check triggers a search for other authorisation, etc.).
 """
 from __future__ import annotations
 
@@ -15,81 +15,69 @@ from .llm import extract_json
 from .zetaris import DataLayerError, QueryResult
 
 MAX_ROUNDS = 3
-TODAY = dt.date.today().isoformat()
+
 
 # ------------------------------------------------------------------ task -----------------------
 
 @dataclass
 class Task:
-    kind: str                      # "request" | "audit" | "ask"
-    text: str
-    request_id: str | None = None
-    service: str | None = None
-    package: str | None = None
-    version: str | None = None
+    alert_id: str
+    # resolved from the alert in round 0
+    event_id: str | None = None
+    ts: str | None = None
+    account_id: str | None = None
+    dataset_id: str | None = None
+    rows: int | None = None
+    ticket_ref: str | None = None
+    rule: str | None = None
+    role: str | None = None          # known after the account row is read
 
     def describe(self) -> str:
-        if self.kind == "request":
-            return f"Evaluate adoption request {self.request_id}"
-        if self.kind == "audit":
-            return f"Audit the pinned dependencies of service {self.service}"
-        return self.text
+        return f"Triage alert {self.alert_id}"
 
 
 @dataclass
 class Step:
     sid: str
-    evidence: str                  # evidence class
+    evidence: str
     purpose: str
     sql: str
-    origin: str = "rules"          # "rules" | "llm"
+    origin: str = "rules"            # "rules" | "llm"
     result: QueryResult | None = None
     error: str | None = None
 
 
-# evidence class -> SQL template (ANSI; identical on Zetaris Lightning SQL and SQLite)
+# evidence class -> (purpose, SQL template). ANSI; identical on Zetaris Lightning SQL and SQLite.
+# Templates select only the columns the decision needs: no email/phone/destination/sample ids.
 TEMPLATES: dict[str, tuple[str, str]] = {
-    "request": ("the request itself and who owns the target service",
-        "SELECT r.request_id, r.service, r.package, r.requested_version, r.requested_by, r.requested_on, r.reason, r.status, s.owner_team, s.tier "
-        "FROM depriskr.adoption_requests r JOIN depriskr.services s ON s.service = r.service WHERE r.request_id = '{request_id}'"),
-    "current_pins": ("what the service (and the rest of the organisation) currently pins for this package",
-        "SELECT service, package, pinned_version, scope, added_on FROM depriskr.dependencies WHERE package = '{package}' ORDER BY service"),
-    "release": ("release metadata on PyPI for the requested version",
-        "SELECT package, version, summary, license, license_expression, requires_python, yanked, yanked_reason, source_url "
-        "FROM depriskr.pypi_release WHERE package = '{package}' AND version = '{version}'"),
-    "vulns_pypi": ("vulnerabilities PyPI reports for that exact release",
-        "SELECT vuln_id, aliases, fixed_in, summary, withdrawn, link, source_url FROM depriskr.pypi_vulnerability "
-        "WHERE package = '{package}' AND version = '{version}' ORDER BY vuln_id"),
-    "advisories_depsdev": ("deps.dev's independent view of the release: advisories, licenses, publish date",
-        "SELECT v.package, v.version, v.published_at, v.is_default, v.is_deprecated, v.licenses, v.advisory_count, v.source_repo, v.source_url, a.advisory_id "
-        "FROM depriskr.depsdev_version v LEFT JOIN depriskr.depsdev_advisory a ON a.package = v.package AND a.version = v.version "
-        "WHERE v.package = '{package}' AND v.version = '{version}' ORDER BY a.advisory_id"),
-    "license_policy": ("the organisation's decision for the licenses the two sources report",
-        "SELECT license, decision, note FROM depriskr.license_policy ORDER BY license"),
-    "exceptions": ("approved risk exceptions for this service and package, with expiry",
-        "SELECT exception_id, service, package, advisory_id, approved_by, approved_on, expires_on, reason FROM depriskr.risk_exceptions "
-        "WHERE package = '{package}' ORDER BY expires_on"),
-    "project_health": ("source-repository health and OpenSSF Scorecard",
-        "SELECT p.project_id, p.stars, p.open_issues, p.license, p.scorecard_overall, p.scorecard_date, c.check_name, c.score, p.source_url "
-        "FROM depriskr.depsdev_project p LEFT JOIN depriskr.depsdev_scorecard_check c ON c.project_id = p.project_id "
-        "WHERE p.package = '{package}' AND c.check_name IN ('Maintained', 'Vulnerabilities', 'Security-Policy', 'Code-Review', 'Dangerous-Workflow') ORDER BY c.check_name"),
-    "newer_versions": ("whether a newer default release exists on the registry",
-        "SELECT version, published_at, is_default, source_url FROM depriskr.depsdev_package_version WHERE package = '{package}' AND is_default = 1"),
-    "audit_pins": ("every pin of the service",
-        "SELECT d.service, d.package, d.pinned_version, d.scope, d.added_on, s.owner_team FROM depriskr.dependencies d JOIN depriskr.services s ON s.service = d.service "
-        "WHERE d.service = '{service}' ORDER BY d.package"),
-    "audit_vulns": ("vulnerabilities for each pinned release, both sources",
-        "SELECT d.package, d.pinned_version, v.vuln_id, v.aliases, v.fixed_in, v.withdrawn, v.source_url FROM depriskr.dependencies d "
-        "LEFT JOIN depriskr.pypi_vulnerability v ON v.package = d.package AND v.version = d.pinned_version WHERE d.service = '{service}' ORDER BY d.package, v.vuln_id"),
-    "audit_advisories": ("deps.dev advisory counts and licenses for each pin",
-        "SELECT d.package, d.pinned_version, x.advisory_count, x.licenses, x.is_default, x.source_url FROM depriskr.dependencies d "
-        "LEFT JOIN depriskr.depsdev_version x ON x.package = d.package AND x.version = d.pinned_version WHERE d.service = '{service}' ORDER BY d.package"),
-    "audit_exceptions": ("exceptions on file for the service",
-        "SELECT exception_id, package, advisory_id, approved_by, expires_on, reason FROM depriskr.risk_exceptions WHERE service = '{service}' ORDER BY expires_on"),
+    "alert": ("the alert and the export event it points at",
+        "SELECT a.alert_id, a.rule, a.severity, a.raised_at, e.event_id, e.ts, e.account_id, e.dataset_id, e.rows_exported, e.destination_type, e.tool, e.ticket_ref "
+        "FROM dexa.alerts a JOIN dexa.export_events e ON e.event_id = a.event_id WHERE a.alert_id = '{alert_id}'"),
+    "account": ("who the exporting account is: role and employment status",
+        "SELECT account_id, role, department, status, status_since FROM dexa.accounts WHERE account_id = '{account_id}'"),
+    "dataset": ("what was exported: dataset sensitivity",
+        "SELECT dataset_id, name, sensitivity, owner_team, contains_pii FROM dexa.datasets WHERE dataset_id = '{dataset_id}'"),
+    "policy": ("what the role may export from that dataset without a ticket",
+        "SELECT policy_id, role, dataset_id, allowed, allowed_hours_start, allowed_hours_end, max_rows_without_ticket, requires_ticket, notes "
+        "FROM dexa.policies WHERE role = '{role}' AND dataset_id = '{dataset_id}'"),
+    "sensitivity": ("which columns are sensitive (for redaction and the disclosure check)",
+        "SELECT table_name, column_name, level FROM dexa.field_sensitivity"),
+    "ticket_cited": ("the ticket the exporter cited",
+        "SELECT ticket_id, requester_account_id, dataset_id, max_rows, valid_from, valid_to, status, approver_id FROM dexa.tickets WHERE ticket_id = '{ticket_ref}'"),
+    "tickets_account": ("any other ticket for this account and dataset",
+        "SELECT ticket_id, requester_account_id, dataset_id, max_rows, valid_from, valid_to, status, approver_id FROM dexa.tickets "
+        "WHERE requester_account_id = '{account_id}' AND dataset_id = '{dataset_id}' ORDER BY valid_to DESC"),
+    "exceptions": ("standing policy exceptions for the role or the account on that dataset",
+        "SELECT exception_id, scope_type, scope_value, dataset_id, clause, valid_from, valid_to, approved_by FROM dexa.policy_exceptions "
+        "WHERE dataset_id = '{dataset_id}' AND ((scope_type = 'role' AND scope_value = '{role}') OR (scope_type = 'account' AND scope_value = '{account_id}'))"),
+    "destination": ("where the data went (sensitive column, fetched only for external destinations)",
+        "SELECT event_id, destination_type, destination FROM dexa.export_events WHERE event_id = '{event_id}'"),
+    "account_history": ("the account's export baseline on that dataset before this event",
+        "SELECT COUNT(*) AS prior_exports, MAX(rows_exported) AS max_rows_before, SUM(rows_exported) AS total_rows_before FROM dexa.export_events "
+        "WHERE account_id = '{account_id}' AND dataset_id = '{dataset_id}' AND ts < '{ts}'"),
 }
 
-INITIAL = {"request": ["request", "release", "vulns_pypi", "advisories_depsdev"],
-           "audit": ["audit_pins", "audit_vulns", "audit_advisories"]}
+ROUND1 = ["alert", "account", "dataset", "sensitivity"]
 
 
 # ------------------------------------------------------------------ planner --------------------
@@ -102,11 +90,9 @@ class Planner:
         self.counter = 0
 
     def plan(self, task: Task, classes: list[str], memory_context: str, reason: str) -> list[Step]:
-        params = {"request_id": task.request_id, "service": task.service, "package": task.package, "version": task.version}
+        params = {k: (v if v is not None else "") for k, v in vars(task).items()}
         steps = [self._template(c, params) for c in classes]
-        drafted = 0
-        if self.llm.name != "stub":
-            drafted = self._llm_refine(task, steps, memory_context, reason)
+        drafted = self._llm_refine(task, steps, memory_context, reason) if self.llm.name != "stub" else 0
         self.trace.step(self.name, "plan", reason=reason, evidence=classes, llm_drafted=drafted,
                         steps=[{"id": s.sid, "evidence": s.evidence, "origin": s.origin, "sql": s.sql} for s in steps])
         return steps
@@ -114,24 +100,23 @@ class Planner:
     def _template(self, cls: str, params: dict) -> Step:
         self.counter += 1
         purpose, sql = TEMPLATES[cls]
-        return Step(sid=f"q{self.counter}", evidence=cls, purpose=purpose, sql=sql.format(**{k: v or "" for k, v in params.items()}))
+        return Step(sid=f"q{self.counter}", evidence=cls, purpose=purpose, sql=sql.format(**params))
 
     def _llm_refine(self, task: Task, steps: list[Step], memory_context: str, reason: str) -> int:
-        """Ask the model to write the SQL for each evidence class; keep a draft only if it is
-        read-only, touches only known tables, and still targets the task's package/version."""
-        system = ("You write ANSI SQL for a dependency-risk analyst. Only SELECT statements. Only the tables below. "
-                  "Reply with a JSON array of {\"id\": step id, \"sql\": \"...\"}.\n" + catalog.schema_card())
-        user = (f"Task: {task.describe()} (package={task.package}, version={task.version}, service={task.service}, request_id={task.request_id}).\n"
-                f"Why we are planning now: {reason}\n"
-                f"Relevant memory from earlier runs:\n{memory_context or '(none)'}\n\nSteps to write SQL for:\n" +
-                "\n".join(f"- {s.sid} [{s.evidence}]: {s.purpose}. Reference SQL: {s.sql}" for s in steps))
+        """Let the model write the SQL per evidence class; keep a draft only if it is read-only, uses known
+        tables, stays on this alert's keys, and does not widen into sensitive columns without need."""
+        system = ("You write ANSI SQL for a security analyst triaging a data-export alert. Only SELECT statements, only the "
+                  "tables below, only the columns needed for the stated purpose. Reply with a JSON array of {\"id\": step id, \"sql\": \"...\"}.\n"
+                  + catalog.schema_card())
+        user = (f"Alert {task.alert_id} (event={task.event_id}, account={task.account_id}, role={task.role}, dataset={task.dataset_id}, ts={task.ts}, ticket_ref={task.ticket_ref}).\n"
+                f"Why we are planning now: {reason}\nMemory from earlier investigations:\n{memory_context or '(none)'}\n\nSteps:\n"
+                + "\n".join(f"- {s.sid} [{s.evidence}]: {s.purpose}. Reference SQL: {s.sql}" for s in steps))
         text, meta = self.llm.chat(system, user, json_mode=True)
         drafts = extract_json(text) or []
-        kept = 0
         by_id = {s.sid: s for s in steps}
+        kept = 0
         for d in drafts if isinstance(drafts, list) else []:
-            s = by_id.get(str(d.get("id")))
-            sql = str(d.get("sql", "")).strip().rstrip(";")
+            s = by_id.get(str(d.get("id"))); sql = str(d.get("sql", "")).strip().rstrip(";")
             if not s or not sql:
                 continue
             ok, why = self._validate(sql, task)
@@ -144,15 +129,16 @@ class Planner:
 
     @staticmethod
     def _validate(sql: str, task: Task) -> tuple[bool, str]:
-        if not re.match(r"^\s*select\b", sql, re.I) or re.search(r"\b(insert|update|delete|drop|create|alter|grant)\b", sql, re.I):
+        if not re.match(r"^\s*select\b", sql, re.I) or re.search(r"\b(insert|update|delete|drop|create|alter|grant|attach)\b", sql, re.I):
             return False, "not a plain SELECT"
         if not catalog.tables_in_sql(sql):
-            return False, "no known depriskr table referenced"
+            return False, "no known dexa table referenced"
         for ref in re.findall(r"\b([a-z_]+)\.([a-z_]+)\b", sql, re.I):
             if ref[0].lower() == catalog.SCHEMA and ref[1].lower() not in catalog.TABLES:
                 return False, f"unknown table {ref[1]}"
-        if task.package and task.package not in sql:
-            return False, "does not reference the task's package"
+        keys = [k for k in (task.alert_id, task.account_id, task.dataset_id, task.ticket_ref) if k]
+        if "field_sensitivity" not in sql and not any(k in sql for k in keys):
+            return False, "does not filter on this alert's keys"
         return True, ""
 
 
@@ -163,14 +149,14 @@ class Retriever:
 
     def __init__(self, backend, trace):
         self.backend, self.trace = backend, trace
-        self.footprint: dict[str, set[str]] = {}       # table -> columns seen in results
+        self.footprint: dict[str, set[str]] = {}      # table -> result columns seen
 
     def run(self, steps: list[Step]) -> list[Step]:
         for s in steps:
             try:
                 s.result = self.backend.query(s.sql)
                 for t in catalog.tables_in_sql(s.sql):
-                    self.footprint.setdefault(t, set()).update(s.result.columns)
+                    self.footprint.setdefault(t, set()).update(c for c in s.result.columns if c in catalog.TABLES[t]["columns"])
                 self.trace.step(self.name, "query", step=s.sid, evidence=s.evidence, backend=s.result.source, query_id=s.result.query_id,
                                 rows=len(s.result.rows), elapsed_ms=s.result.elapsed_ms, tables=catalog.tables_in_sql(s.sql), sql=s.sql)
             except DataLayerError as exc:
@@ -185,36 +171,59 @@ class Retriever:
 class Fact:
     key: str
     text: str
-    cites: list[dict] = field(default_factory=list)   # {"step":..,"table":..,"column":..,"source_url":..}
+    cites: list[dict] = field(default_factory=list)   # {"step","table","column"}
+    kind: str = "evidence"                            # evidence | conflict | gap
 
 
 @dataclass
 class Assessment:
     facts: list[Fact]
     conflicts: list[str]
-    missing: list[str]
+    gaps: list[str]                 # evidence that does not exist in the sources (-> cannot-confirm)
+    missing: list[str]              # evidence classes still to fetch (-> another round)
     verdict: str | None
     reasons: list[str]
+    next_steps: list[str]
     disclosure: dict
     derived: dict
 
 
-def _ids_of(vuln_rows: list[dict]) -> set[str]:
-    out = set()
-    for r in vuln_rows:
-        if r.get("vuln_id"):
-            out.add(r["vuln_id"])
-        out.update(x for x in str(r.get("aliases") or "").split(",") if x)
-    return out
+def _ts(s) -> dt.datetime | None:
+    if s in (None, ""):
+        return None
+    s = str(s).replace("T", " ").split(".")[0].rstrip("Z")
+    try:
+        return dt.datetime.strptime(s[:19], "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        return dt.datetime.strptime(s[:10], "%Y-%m-%d")
 
 
-def _cves(ids: set[str]) -> set[str]:
-    return {i for i in ids if i.startswith("CVE-")}
+def _truthy(v) -> bool:
+    return str(v).strip().lower() in ("1", "true", "t", "yes")
 
 
-def _cve_or_id(row: dict) -> str:
-    cves = sorted(_cves(_ids_of([row])))
-    return cves[0] if cves else str(row.get("vuln_id"))
+def _in_window(ts: dt.datetime, a, b) -> bool:
+    ta, tb = _ts(a), _ts(b)
+    return (ta is None or ta <= ts) and (tb is None or ts <= tb)
+
+
+def ticket_checks(t: dict, task: Task, ts: dt.datetime) -> list[str]:
+    """Every way a ticket can fail to cover the export. Empty list = it covers it."""
+    fails = []
+    if t.get("requester_account_id") != task.account_id:
+        fails.append(f"requester {t.get('requester_account_id')} is not the exporting account")
+    if t.get("dataset_id") != task.dataset_id:
+        fails.append(f"ticket is for dataset {t.get('dataset_id')}, not {task.dataset_id}")
+    if str(t.get("status")).lower() != "approved":
+        fails.append(f"ticket status is {t.get('status')}")
+    if not _in_window(ts, t.get("valid_from"), t.get("valid_to")):
+        fails.append(f"export at {ts} is outside the ticket window {t.get('valid_from')} .. {t.get('valid_to')}")
+    try:
+        if task.rows is not None and int(t.get("max_rows") or 0) < int(task.rows):
+            fails.append(f"{task.rows} rows exported exceed the ticket's max_rows {t.get('max_rows')}")
+    except ValueError:
+        pass
+    return fails
 
 
 class Evaluator:
@@ -225,232 +234,192 @@ class Evaluator:
 
     def assess(self, task: Task, done: dict[str, list[Step]], footprint: dict, rounds: int) -> Assessment:
         rows = {cls: [r for s in steps if s.result for r in s.result.rows] for cls, steps in done.items()}
+        fetched = {cls for cls, steps in done.items() if any(s.result is not None for s in steps)}
+        failed = {cls for cls, steps in done.items() if steps and all(s.error for s in steps)}
         cite = {cls: steps[-1].sid for cls, steps in done.items() if steps}
         step_tables = {cls: sorted({t for s in steps for t in catalog.tables_in_sql(s.sql)}) for cls, steps in done.items()}
-        facts: list[Fact] = []
-        conflicts: list[str] = []
-        missing: list[str] = []
-        reasons: list[str] = []
-        derived: dict = {}
+        facts: list[Fact] = []; conflicts: list[str] = []; gaps: list[str] = []; missing: list[str] = []
+        reasons: list[str] = []; next_steps: list[str] = []; derived: dict = {}
 
-        def fact(key, text, cls, table, column=None, extra=(), url=None):
-            """extra: additional (evidence_class, table, column) triples the fact also rests on.
-            url: the upstream source for this fact; defaults to the first source_url in the class's rows."""
-            url = url or next((r.get("source_url") for r in rows.get(cls, []) if r.get("source_url")), None)
-            cites = [{"step": cite.get(cls), "table": f"{catalog.SCHEMA}.{table}", "column": column, "source_url": url}]
-            for t in step_tables.get(cls, []):          # JOIN partners count as used too
-                if t != table:
-                    cites.append({"step": cite.get(cls), "table": f"{catalog.SCHEMA}.{t}", "column": None, "source_url": None})
-            for xcls, xtable, xcol in extra:
-                if xcls in cite:
-                    cites.append({"step": cite.get(xcls), "table": f"{catalog.SCHEMA}.{xtable}", "column": xcol, "source_url": None})
-            facts.append(Fact(key, text, cites))
-            return facts[-1]
+        def fact(key, text, cls, table, column=None, kind="evidence"):
+            cites = [{"step": cite.get(cls), "table": f"{catalog.SCHEMA}.{table}", "column": column}]
+            cites += [{"step": cite.get(cls), "table": f"{catalog.SCHEMA}.{t}", "column": None} for t in step_tables.get(cls, []) if t != table]
+            facts.append(Fact(key, text, cites, kind))
 
-        if task.kind == "request":
-            self._assess_request(task, rows, fact, conflicts, missing, reasons, derived)
+        def need(cls):
+            if cls not in fetched and cls not in failed:
+                missing.append(cls)
+
+        # ---- alert + event
+        ev = (rows.get("alert") or [None])[0]
+        if not ev:
+            if "alert" in failed:
+                gaps.append("the alert/event source could not be queried")
+            derived["verdict"] = "cannot-confirm"; reasons.append("alert or its export event not found")
+            return self._finish(task, facts, conflicts, gaps, missing, reasons, next_steps, derived, footprint, rows, rounds)
+        ts = _ts(ev["ts"])
+        task.event_id, task.ts, task.account_id, task.dataset_id = ev["event_id"], str(ev["ts"]), ev["account_id"], ev["dataset_id"]
+        task.rows, task.ticket_ref, task.rule = int(ev["rows_exported"]), (ev.get("ticket_ref") or "").strip() or None, ev["rule"]
+        fact("event", f"{task.alert_id} ({ev['severity']}, rule: {ev['rule']}): account {task.account_id} exported {task.rows} rows of {task.dataset_id} at {task.ts} "
+             f"via {ev['tool']} to a {ev['destination_type']} destination; ticket cited: {task.ticket_ref or 'none'}.", "alert", "export_events", "rows_exported")
+
+        need("sensitivity")   # the classification drives redaction and the disclosure check
+
+        # ---- account
+        acc = (rows.get("account") or [None])[0]
+        if "account" in fetched and not acc:
+            gaps.append(f"account {task.account_id} is not in the directory")
+            fact("account", f"Account {task.account_id} does not exist in the identity directory.", "account", "accounts", "account_id", kind="gap")
+            derived["verdict"] = "cannot-confirm"; reasons.append("the exporting account cannot be identified")
+            next_steps.append("check the identity provider for a recently deleted or service account with this id")
+        elif acc:
+            task.role = acc["role"]
+            since = _ts(acc.get("status_since"))
+            fact("account", f"Account {task.account_id}: role {acc['role']}, department {acc['department']}, status {acc['status']} since {acc.get('status_since')}.", "account", "accounts", "status")
+            if str(acc["status"]).lower() in ("terminated", "offboarding") and since is not None and since <= ts:
+                derived["verdict"] = "investigate"; reasons.append(f"account was {acc['status']} ({acc.get('status_since')}) before the export")
+                next_steps.append("confirm with HR/IAM why the account still had export access; disable it")
         else:
-            self._assess_audit(task, rows, fact, conflicts, missing, reasons, derived)
+            need("account")
 
-        # disclosure: which tables were touched vs which produced a fact
-        used = {c["table"].split(".")[1] for f in facts for c in f.cites}
-        touched = sorted(footprint)
-        unnecessary = sorted(set(touched) - used)
-        disclosure = {"tables_accessed": touched, "columns_seen": {t: sorted(c) for t, c in footprint.items()},
-                      "tables_used_in_answer": sorted(used), "accessed_but_unused": unnecessary}
-
-        verdict = None if (missing and rounds < MAX_ROUNDS) else derived.get("verdict", "needs-review")
-        a = Assessment(facts, conflicts, missing, verdict, reasons, disclosure, derived)
-        self.trace.step(self.name, "assess", round=rounds, facts=len(facts), conflicts=conflicts, missing=missing,
-                        verdict=verdict, reasons=reasons, disclosure=disclosure)
-        return a
-
-    # ---- adoption request
-    def _assess_request(self, task, rows, fact, conflicts, missing, reasons, derived):
-        req = rows.get("request", [])
-        if not req:
-            missing.append("request"); derived["verdict"] = "needs-review"; reasons.append("request row not found"); return
-        r0 = req[0]
-        fact("request", f"{r0['request_id']}: {r0['service']} (team {r0['owner_team']}, tier {r0['tier']}) asks for {r0['package']} {r0['requested_version']}; status {r0['status']}.",
-             "request", "adoption_requests", "request_id")
-
-        rel = rows.get("release", [])
-        if "release" not in rows:
-            missing.append("release")
-        elif not rel:
-            reasons.append("release not found on PyPI for that version")
-            fact("release", f"PyPI has no release {task.package} {task.version}.", "release", "pypi_release", "version")
+        # ---- dataset + policy
+        ds = (rows.get("dataset") or [None])[0]
+        if ds:
+            fact("dataset", f"Dataset {ds['dataset_id']} ({ds['name']}) is classified {ds['sensitivity']}, owner {ds['owner_team']}, contains_pii={_truthy(ds.get('contains_pii'))}.",
+                 "dataset", "datasets", "sensitivity")
         else:
-            l = rel[0]
-            lic = l.get("license_expression") or l.get("license") or "(none declared)"
-            fact("release", f"PyPI release {task.package} {task.version}: license {lic}; requires_python {l.get('requires_python')}; yanked={l.get('yanked')}.",
-                 "release", "pypi_release", "license_expression")
-            derived["pypi_license"] = l.get("license_expression") or l.get("license")
-            if str(l.get("yanked")).lower() in ("1", "true"):
-                reasons.append(f"release is yanked: {l.get('yanked_reason')}")
-
-        if "vulns_pypi" not in rows:
-            missing.append("vulns_pypi")
-        else:
-            v = rows["vulns_pypi"]
-            ids = _ids_of(v); cves = _cves(ids)
-            unfixed = sorted({_cve_or_id(r) for r in v if not (r.get("fixed_in") or "").strip()})
-            derived["pypi_vuln_ids"], derived["pypi_cves"], derived["unfixed"] = sorted(ids), sorted(cves), unfixed
-            fact("vulns_pypi", f"PyPI lists {len(v)} advisory records for {task.package} {task.version} = {len(cves)} distinct CVEs"
-                 + (f"; unfixed: {', '.join(unfixed)}" if unfixed else "") + ".", "vulns_pypi", "pypi_vulnerability", "vuln_id")
-
-        if "advisories_depsdev" not in rows:
-            missing.append("advisories_depsdev")
-        else:
-            d = rows["advisories_depsdev"]
-            if not d:
-                reasons.append("deps.dev has no record of this release")
+            need("dataset")
+        pol = (rows.get("policy") or [None])[0]
+        if task.role and "policy" not in fetched and "policy" not in failed:
+            need("policy")
+        elif task.role and "policy" in fetched and not pol:
+            gaps.append(f"no policy row for role {task.role} on {task.dataset_id}")
+            fact("policy", f"No data-access policy exists for role {task.role} on {task.dataset_id}; entitlement cannot be determined from policy.", "policy", "policies", "policy_id", kind="gap")
+            derived.setdefault("verdict", "cannot-confirm"); reasons.append("no policy covers this role and dataset")
+            next_steps.append("ask the dataset owner to publish a policy row for this role; treat as unauthorised until then")
+        elif pol:
+            cap = int(pol.get("max_rows_without_ticket") or 0); allowed = _truthy(pol.get("allowed"))
+            derived["cap"] = cap
+            hours_ok = str(pol.get("allowed_hours_start")) <= ts.strftime("%H:%M") <= str(pol.get("allowed_hours_end"))
+            derived["hours_ok"] = hours_ok
+            fact("policy", f"Policy {pol['policy_id']}: role {task.role} {'may' if allowed else 'may NOT'} export {task.dataset_id}; no-ticket cap {cap} rows; "
+                 f"advisory hours {pol.get('allowed_hours_start')}-{pol.get('allowed_hours_end')} (export was {'inside' if hours_ok else 'outside'} them).", "policy", "policies", "max_rows_without_ticket")
+            if not allowed:
+                derived.setdefault("verdict", "investigate"); reasons.append(f"policy gives role {task.role} no export rights on {task.dataset_id}")
+            elif task.rows <= cap:
+                derived.setdefault("verdict", "compliant"); reasons.append(f"{task.rows} rows are within the no-ticket cap of {cap}; the hours window is advisory below the cap")
             else:
-                adv = sorted({r["advisory_id"] for r in d if r.get("advisory_id")})
-                derived["depsdev_advisories"] = adv
-                derived["depsdev_licenses"] = d[0].get("licenses")
-                derived["is_default"] = str(d[0].get("is_default")).lower() in ("1", "true")
-                fact("advisories_depsdev", f"deps.dev: {task.package} {task.version} published {d[0].get('published_at')}, licenses {d[0].get('licenses')}, "
-                     f"{len(adv)} advisory ids, default version={derived['is_default']}.", "advisories_depsdev", "depsdev_version", "advisory_count")
-                # cross-source consistency
-                if "pypi_vuln_ids" in derived:
-                    pyp = set(derived["pypi_vuln_ids"]); dd = set(adv)
-                    only_dd = sorted(dd - pyp); only_py = sorted({i for i in pyp if i.startswith(("GHSA", "PYSEC"))} - dd)
-                    if only_dd or only_py:
-                        conflicts.append(f"advisory sets differ: only deps.dev {only_dd or '-'}; only PyPI {only_py or '-'}")
+                derived["needs_auth"] = True
+
+        # ---- authorisation search (only when the export exceeds the cap)
+        if derived.get("needs_auth") and "verdict" not in derived:
+            covering = None; cited_fails = None
+            if task.ticket_ref:
+                if "ticket_cited" not in fetched:
+                    need("ticket_cited")
+                else:
+                    t = (rows.get("ticket_cited") or [None])[0]
+                    if not t:
+                        gaps.append(f"cited ticket {task.ticket_ref} does not exist in the ticket system")
+                        fact("ticket_cited", f"The exporter cited ticket {task.ticket_ref}, which does not exist in the ticket system.", "ticket_cited", "tickets", "ticket_id", kind="gap")
+                        next_steps.append("ask the exporter for the approval they relied on; check the ticket system's audit log for a deleted ticket")
                     else:
-                        fact("corroboration", "PyPI and deps.dev agree on the advisory set for this release.", "advisories_depsdev", "depsdev_advisory", "advisory_id")
-                pl = (derived.get("pypi_license") or "").strip(); dl = (derived.get("depsdev_licenses") or "").strip()
-                if pl and dl and pl.lower() != dl.lower() and pl.lower() not in dl.lower():
-                    conflicts.append(f"license strings differ: PyPI '{pl}' vs deps.dev '{dl}'")
+                        cited_fails = ticket_checks(t, task, ts)
+                        fact("ticket_cited", f"Ticket {t['ticket_id']}: requester {t['requester_account_id']}, dataset {t['dataset_id']}, max_rows {t['max_rows']}, "
+                             f"{t['status']}, valid {t['valid_from']} .. {t['valid_to']}, approver {t['approver_id']}.", "ticket_cited", "tickets", "valid_to")
+                        if not cited_fails:
+                            covering = t["ticket_id"]
+                        else:
+                            conflicts.append(f"ticket {t['ticket_id']} was cited but does not cover the export: " + "; ".join(cited_fails))
+            if covering:
+                derived["verdict"] = "compliant"; reasons.append(f"approved ticket {covering} covers the account, dataset, {task.rows} rows and the time of export")
+            else:
+                # the cited ticket is missing or fails: look for any other authorisation before deciding
+                need("tickets_account"); need("exceptions")
+                if "tickets_account" in fetched:
+                    others = [t for t in rows.get("tickets_account", []) if t.get("ticket_id") != task.ticket_ref]
+                    good = [t for t in others if not ticket_checks(t, task, ts)]
+                    if good:
+                        covering = good[0]["ticket_id"]
+                        fact("tickets_account", f"Another approved ticket {covering} covers this export (not cited by the exporter).", "tickets_account", "tickets", "ticket_id")
+                        derived["verdict"] = "compliant"; reasons.append(f"approved ticket {covering} covers the export even though it was not cited")
+                        next_steps.append("remind the exporter to cite the ticket in the export tool")
+                    else:
+                        fact("tickets_account", f"{len(others)} other ticket(s) for {task.account_id} on {task.dataset_id}; none covers this export.", "tickets_account", "tickets", "status")
+                if "verdict" not in derived and "exceptions" in fetched:
+                    exc = [e for e in rows.get("exceptions", []) if _in_window(ts, e.get("valid_from"), e.get("valid_to"))]
+                    if exc:
+                        e = exc[0]
+                        fact("exceptions", f"Policy exception {e['exception_id']} ({e['scope_type']} {e['scope_value']}, approved by {e['approved_by']}, valid {e['valid_from']} .. {e['valid_to']}) applies: {e['clause']}",
+                             "exceptions", "policy_exceptions", "clause")
+                        derived["verdict"] = "compliant"; reasons.append(f"standing policy exception {e['exception_id']} covers the export")
+                    else:
+                        fact("exceptions", f"No policy exception covers role {task.role} or account {task.account_id} on {task.dataset_id} at {task.ts}.", "exceptions", "policy_exceptions", "exception_id")
+                if "verdict" not in derived and "tickets_account" in fetched and "exceptions" in fetched:
+                    if task.ticket_ref and not (rows.get("ticket_cited") or []):
+                        derived["verdict"] = "cannot-confirm"; reasons.append("the only authorisation the exporter cites cannot be found, and nothing else covers the export")
+                    elif cited_fails:
+                        derived["verdict"] = "investigate"; reasons.append("the cited ticket does not cover this export and no other authorisation does")
+                        next_steps.append("contact the ticket approver and the exporter's manager; preserve the exported file")
+                    else:
+                        derived["verdict"] = "investigate"; reasons.append(f"{task.rows} rows exceed the no-ticket cap and no ticket or exception authorises the export")
+                        next_steps.append("contact the exporter's manager; confirm whether the destination was internal; preserve the exported file")
+                    need("account_history")
 
-        # evidence the decision needs, depending on what we found so far
-        has_vulns = bool(derived.get("pypi_cves") or derived.get("depsdev_advisories"))
-        if has_vulns and "exceptions" not in rows:
-            missing.append("exceptions")
-        if has_vulns and "newer_versions" not in rows:
-            missing.append("newer_versions")
-        if ("pypi_license" in derived or "depsdev_licenses" in derived) and "license_policy" not in rows:
-            missing.append("license_policy")
-        if "project_health" not in rows:
-            missing.append("project_health")
-        if "current_pins" not in rows:
-            missing.append("current_pins")
+        # ---- destination: a confidential column, read only when the export left the internal share
+        external = str(ev.get("destination_type")) in ("email", "cloud-bucket", "usb")
+        if external and derived.get("verdict") in ("investigate", "cannot-confirm"):
+            need("destination")
+            dest = (rows.get("destination") or [None])[0]
+            if dest:
+                fact("destination", f"The export went to an external {dest['destination_type']} destination: {dest['destination']}.", "destination", "export_events", "destination")
+                next_steps.append("confirm whether the destination is a sanctioned location; request deletion if not")
 
-        # evaluate what we have
-        if "license_policy" in rows:
-            pol = {r["license"].lower(): r for r in rows["license_policy"]}
-            cands = [x.strip() for x in (derived.get("depsdev_licenses") or "").split(",") if x.strip()] + ([derived["pypi_license"]] if derived.get("pypi_license") else [])
-            decisions = {c: (pol.get(c.lower(), {}).get("decision") or "unknown") for c in cands}
-            derived["license_decisions"] = decisions
-            fact("license_policy", "License policy: " + (", ".join(f"{k} -> {v}" for k, v in decisions.items()) or "no license to check") + ".",
-                 "license_policy", "license_policy", "decision")
-            if any(v == "denied" for v in decisions.values()):
-                reasons.append("a reported license is denied by policy")
-            elif any(v in ("review", "unknown") for v in decisions.values()):
-                reasons.append("a reported license needs legal review (not in the allow list)")
-        if "exceptions" in rows:
-            active, expired = [], []
-            for e in rows["exceptions"]:
-                if e.get("service") == task.service:
-                    (active if str(e.get("expires_on")) >= TODAY else expired).append(e)
-            derived["active_exceptions"] = [e["exception_id"] for e in active]; derived["expired_exceptions"] = [e["exception_id"] for e in expired]
-            fact("exceptions", f"Exceptions for {task.service}/{task.package}: active {[e['advisory_id'] for e in active] or 'none'}; expired {[e['advisory_id'] for e in expired] or 'none'}.",
-                 "exceptions", "risk_exceptions", "expires_on")
-        if "newer_versions" in rows and rows["newer_versions"]:
-            nv = rows["newer_versions"][0]["version"]; derived["default_version"] = nv
-            fact("newer_versions", f"Registry default version is {nv}" + (" (same as requested)." if nv == task.version else f" (requested {task.version})."),
-                 "newer_versions", "depsdev_package_version", "is_default")
-        if "project_health" in rows and rows["project_health"]:
-            p = rows["project_health"][0]; checks = {r["check_name"]: r["score"] for r in rows["project_health"] if r.get("check_name")}
-            derived["scorecard"] = p.get("scorecard_overall"); derived["checks"] = checks
-            shown = ", ".join(f"{k}={v}" for k, v in checks.items() if v not in (None, ""))
-            fact("project_health", f"Source repo {p['project_id']}: OpenSSF Scorecard {p.get('scorecard_overall')} ({str(p.get('scorecard_date') or '')[:10]}); "
-                 f"checks {shown or 'n/a'}; open issues {p.get('open_issues')}.",
-                 "project_health", "depsdev_project", "scorecard_overall")
-            try:
-                if float(p.get("scorecard_overall") or 0) < 5:
-                    reasons.append("OpenSSF Scorecard below 5")
-            except ValueError:
-                pass
-        if "current_pins" in rows:
-            pins = rows["current_pins"]
-            mine = [r for r in pins if r.get("service") == task.service]
-            fact("current_pins", f"{task.service} currently pins {task.package} {mine[0]['pinned_version']}." if mine else f"{task.service} does not use {task.package} today; "
-                 f"{len(pins)} other service pin(s) exist.", "current_pins", "dependencies", "pinned_version")
+        # ---- baseline (context for investigate verdicts)
+        hist = (rows.get("account_history") or [None])[0]
+        if hist and derived.get("verdict") == "investigate":
+            fact("account_history", f"Baseline: {hist.get('prior_exports') or 0} earlier export(s) of {task.dataset_id} by this account, largest {hist.get('max_rows_before') or 0} rows; "
+                 f"this export is {'far above' if int(task.rows) > 3 * int(hist.get('max_rows_before') or 0) else 'in line with'} that baseline.", "account_history", "export_events", "rows_exported")
 
-        # verdict
-        unfixed = derived.get("unfixed", [])
-        cves = set(derived.get("pypi_cves", []))
-        covered = set()
-        for e in rows.get("exceptions", []):
-            if e.get("service") == task.service and str(e.get("expires_on")) >= TODAY:
-                covered.add(e["advisory_id"])
-        uncovered = sorted(cves - covered)
-        if unfixed:
-            derived["verdict"] = "block"; reasons.insert(0, f"unfixed vulnerabilities in the requested version: {', '.join(unfixed)}")
-        elif uncovered:
-            derived["verdict"] = "block"; reasons.insert(0, f"known CVEs without an active exception: {', '.join(uncovered)}")
-        elif any(v == "denied" for v in derived.get("license_decisions", {}).values()):
-            derived["verdict"] = "block"
-        elif conflicts or any(v in ("review", "unknown") for v in derived.get("license_decisions", {}).values()) or "scorecard" not in derived:
-            derived["verdict"] = "needs-review"
-        elif derived.get("scorecard") is not None and float(derived["scorecard"]) < 5:
-            derived["verdict"] = "approve-with-conditions"; reasons.append("low Scorecard: add to the watch list")
-        else:
-            derived["verdict"] = "approve"
+        return self._finish(task, facts, conflicts, gaps, missing, reasons, next_steps, derived, footprint, rows, rounds)
 
-    # ---- service audit
-    def _assess_audit(self, task, rows, fact, conflicts, missing, reasons, derived):
-        pins = rows.get("audit_pins", [])
-        if not pins:
-            missing.append("audit_pins"); derived["verdict"] = "needs-review"; reasons.append("service has no pins or does not exist"); return
-        fact("pins", f"{task.service} (team {pins[0]['owner_team']}) pins {len(pins)} packages: " + ", ".join(f"{p['package']} {p['pinned_version']}" for p in pins) + ".",
-             "audit_pins", "dependencies", "pinned_version")
-        if "audit_vulns" not in rows:
-            missing.append("audit_vulns"); return
-        by_pkg: dict[str, list[dict]] = {}
-        for r in rows["audit_vulns"]:
-            if r.get("vuln_id"):
-                by_pkg.setdefault(r["package"], []).append(r)
-        if "audit_advisories" in rows:
-            n_rows = [r for r in rows["audit_advisories"] if r.get("advisory_count") not in (None, "")]
-            fact("advisories_depsdev", f"deps.dev covers {len(n_rows)} of {len(pins)} pins; advisory counts: " +
-                 ", ".join(f"{r['package']} {r['pinned_version']}={r['advisory_count']}" for r in n_rows) + ".", "audit_advisories", "depsdev_version", "advisory_count")
-            for r in rows["audit_advisories"]:
-                n_py = len(_cves(_ids_of(by_pkg.get(r["package"], [])))); n_dd = r.get("advisory_count")
-                if n_dd not in (None, "") and n_py == 0 and int(n_dd) > 0:
-                    conflicts.append(f"{r['package']} {r['pinned_version']}: deps.dev reports {n_dd} advisories, PyPI reports none")
-        else:
-            missing.append("audit_advisories")
-        if by_pkg and "audit_exceptions" not in rows:
-            missing.append("audit_exceptions")
-        exc = {(e["package"], e["advisory_id"]): e for e in rows.get("audit_exceptions", [])}
-        findings = []
-        for pkg, vs in by_pkg.items():
-            cves = sorted(_cves(_ids_of(vs))); unfixed = sorted({_cve_or_id(v) for v in vs if not (v.get("fixed_in") or "").strip()})
-            active = [c for c in cves if (pkg, c) in exc and str(exc[(pkg, c)]["expires_on"]) >= TODAY]
-            expired = [c for c in cves if (pkg, c) in exc and str(exc[(pkg, c)]["expires_on"]) < TODAY]
-            uncovered = [c for c in cves if c not in active]
-            ver = vs[0]["pinned_version"]
-            findings.append({"package": pkg, "version": ver, "cves": len(cves), "unfixed": unfixed, "active_exceptions": active, "expired_exceptions": expired, "uncovered": uncovered})
-            fact(f"vulns:{pkg}", f"{pkg} {ver}: {len(cves)} CVEs on PyPI; exceptions active {active or 'none'}, expired {expired or 'none'}; uncovered {len(uncovered)}.",
-                 "audit_vulns", "pypi_vulnerability", "aliases", url=vs[0].get("source_url"),
-                 extra=[("audit_exceptions", "risk_exceptions", "expires_on")] if (active or expired) else ())
-        derived["findings"] = findings
-        clean = [p["package"] for p in pins if p["package"] not in by_pkg]
-        if clean:
-            fact("clean", f"No known vulnerabilities on PyPI for: {', '.join(clean)}.", "audit_vulns", "pypi_vulnerability", "vuln_id", url=None)
-        worst = [f for f in findings if f["uncovered"] or f["unfixed"]]
-        if worst:
-            derived["verdict"] = "block"; reasons.insert(0, f"{len(worst)} pinned package(s) have CVEs without an active exception: " + ", ".join(f["package"] for f in worst))
-        elif conflicts:
-            derived["verdict"] = "needs-review"
-        else:
-            derived["verdict"] = "approve"
+    def _finish(self, task, facts, conflicts, gaps, missing, reasons, next_steps, derived, footprint, rows, rounds) -> Assessment:
+        # disclosure: columns touched vs classification; sensitive columns that no fact needed are flagged
+        sens = {(r["table_name"], r["column_name"]): r["level"] for r in rows.get("sensitivity", [])}
+        used_tables = {c["table"].split(".")[1] for f in facts for c in f.cites}
+        touched_sensitive = sorted(f"{t}.{c} ({sens[(t, c)]})" for t, cols in footprint.items() for c in cols if (t, c) in sens)
+        disclosure = {"tables_accessed": sorted(footprint), "columns_seen": {t: sorted(c) for t, c in footprint.items()},
+                      "tables_used_in_answer": sorted(used_tables), "accessed_but_unused": sorted(set(footprint) - used_tables),
+                      "sensitive_columns_touched": touched_sensitive,
+                      "pii_columns_touched": [x for x in touched_sensitive if "(pii)" in x]}
+        derived["sensitivity"] = sens
+        verdict = derived.get("verdict")
+        if verdict is None and (not missing or rounds >= MAX_ROUNDS):
+            verdict = "cannot-confirm"; reasons.append("evidence budget exhausted before a decision could be grounded")
+        if verdict and missing and rounds >= MAX_ROUNDS:
+            missing = []   # budget spent: report with what we have
+        if verdict and missing and all(m == "account_history" for m in missing) and rounds >= MAX_ROUNDS - 1:
+            missing = []   # baseline is nice-to-have; never spend the last round only on it
+        a = Assessment(facts, conflicts, gaps, missing, verdict if not missing else None, reasons, next_steps, disclosure, derived)
+        self.trace.step(self.name, "assess", round=rounds, facts=len(facts), conflicts=conflicts, gaps=gaps, missing=missing,
+                        verdict=a.verdict, reasons=reasons, disclosure={k: v for k, v in disclosure.items() if k != "columns_seen"})
+        return a
 
 
 # ------------------------------------------------------------------ reporter -------------------
+
+EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+PHONE = re.compile(r"\+\d[\d ]{8,}\d")
+RECID = re.compile(r"\bC\d{6}\b")
+URLISH = re.compile(r"\b(s3|smb|gs)://[^\s,;)]+")
+
+
+def redact(text: str) -> tuple[str, int]:
+    n = 0
+    for rx, repl in ((EMAIL, "<email redacted>"), (PHONE, "<phone redacted>"), (RECID, "<record id redacted>"), (URLISH, "<destination redacted>")):
+        text, k = rx.subn(repl, text); n += k
+    return text, n
+
 
 class Reporter:
     name = "reporter"
@@ -459,36 +428,47 @@ class Reporter:
         self.llm, self.trace = llm, trace
 
     def report(self, task: Task, a: Assessment, memory_context: str, rounds: int) -> str:
-        lines = [f"# DepRisk report: {task.describe()}", "", f"**Verdict: {a.verdict}**", ""]
+        redacted = 0
+        lines = [f"# Export-alert triage: {task.alert_id}", "", f"**Verdict: {a.verdict}**", ""]
         if a.reasons:
             lines += ["Why:"] + [f"- {r}" for r in a.reasons] + [""]
         summary = self._summary(task, a)
         if summary:
-            lines += [summary, ""]
-        lines += ["## Evidence (each fact cites the table, the query step and the upstream source)"]
+            s, k = redact(summary); redacted += k; lines += [s, ""]
+        lines += ["## Evidence (table.column | query step)"]
         for f in a.facts:
+            if f.kind == "gap":
+                continue
+            t, k = redact(f.text); redacted += k
             c = f.cites[0]
-            src = f" <{c['source_url']}>" if c.get("source_url") else ""
-            lines.append(f"- {f.text}  [{c['table']}.{c.get('column') or '*'} | {c['step']}]{src}")
+            lines.append(f"- {t}  [{c['table']}.{c.get('column') or '*'} | {c['step']}]")
         if a.conflicts:
-            lines += ["", "## Source conflicts (flagged, not silently resolved)"] + [f"- {c}" for c in a.conflicts]
+            lines += ["", "## Conflicts (flagged, not silently resolved)"] + [f"- {c}" for c in a.conflicts]
+        gap_facts = [f for f in a.facts if f.kind == "gap"]
+        if a.gaps or gap_facts:
+            lines += ["", "## Cannot be confirmed from the sources"] + [f"- {g}" for g in a.gaps]
         if a.missing:
-            lines += ["", f"## Evidence still missing after {rounds} round(s)"] + [f"- {m}" for m in a.missing]
+            lines += ["", f"## Evidence still unfetched after {rounds} round(s)"] + [f"- {m}" for m in a.missing]
+        if a.next_steps:
+            lines += ["", "## Suggested next checks"] + [f"- {n}" for n in a.next_steps]
         d = a.disclosure
         lines += ["", "## Access footprint (disclosure check)",
                   f"- tables accessed: {', '.join(d['tables_accessed']) or 'none'}",
-                  f"- tables that contributed to the answer: {', '.join(d['tables_used_in_answer']) or 'none'}",
-                  f"- accessed but not needed: {', '.join(d['accessed_but_unused']) or 'none'}"]
+                  f"- tables that contributed to the verdict: {', '.join(d['tables_used_in_answer']) or 'none'}",
+                  f"- accessed but not needed: {', '.join(d['accessed_but_unused']) or 'none'}",
+                  f"- sensitive columns touched: {', '.join(d['sensitive_columns_touched']) or 'none'}",
+                  f"- values redacted in this report: {redacted}"]
         if memory_context:
-            lines += ["", "## Memory used (H-MEM)", memory_context]
+            m, k = redact(memory_context); lines += ["", "## Memory used (H-MEM)", m]
         return "\n".join(lines)
 
     def _summary(self, task: Task, a: Assessment) -> str:
         if self.llm.name == "stub":
             return ""
-        system = ("You are a careful security analyst. Write 3-5 sentences for an engineering manager. Use ONLY the facts given; "
-                  "do not add any claim that is not in the list; mention the verdict and the main reason first.")
-        user = f"Verdict: {a.verdict}\nReasons: {a.reasons}\nFacts:\n" + "\n".join(f"- {f.text}" for f in a.facts) + f"\nConflicts: {a.conflicts}"
+        system = ("You are a careful security analyst writing 3-5 sentences for a colleague who will act on them. Use ONLY the facts given; "
+                  "never add a claim that is not in the list; state the verdict and its main reason first; name what could not be confirmed.")
+        user = (f"Verdict: {a.verdict}\nReasons: {a.reasons}\nFacts:\n" + "\n".join(f"- {f.text}" for f in a.facts)
+                + f"\nConflicts: {a.conflicts}\nUnconfirmed: {a.gaps}")
         text, meta = self.llm.chat(system, user)
         self.trace.step(self.name, "llm", **meta)
         return text.strip()

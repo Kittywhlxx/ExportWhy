@@ -1,0 +1,26 @@
+# The three synthetic sources (logs, policy, tickets) as three databases in one Postgres server,
+# joined to the Zetaris compose network so the Zetaris query engine reaches it as host `sources`.
+# Start:  docker compose --env-file .env -f infra/sources/docker-compose.yml up -d
+# Reseed: docker compose --env-file .env -f infra/sources/docker-compose.yml down -v && ... up -d
+name: dexa
+services:
+  sources:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: dexa
+      POSTGRES_PASSWORD: ${SOURCES_DB_PASSWORD:?set SOURCES_DB_PASSWORD in .env}
+      POSTGRES_DB: dexa
+    volumes:
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+      - ../../data/sample:/seed:ro
+    ports:
+      - "127.0.0.1:5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dexa -d ticketsdb"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+networks:
+  default:
+    name: zetaris_default
+    external: true

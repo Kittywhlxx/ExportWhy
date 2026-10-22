@@ -1,4 +1,0 @@
-exception_id,service,package,advisory_id,approved_by,approved_on,expires_on,reason
-EXC-101,auth-service,python-jose,CVE-2024-33663,security-review-board,2024-05-02,2026-06-30,tokens are only verified with RSA keys; algorithm confusion path not reachable
-EXC-102,reporting-batch,pillow,CVE-2022-24303,security-review-board,2025-11-10,2027-01-31,batch runs on trusted internal images only
-EXC-103,payments-api,pyyaml,CVE-2020-14343,security-review-board,2024-01-15,2025-12-31,yaml.safe_load used everywhere

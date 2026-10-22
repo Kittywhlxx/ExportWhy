@@ -1,5 +1,0 @@
-request_id,service,package,requested_version,requested_by,requested_on,reason,status
-ADR-2041,web-portal,python-jose,3.5.0,frontend-lead,2026-10-20,replace pyjwt with python-jose for JWE support,open
-ADR-2042,payments-api,requests,2.34.2,payments-oncall,2026-10-21,upgrade from 2.31.0 after dependabot alert,open
-ADR-2043,reporting-batch,pillow,13.0.0,data-platform-lead,2026-10-22,upgrade image processing stack,open
-ADR-2044,auth-service,pyjwt,2.15.1,identity-lead,2026-10-22,upgrade to maintained release line,open

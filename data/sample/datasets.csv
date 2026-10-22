@@ -1,0 +1,9 @@
+dataset_id,name,sensitivity,owner_team,record_count,contains_pii
+DS01,customer_master,restricted,risk,1250000,True
+DS02,payment_transactions,restricted,finance,9800000,True
+DS03,support_tickets,confidential,customer-care,640000,True
+DS04,marketing_leads,confidential,marketing,310000,True
+DS05,hr_directory,restricted,platform,2400,True
+DS06,product_catalog,internal,sales,12000,False
+DS07,sales_pipeline,confidential,sales,58000,False
+DS08,public_pricing,public,sales,900,False

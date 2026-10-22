@@ -1,0 +1,4 @@
+exception_id,scope_type,scope_value,dataset_id,clause,valid_from,valid_to,approved_by
+X01,role,data-steward,DS01,incident-response window INC-2026-311: stewards may export customer_master for breach-scope analysis,2026-10-18 00:00:00,2026-10-25 23:59:59,u1003
+X02,role,finance,DS02,quarter-close reconciliation: finance may export payment_transactions outside hours,2026-09-28 00:00:00,2026-10-10 23:59:59,u1002
+X03,account,u1014,DS04,campaign migration: named account may export marketing_leads up to 60000 rows,2026-10-12 00:00:00,2026-10-31 23:59:59,u1004
