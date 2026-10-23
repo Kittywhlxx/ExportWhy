@@ -297,6 +297,9 @@ verdict feedback, review-found regressions). 64 tests, one expected-fail that pi
 * Nightshift chooses the Nemotron model per request and currently prefers Nemotron 3 Ultra (550B), a
   reasoning model that spends 400–1400 tokens thinking before it answers; a live triage therefore takes
   4–5 minutes for five model calls, within the 5–10 minute budget. The stub path takes 2 seconds.
+* `TRIAGE_TIMEOUT_S` is a whole-run budget with a 1 s floor per step: a query or model call is not started when
+  less than 1 s is left, so a budget under about 1 s skips even the alert lookup and the run returns
+  timed-out with nothing retrieved. Values below a few seconds are only useful for testing the timeout path.
 * Pre-existing components: no pre-existing product code. The Meterless engines are Python ports of the
   published reference implementations (Apache-2.0, see NOTICE); everything else was written during the build
   window (22–27 Oct 2026). Project licence: Apache-2.0.
