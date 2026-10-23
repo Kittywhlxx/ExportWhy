@@ -286,7 +286,7 @@ an authorisation template, so a draft cannot widen what is read.
 `pytest -q` runs the H-MEM conformance vectors, the World Model conformance cases, and the
 end-to-end loop in `SAMPLE_MODE` (ground truth, cross-alert world state, outage injection per source,
 redaction, second-opinion escalation, critic-driven revision, confidence/priority/timeline, time budget,
-verdict feedback, review-found regressions). 63 tests, one expected-fail that pins a known reference-implementation behaviour.
+verdict feedback, review-found regressions). 64 tests, one expected-fail that pins a known reference-implementation behaviour.
 
 ## Limits and honest notes
 

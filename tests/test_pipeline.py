@@ -562,3 +562,30 @@ def test_second_opinion_request_that_cannot_start_for_lack_of_time_is_still_repo
     assert any("not retrieved: exceptions" in f for f in out["confidence"]["factors"])
     assert any(e["agent"] == "system" and "second-opinion" in e["what"] for e in out["timeline"]), out["timeline"]
     assert "exceptions" in report
+
+
+def test_second_opinion_request_is_added_to_an_already_timed_out_run(monkeypatch):
+    """Main rounds already timed out (queries skipped) and the second opinion then asks for one more class after the
+    deadline: that class joins the not-retrieved list instead of being dropped because the run was 'already settled'."""
+    import time as _t
+    from agent import roles
+    real_q = zetaris.SampleSQLite.query; n = {"c": 0}
+    def slow_first(self, sql, limit=200, **kw):
+        n["c"] += 1
+        if n["c"] == 1:
+            _t.sleep(1.1)
+        return real_q(self, sql, limit)
+    monkeypatch.setattr(zetaris.SampleSQLite, "query", slow_first)
+    real = roles.Evaluator.second_opinion
+    def slow_opinion(self, task, a):
+        _t.sleep(0.9)
+        return real(self, task, a)
+    monkeypatch.setattr(roles.Evaluator, "second_opinion", slow_opinion)
+    monkeypatch.setenv("SECOND_OPINION_FORCE", "investigate:exceptions")
+    monkeypatch.setenv("TRIAGE_TIMEOUT_S", "2.0")
+    report, out = agent_main.run(Task(alert_id="AL-001"))
+    assert out["status"] == "timed-out"
+    budget_reasons = [r for r in out["reasons"] if r.startswith("time budget")]
+    assert len(budget_reasons) == 1 and "exceptions" in budget_reasons[0] and "account" in budget_reasons[0], out["reasons"]
+    assert sum(1 for n_ in out["next_steps"] if "TRIAGE_TIMEOUT_S" in n_) == 1
+    assert "exceptions" in report

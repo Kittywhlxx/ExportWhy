@@ -114,14 +114,21 @@ def run(task: Task, persist_memory: bool = True, run_id: str | None = None) -> t
             status = "timed-out"; trace.step("system", "timeout", budget_s=budget_s, phase=phase, skipped=skipped_classes)
         if assessment.verdict is None:
             assessment.verdict = assessment.derived.get("verdict") or "cannot-confirm"
-        if status == "timed-out" and not assessment.derived.get("budget_settled"):
-            assessment.derived["budget_settled"] = True
-            assessment.verdict = "cannot-confirm"
+        if status == "timed-out":
             not_seen = sorted(set(assessment.derived.get("unfetched") or []) | set(assessment.missing) | set(skipped_classes))
+            previous = assessment.derived.get("budget_reason")
+            if previous and not_seen == assessment.derived.get("unfetched"):
+                return                                   # already settled on this assessment, nothing new
             assessment.derived["unfetched"] = not_seen; assessment.missing = []
-            assessment.reasons.insert(0, f"time budget of {budget_s:.0f}s exhausted before the evidence was complete"
-                                      + (f" (not retrieved: {', '.join(not_seen)})" if not_seen else "") + "; manual review needed")
-            assessment.next_steps.insert(0, "re-run the triage with a larger TRIAGE_TIMEOUT_S, or review the partial evidence below by hand")
+            reason = (f"time budget of {budget_s:.0f}s exhausted before the evidence was complete"
+                      + (f" (not retrieved: {', '.join(not_seen)})" if not_seen else "") + "; manual review needed")
+            if previous in assessment.reasons:           # settled before on this assessment: refresh the list of what was not retrieved
+                assessment.reasons[assessment.reasons.index(previous)] = reason
+            else:
+                assessment.verdict = "cannot-confirm"
+                assessment.reasons.insert(0, reason)
+                assessment.next_steps.insert(0, "re-run the triage with a larger TRIAGE_TIMEOUT_S, or review the partial evidence below by hand")
+            assessment.derived["budget_reason"] = reason
 
     settle_budget("evidence rounds")
 
