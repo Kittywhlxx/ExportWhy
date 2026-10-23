@@ -11,3 +11,5 @@ zetaris-platform/
 docs/*.pdf
 logs/*.jsonl
 docs/hackathon/
+KICKOFF.md
+*REVIEW_PROMPT*.md
