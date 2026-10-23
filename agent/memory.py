@@ -4,6 +4,7 @@ Memories are factual records with provenance pointing at the Zetaris query (step
 source URL). Recall is scoped by package so a second run on the same package sees what an earlier
 run established, and the Evaluator re-verifies instead of trusting it blindly.
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -14,8 +15,8 @@ from pathlib import Path
 from . import config
 
 try:
-    import fcntl                       # POSIX advisory lock on the store directory
-except ImportError:                    # pragma: no cover - Windows: single-process use only
+    import fcntl  # POSIX advisory lock on the store directory
+except ImportError:  # pragma: no cover - Windows: single-process use only
     fcntl = None
 
 MEMORY_DIR = config.ROOT / "memory"
@@ -29,10 +30,13 @@ class Memory:
 
     def __init__(self, persist: bool = True, clock=None):
         from .hmem import HMEM  # the Python port of the Meterless H-MEM spec (agent/hmem/)
+
         self.persist, self.clock = persist, clock
         if persist:
             MEMORY_DIR.mkdir(exist_ok=True)
-        self._mem_only = None if persist else HMEM(actor="exportwhy", **({"clock": clock} if clock else {}))
+        self._mem_only = (
+            None if persist else HMEM(actor="exportwhy", **({"clock": clock} if clock else {}))
+        )
 
     @property
     def h(self):
@@ -40,8 +44,9 @@ class Memory:
 
     def _open(self, actor: str):
         if not self.persist:
-            return self._mem_only                     # memory-only (tests): a single shared instance
+            return self._mem_only  # memory-only (tests): a single shared instance
         from .hmem import HMEM
+
         kwargs = {"actor": actor, "persist_dir": str(MEMORY_DIR)}
         if self.clock:
             kwargs["clock"] = self.clock
@@ -56,7 +61,8 @@ class Memory:
         can see a half-written file; readers therefore take the same lock. Re-entrant within a thread, so a
         locked method may call another locked method without deadlocking on a second flock handle."""
         if not self.persist or fcntl is None:
-            yield; return
+            yield
+            return
         depth = getattr(self._local, "depth", 0)
         if depth > 0:
             self._local.depth = depth + 1
@@ -77,34 +83,62 @@ class Memory:
 
     # -- recall ------------------------------------------------------------------------------
     def recall(self, query: str, top_n: int = 5) -> tuple[str, list[dict]]:
-        with self._lock():                        # query() logs "read" entries, so it is a write as well
+        with self._lock():  # query() logs "read" entries, so it is a write as well
             res = self.h.query(query, topN=top_n)
         items = []
         for rm in _memories(res):
             m = rm["memory"] if isinstance(rm, dict) else rm.memory
-            items.append({"id": _g(m, "id"), "content": _g(m, "content"), "confidence": _g(m, "confidence"),
-                          "source": _g(m, "source"), "relevance": rm["relevance"] if isinstance(rm, dict) else rm.relevance,
-                          "superseded": bool(_g(m, "supersededBy"))})
+            items.append(
+                {
+                    "id": _g(m, "id"),
+                    "content": _g(m, "content"),
+                    "confidence": _g(m, "confidence"),
+                    "source": _g(m, "source"),
+                    "relevance": rm["relevance"] if isinstance(rm, dict) else rm.relevance,
+                    "superseded": bool(_g(m, "supersededBy")),
+                }
+            )
         context = _g(res, "context") or ""
         return context, items
 
     # -- remember ----------------------------------------------------------------------------
-    def remember(self, content: str, source: str, refs: list[str], tags: list[str], confidence: float,
-                 mtype: str = "factual", goal_run_id: str | None = None, key: str | None = None) -> tuple[object, str]:
+    def remember(
+        self,
+        content: str,
+        source: str,
+        refs: list[str],
+        tags: list[str],
+        confidence: float,
+        mtype: str = "factual",
+        goal_run_id: str | None = None,
+        key: str | None = None,
+    ) -> tuple[object, str]:
         """Store a finding. `key` (e.g. "fact:python-jose:3.5.0:vulns_pypi") makes it idempotent across runs:
         same key + same content  -> re-verified: feedback(helpful) raises confidence, ledger records it;
         same key + new content   -> the new record supersedes the old one (old kept, ranked down, never deleted).
         Returns (record, action) with action in {"created", "reconfirmed", "superseded"}."""
         now = int(time.time() * 1000)
         with self._lock():
-            h = self.h                               # one fresh instance for lookup + write, inside the lock
+            h = self.h  # one fresh instance for lookup + write, inside the lock
             prev = self._latest_with_key(h, key) if key else None
             if prev is not None and _g(prev, "content") == content:
                 h.feedback(_g(prev, "id"), "helpful")
                 return h.store.get(_g(prev, "id")), "reconfirmed"
-            rec = h.add(content=content, source=source, type=mtype, tags=tags + ([key] if key else []), confidence=confidence,
-                        provenance={"origin": "manual", "learnedAt": now, "label": f"learned from {source}", "refs": refs},
-                        goalRunId=goal_run_id, supersedes=_g(prev, "id") if prev is not None else None)
+            rec = h.add(
+                content=content,
+                source=source,
+                type=mtype,
+                tags=tags + ([key] if key else []),
+                confidence=confidence,
+                provenance={
+                    "origin": "manual",
+                    "learnedAt": now,
+                    "label": f"learned from {source}",
+                    "refs": refs,
+                },
+                goalRunId=goal_run_id,
+                supersedes=_g(prev, "id") if prev is not None else None,
+            )
             if prev is not None:
                 h.store.update(_g(prev, "id"), {"supersededBy": _g(rec, "id")})
                 return rec, "superseded"
@@ -112,7 +146,9 @@ class Memory:
 
     @staticmethod
     def _latest_with_key(h, key: str):
-        cands = [m for m in h.store.all() if key in (_g(m, "tags") or []) and not _g(m, "supersededBy")]
+        cands = [
+            m for m in h.store.all() if key in (_g(m, "tags") or []) and not _g(m, "supersededBy")
+        ]
         return max(cands, key=lambda m: _g(m, "timestamp") or 0) if cands else None
 
     def feedback(self, memory_id: str, kind: str):
@@ -126,8 +162,17 @@ class Memory:
 
     def all(self) -> list[dict]:
         with self._lock():
-            return [{"id": _g(m, "id"), "content": _g(m, "content"), "confidence": _g(m, "confidence"), "tags": _g(m, "tags"),
-                     "source": _g(m, "source"), "superseded": bool(_g(m, "supersededBy"))} for m in self.h.store.all()]
+            return [
+                {
+                    "id": _g(m, "id"),
+                    "content": _g(m, "content"),
+                    "confidence": _g(m, "confidence"),
+                    "tags": _g(m, "tags"),
+                    "source": _g(m, "source"),
+                    "superseded": bool(_g(m, "supersededBy")),
+                }
+                for m in self.h.store.all()
+            ]
 
     def ledger_stats(self) -> dict:
         with self._lock():
@@ -140,23 +185,45 @@ class Memory:
             entries = list(self.h.ledger.history(memory_id))
         for e in entries:
             prev, new = _g(e, "previousState") or {}, _g(e, "newState") or {}
-            out.append({"action": _g(e, "action"), "actor": _g(e, "actor"), "timestamp": _g(e, "timestamp"),
-                        "confidence_before": _g(prev, "confidence"), "confidence_after": _g(new, "confidence"),
-                        "details": _g(e, "details") or {}})
+            out.append(
+                {
+                    "action": _g(e, "action"),
+                    "actor": _g(e, "actor"),
+                    "timestamp": _g(e, "timestamp"),
+                    "confidence_before": _g(prev, "confidence"),
+                    "confidence_after": _g(new, "confidence"),
+                    "details": _g(e, "details") or {},
+                }
+            )
         return out
 
     def verdict_feedback(self, alert_id: str, agree: bool, note: str = "") -> dict | None:
         """Analyst feedback on the verdict itself (Google SecOps-style thumbs on the disposition). Applied to the
         verdict memory as helpful/wrong, so the ledger keeps who-said-what and the next recall ranks it accordingly."""
         with self._lock():
-            h = self._as_analyst()                   # select the current verdict and write the feedback on the same snapshot
-            cands = [m for m in h.store.all() if f"alert:{alert_id}" in (_g(m, "tags") or []) and "kind:verdict" in (_g(m, "tags") or []) and not _g(m, "supersededBy")]
+            h = (
+                self._as_analyst()
+            )  # select the current verdict and write the feedback on the same snapshot
+            cands = [
+                m
+                for m in h.store.all()
+                if f"alert:{alert_id}" in (_g(m, "tags") or [])
+                and "kind:verdict" in (_g(m, "tags") or [])
+                and not _g(m, "supersededBy")
+            ]
             rec = max(cands, key=lambda m: _g(m, "timestamp") or 0) if cands else None
             if rec is None:
                 return None
             h.feedback(_g(rec, "id"), "helpful" if agree else "wrong")
         if note:
-            self.remember(f"Analyst note on {alert_id}: {note}", source=f"analyst:{alert_id}", refs=[], tags=[f"alert:{alert_id}", "kind:analyst-note"], confidence=1.0, mtype="general")
+            self.remember(
+                f"Analyst note on {alert_id}: {note}",
+                source=f"analyst:{alert_id}",
+                refs=[],
+                tags=[f"alert:{alert_id}", "kind:analyst-note"],
+                confidence=1.0,
+                mtype="general",
+            )
         return self.calibration()
 
     def calibration(self) -> dict:
@@ -170,12 +237,22 @@ class Memory:
             tags = m.get("tags") or []
             if "kind:verdict" not in tags:
                 continue
-            verdict = (m["content"].split("verdict ", 1)[1].split(";")[0].strip() if "verdict " in m["content"] else "?")
-            hist = [h for h in self.history(m["id"]) if h["action"] == "feedback" and h["actor"] == "analyst"]   # humans only; re-verification is not agreement
+            verdict = (
+                m["content"].split("verdict ", 1)[1].split(";")[0].strip()
+                if "verdict " in m["content"]
+                else "?"
+            )
+            hist = [
+                h
+                for h in self.history(m["id"])
+                if h["action"] == "feedback" and h["actor"] == "analyst"
+            ]  # humans only; re-verification is not agreement
             agree = sum(1 for h in hist if (h["details"] or {}).get("kind") == "helpful")
             disagree = sum(1 for h in hist if (h["details"] or {}).get("kind") == "wrong")
             d = out.setdefault(verdict, {"verdicts": 0, "agree": 0, "disagree": 0})
-            d["verdicts"] += 1; d["agree"] += agree; d["disagree"] += disagree
+            d["verdicts"] += 1
+            d["agree"] += agree
+            d["disagree"] += disagree
         return out
 
     def for_alert(self, alert_id: str) -> list[dict]:

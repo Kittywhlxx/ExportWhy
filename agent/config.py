@@ -1,4 +1,5 @@
 """Settings. Everything comes from environment variables (.env is loaded once here)."""
+
 from __future__ import annotations
 
 import os
