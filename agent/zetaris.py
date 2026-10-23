@@ -25,6 +25,10 @@ class DataLayerError(RuntimeError):
     pass
 
 
+class BudgetExhausted(DataLayerError):
+    """The triage's time budget ran out before the request could be sent: not a source failure."""
+
+
 @dataclass
 class QueryResult:
     sql: str
@@ -77,7 +81,7 @@ class ZetarisREST:
         for attempt in range(3):
             left = (deadline - time.time()) if deadline is not None else self.timeout
             if left < 1.0:
-                raise DataLayerError("triage time budget exhausted before the query could be sent")
+                raise BudgetExhausted("triage time budget exhausted before the query could be sent")
             try:
                 resp = requests.post(f"{self.base_url}/sql-editor/sqls/run", headers=self._headers(),
                                      json=body, timeout=min(self.timeout, left))

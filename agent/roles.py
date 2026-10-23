@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 
 from . import catalog
 from .llm import LLMError, extract_json
-from .zetaris import DataLayerError, QueryResult
+from .zetaris import BudgetExhausted, DataLayerError, QueryResult
 
 MAX_ROUNDS = 3
 
@@ -224,7 +224,7 @@ class Retriever:
     def run(self, steps: list[Step]) -> list[Step]:
         for s in steps:
             left = _budget(self)
-            if left is not None and left <= 0:
+            if left is not None and left < 1.0:
                 s.skipped = True
                 self.trace.step(self.name, "query_skipped", step=s.sid, evidence=s.evidence, why="time budget exhausted")
                 continue
@@ -234,6 +234,9 @@ class Retriever:
                     self.footprint.setdefault(t, set()).update(c for c in s.result.columns if c in catalog.TABLES[t]["columns"])
                 self.trace.step(self.name, "query", step=s.sid, evidence=s.evidence, backend=s.result.source, query_id=s.result.query_id,
                                 rows=len(s.result.rows), elapsed_ms=s.result.elapsed_ms, tables=catalog.tables_in_sql(s.sql), sql=s.sql)
+            except BudgetExhausted:
+                s.skipped = True
+                self.trace.step(self.name, "query_skipped", step=s.sid, evidence=s.evidence, why="time budget exhausted")
             except DataLayerError as exc:
                 s.error = str(exc)
                 self.trace.step(self.name, "query_failed", step=s.sid, evidence=s.evidence, error=s.error[:300], sql=s.sql)

@@ -85,7 +85,7 @@ Why:
 | **Rubric (0-3 × 3)** | Critic: accuracy · appropriateness · actionability; pass at 7/9 |
 | **Stop conditions** | verdict grounded → report; evidence budget (3 rounds) spent → cannot-confirm; rules vs model disagree → needs-human; critic < 7/9 → one revision |
 | **Run log** | `logs/trace-<run_id>.jsonl`: step · decision · result · next agent, plus `traces/<run_id>.json` |
-| **Guardrails** | ≤3 evaluator rounds; ≤9 logical model calls per alert, enforced by a counter (up to three planning rounds, up to two second opinions, one summary, up to two critiques, one revision; retries inside a call excluded); read-only SQL on known tables only; every evidence lookup runs its vetted template unless the model's draft is canonically identical to it (comments, non-ASCII whitespace, extra columns, widened joins all fall back to the template) and the Evaluator re-checks that returned rows belong to this alert; a 480 s triage budget enforced before every query and every model call, inside retries and as the request timeout of each call (zero budget = no call; an in-flight request can overrun by at most its own timeout, no new query or call starts after the budget), model timeout ≤180 s; every model failure degrades to a template or 'unavailable', a summary that fails review is replaced by the deterministic one; secrets only from env; redaction before output |
+| **Guardrails** | ≤3 evaluator rounds; ≤9 logical model calls per alert, enforced by a counter (up to three planning rounds, up to two second opinions, one summary, up to two critiques, one revision; retries inside a call excluded); read-only SQL on known tables only; every evidence lookup runs its vetted template unless the model's draft is canonically identical to it (comments, non-ASCII whitespace, extra columns, widened joins all fall back to the template) and the Evaluator re-checks that returned rows belong to this alert; a 480 s triage budget enforced before every query and every model call, inside retries and as the request timeout of each call (zero budget = no call; an in-flight request can overrun by at most its own timeout, no new query or call starts after the budget, and a query that cannot be sent for lack of time is reported as 'not retrieved within the budget', never as a source failure), model timeout ≤180 s; every model failure degrades to a template or 'unavailable', a summary that fails review is replaced by the deterministic one; secrets only from env; redaction before output |
 
 Autonomy level L2 (loop with checks): the agent iterates on its own but must pass the rules, the
 second opinion and the critic; the analyst stays in the loop through the feedback buttons.
@@ -285,7 +285,7 @@ an authorisation template, so a draft cannot widen what is read.
 `pytest -q` runs the H-MEM conformance vectors, the World Model conformance cases, and the
 end-to-end loop in `SAMPLE_MODE` (ground truth, cross-alert world state, outage injection per source,
 redaction, second-opinion escalation, critic-driven revision, confidence/priority/timeline, time budget,
-verdict feedback, review-found regressions). 58 tests, one expected-fail that pins a known reference-implementation behaviour.
+verdict feedback, review-found regressions). 60 tests, one expected-fail that pins a known reference-implementation behaviour.
 
 ## Limits and honest notes
 

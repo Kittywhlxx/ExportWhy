@@ -89,7 +89,10 @@ if fb1.button("👍 agree with verdict", key="v-agree"):
     st.session_state["cal"] = Memory().verdict_feedback(alert_id, True); st.rerun()
 if fb2.button("👎 disagree", key="v-disagree"):
     st.session_state["cal"] = Memory().verdict_feedback(alert_id, False); st.rerun()
-cal = st.session_state.get("cal") or Memory().calibration()
+try:
+    cal = st.session_state.get("cal") or Memory().calibration()
+except Exception:  # noqa: BLE001 - memory store unavailable or mid-write
+    cal = {}
 if cal:
     fb3.caption("analyst feedback tally (humans only): " + "; ".join(f"{k}: {v['agree']} agree / {v['disagree']} disagree over {v['verdicts']} verdict(s)" for k, v in cal.items()))
 

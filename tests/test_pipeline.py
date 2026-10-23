@@ -349,17 +349,24 @@ def test_data_layer_request_timeout_and_retries_respect_the_budget(monkeypatch):
         text = ""
         def json(self): return {"headers": ["one"], "data": [["1"]]}
 
+    clock = {"t": 1000.0}                             # fake clock advanced by the request and the wait
+
     def fake_post(url, headers=None, json=None, timeout=None):
         seen["timeouts"].append(timeout)
         if len(seen["timeouts"]) == 1:
+            clock["t"] += 7.0                             # the first request burns 7 s before failing
             raise rq.ConnectionError("blip")
         return Resp()
 
     monkeypatch.setattr(rq, "post", fake_post)
-    monkeypatch.setattr("agent.zetaris.time.sleep", lambda s: seen["sleeps"].append(s))
+    monkeypatch.setattr("agent.zetaris.time.time", lambda: clock["t"])
+    def fake_sleep(sec):
+        seen["sleeps"].append(sec); clock["t"] += sec
+    monkeypatch.setattr("agent.zetaris.time.sleep", fake_sleep)
     r = z.query("SELECT 1 AS one", max_seconds=10)
     assert r.rows == [{"one": "1"}]
-    assert all(t <= 10 for t in seen["timeouts"]) and seen["sleeps"] == [1.5]      # retried once, within the budget
+    assert seen["timeouts"][0] == 10 and seen["sleeps"] == [1.5]
+    assert abs(seen["timeouts"][1] - 1.5) < 1e-6              # second attempt gets only what is left: 10 - 7 - 1.5
     seen["timeouts"].clear(); seen["sleeps"].clear()
     try:
         z.query("SELECT 1 AS one", max_seconds=0.5)
@@ -403,10 +410,20 @@ def test_model_retry_is_attempted_and_its_timeout_recomputed(monkeypatch):
                         raise Err("503")
                     return Resp()
     n.client = FakeClient()
-    monkeypatch.setattr("agent.llm.time.sleep", lambda s: None)
-    text, _ = n.chat("s", "u", max_seconds=30)
+    clock = {"t": 5000.0}
+    monkeypatch.setattr("agent.llm.time.time", lambda: clock["t"])
+    def fake_sleep(sec):
+        clock["t"] += sec
+    monkeypatch.setattr("agent.llm.time.sleep", fake_sleep)
+    orig_create = FakeClient.chat.completions.create
+    def create_with_time(**kw):
+        if seen["calls"] == 0:
+            clock["t"] += 7.0                              # first attempt burns 7 s, then 503
+        return orig_create(**kw)
+    FakeClient.chat.completions.create = staticmethod(create_with_time)
+    text, _ = n.chat("s", "u", max_seconds=10)
     assert text == "ok" and seen["calls"] == 2
-    assert len(seen["timeouts"]) == 2 and seen["timeouts"][1] <= 30 and seen["timeouts"][1] <= seen["timeouts"][0]
+    assert seen["timeouts"][0] == 10.0 and abs(seen["timeouts"][1] - 1.0) < 1e-6   # 10 - 7 - 2 s wait
 
 
 def test_memory_concurrent_writers_lose_nothing():
@@ -428,3 +445,43 @@ def test_memory_concurrent_writers_lose_nothing():
     assert not errors
     recs = Memory().all()
     assert len(recs) == 60 and len({m["id"] for m in recs}) == 60
+
+
+
+# ---- fourth review round
+
+def test_reader_waits_for_a_writer_holding_the_lock():
+    """A reader must never see a half-written state.json: it blocks on the directory lock until the writer is done."""
+    import threading, time as _t
+    from agent import memory as memory_mod
+    from agent.memory import Memory
+    m = Memory()
+    m.remember("seed fact", source="t", refs=[], tags=["alert:R"], confidence=0.9, key="fact:R:0")
+    state = memory_mod.MEMORY_DIR / "state.json"
+    release = threading.Event(); holding = threading.Event()
+
+    def writer_holding_lock():
+        with Memory()._lock():
+            original = state.read_text()
+            state.write_text("")                           # simulate the reference store mid-rewrite (truncated)
+            holding.set()
+            release.wait(5)
+            state.write_text(original)
+
+    th = threading.Thread(target=writer_holding_lock); th.start(); holding.wait(5)
+    result = {}
+    def reader():
+        result["recs"] = Memory().all()
+    rt = threading.Thread(target=reader); rt.start()
+    _t.sleep(0.2)
+    assert "recs" not in result                            # still blocked while the file is truncated
+    release.set(); th.join(5); rt.join(5)
+    assert [r["content"] for r in result["recs"]] == ["seed fact"]
+
+
+def test_small_budget_is_reported_as_budget_not_source_failure(monkeypatch):
+    monkeypatch.setenv("TRIAGE_TIMEOUT_S", "0.5")
+    report, out = agent_main.run(Task(alert_id="AL-004"))
+    assert out["status"] == "timed-out"
+    assert not any("unreachable" in r for r in out["reasons"]) and "budget" in " ".join(out["reasons"])
+    assert "unreachable" not in report

@@ -7,6 +7,7 @@ run established, and the Evaluator re-verifies instead of trusting it blindly.
 from __future__ import annotations
 
 import contextlib
+import threading
 import time
 from pathlib import Path
 
@@ -46,23 +47,38 @@ class Memory:
             kwargs["clock"] = self.clock
         return HMEM(**kwargs)
 
+    _local = threading.local()
+
     @contextlib.contextmanager
     def _lock(self):
-        """Serialises reload -> select -> write -> save across sessions and actors. The reference store
-        rewrites the whole state file on every mutation, so two interleaved writers would otherwise overwrite
-        each other; with the lock the second one re-opens the store after the first has saved."""
+        """Serialises every read and every reload -> select -> write -> save across sessions, threads and
+        actors. The reference store truncates and rewrites state.json on each mutation, so an unlocked reader
+        can see a half-written file; readers therefore take the same lock. Re-entrant within a thread, so a
+        locked method may call another locked method without deadlocking on a second flock handle."""
         if not self.persist or fcntl is None:
             yield; return
-        with open(MEMORY_DIR / ".lock", "a+") as fh:
-            fcntl.flock(fh, fcntl.LOCK_EX)
+        depth = getattr(self._local, "depth", 0)
+        if depth > 0:
+            self._local.depth = depth + 1
             try:
                 yield
             finally:
+                self._local.depth -= 1
+            return
+        MEMORY_DIR.mkdir(exist_ok=True)
+        with open(MEMORY_DIR / ".lock", "a+") as fh:
+            fcntl.flock(fh, fcntl.LOCK_EX)
+            self._local.depth = 1
+            try:
+                yield
+            finally:
+                self._local.depth = 0
                 fcntl.flock(fh, fcntl.LOCK_UN)
 
     # -- recall ------------------------------------------------------------------------------
     def recall(self, query: str, top_n: int = 5) -> tuple[str, list[dict]]:
-        res = self.h.query(query, topN=top_n)
+        with self._lock():                        # query() logs "read" entries, so it is a write as well
+            res = self.h.query(query, topN=top_n)
         items = []
         for rm in _memories(res):
             m = rm["memory"] if isinstance(rm, dict) else rm.memory
@@ -109,16 +125,20 @@ class Memory:
         return self._open("analyst")
 
     def all(self) -> list[dict]:
-        return [{"id": _g(m, "id"), "content": _g(m, "content"), "confidence": _g(m, "confidence"), "tags": _g(m, "tags"),
-                 "source": _g(m, "source"), "superseded": bool(_g(m, "supersededBy"))} for m in self.h.store.all()]
+        with self._lock():
+            return [{"id": _g(m, "id"), "content": _g(m, "content"), "confidence": _g(m, "confidence"), "tags": _g(m, "tags"),
+                     "source": _g(m, "source"), "superseded": bool(_g(m, "supersededBy"))} for m in self.h.store.all()]
 
     def ledger_stats(self) -> dict:
-        return self.h.ledger.stats()
+        with self._lock():
+            return self.h.ledger.stats()
 
     def history(self, memory_id: str) -> list[dict]:
         """The trust-ledger entries for one memory, oldest first (action, actor, confidence before/after)."""
         out = []
-        for e in self.h.ledger.history(memory_id):
+        with self._lock():
+            entries = list(self.h.ledger.history(memory_id))
+        for e in entries:
             prev, new = _g(e, "previousState") or {}, _g(e, "newState") or {}
             out.append({"action": _g(e, "action"), "actor": _g(e, "actor"), "timestamp": _g(e, "timestamp"),
                         "confidence_before": _g(prev, "confidence"), "confidence_after": _g(new, "confidence"),
@@ -142,6 +162,10 @@ class Memory:
     def calibration(self) -> dict:
         """How often analysts agreed with the verdicts, by verdict type, from the trust ledger."""
         out: dict[str, dict] = {}
+        with self._lock():
+            return self._calibration(out)
+
+    def _calibration(self, out: dict) -> dict:
         for m in self.all():
             tags = m.get("tags") or []
             if "kind:verdict" not in tags:
