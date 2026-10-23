@@ -76,7 +76,7 @@ folder is the earlier demonstration of the critic loop, made before that rule.
   path: without H-MEM there is no re-verification, no feedback with an audit trail; without the
   World Model the second alert on an account starts from nothing.
 - Nemotron is advisory by design: it can make a verdict more conservative (needs-human) or improve
-  the prose; it can never flip a block or a cannot-confirm to compliant. Alert-Bench ([Benchmarking LLM Agents for SOC Alert Triage, NeurIPS 2026 listing](https://neurips.cc/virtual/2026/168137))
+  the prose; it can never flip a block or a cannot-confirm to compliant. Alert-Bench ([Benchmarking LLM Agents for SOC Alert Triage, NeurIPS 2026 AIWILD workshop](https://neurips.cc/virtual/2026/168137))
   reports revision stages that overturn more correct decisions than they repair; this design rules that
   failure mode out. Normal live investigations use the model; offline mode and early exits (alert source
   down, budget spent before the first query) use the deterministic fallbacks.

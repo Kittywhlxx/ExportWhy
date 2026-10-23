@@ -231,7 +231,7 @@ the UI); the trust ledger keeps it and the calibration tally is shown per verdic
 
 `evaluate` also prints a trajectory table (rounds, queries, zero-row queries, sensitive columns,
 evidence/review score per alert, and the count of compliant verdicts that would rest on a zero-row authorisation
-query, which must be 0). Alert-Bench ([Benchmarking LLM Agents for SOC Alert Triage, NeurIPS 2026 listing](https://neurips.cc/virtual/2026/168137)) found that revision stages overturn more correct
+query, which must be 0). Alert-Bench ([Benchmarking LLM Agents for SOC Alert Triage, NeurIPS 2026 AIWILD workshop](https://neurips.cc/virtual/2026/168137)) found that revision stages overturn more correct
 decisions than they repair; here the second opinion and the critic can only make a verdict more
 conservative (needs-human) or edit prose, never flip it to compliant.
 

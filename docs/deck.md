@@ -11,7 +11,7 @@ Numbers are from the repository at submission time; re-run `evaluate`, `seed_swe
 
 **ExportWhy** — an agent that explains why a data-export alert needs investigation
 
-Sub: three systems that never talk to each other · one verdict · every claim cited · what could not be confirmed, said out loud
+Sub: three systems that never talk to each other · one verdict · every evidence line cited · what could not be confirmed, said out loud
 
 Visual: the product banner (UI screenshot: the `AL-004 → INVESTIGATE` banner with its reasons, and the metrics row `evidence/review score 1.00 · queue P1 (8/10)`).
 
@@ -114,7 +114,7 @@ Notes: Stress "critical path": remove either engine and a feature stops working 
 
 Visual: a JSONL log excerpt with `model` and `receipt_id`; the "Second opinion" and "Review" sections of a report.
 
-Notes: Name the design rule: the model can make the verdict more conservative or improve the prose; it cannot flip a block to compliant. Alert-Bench ([Benchmarking LLM Agents for SOC Alert Triage, NeurIPS 2026 listing](https://neurips.cc/virtual/2026/168137)) reports revision stages that overturn more correct decisions than they repair; this design avoids that.
+Notes: Name the design rule: the model can make the verdict more conservative or improve the prose; it cannot flip a block to compliant. Alert-Bench ([Benchmarking LLM Agents for SOC Alert Triage, NeurIPS 2026 AIWILD workshop](https://neurips.cc/virtual/2026/168137)) reports revision stages that overturn more correct decisions than they repair; this design avoids that.
 
 ---
 
@@ -159,10 +159,10 @@ Notes: 10 seconds. The UI exists so the analyst can act; the system is the same 
 
 Visual: roadmap strip.
 
-Notes: End on the one-liner: an analyst can read the verdict, see every claim's source, and knows exactly what the agent could not confirm.
+Notes: End on the one-liner: an analyst can read the verdict, see each evidence line's source, and knows exactly what the agent could not confirm.
 
 ---
 
 ## Appendix slide (optional): the eight-line agent loop spec
 
-Goal · Plan (≤5 steps) · Tools with fail modes · Memory (scratchpad / decisions / knowledge) · Rubric 0-3×3 · Stop conditions (grounded → report; time budget spent → cannot-confirm with the unfetched evidence named, round budget spent → verdict on what was retrieved, unfetched named; disagreement → needs-human; critic <7/9 → one revision, still failing → deterministic summary) · Run log (JSONL) · Guardrails (3 rounds, ≤9 logical model calls by counter, authorisation lookups run the fixed template, column-scoped, 480 s budget enforced before every query and model call and inside retries, redaction).
+Goal · Plan (≤5 steps) · Tools with fail modes · Memory (scratchpad / decisions / knowledge) · Rubric 0-3×3 · Stop conditions (grounded → report; time budget spent → partial/timed-out result with any unfetched evidence named (cannot-confirm when evidence was skipped); round budget spent → verdict on what was retrieved, unfetched named; unresolved disagreement → needs-human; critic <7/9 → one revision, still failing → deterministic summary) · Run log (JSONL) · Guardrails (3 rounds, ≤9 logical model calls by counter, authorisation lookups run the fixed template, column-scoped, 480 s budget enforced before every query and model call and inside retries, redaction).
