@@ -6,7 +6,7 @@ A security analyst gets an alert: *"account u1023 exported 30,000 rows of paymen
 01:05"*. Was it authorised? The answer is spread across three systems that never talk to each
 other: the export audit log, the data-access policy, and the approval-ticket workflow. ExportWhy
 investigates the alert across all three, reaches a verdict (**compliant / investigate /
-cannot-confirm**), and backs every claim with the table, column and query it came from. It says
+cannot-confirm**), and backs every evidence line with the table, column and query it came from. It says
 plainly what it could *not* confirm, flags where sources disagree, and redacts personal data in
 the report while keeping the references in the trace.
 
@@ -83,7 +83,7 @@ Why:
 | **Tools** | `run_sql(select) → rows` via Zetaris REST (fail: timeout/unreachable → gap, never a guess); H-MEM `recall/remember/feedback`; World Model `dossier/ingest`; Nightshift `chat` (fail: template SQL, stub summary) |
 | **Memory** | scratchpad = evidence rows per class; decisions = H-MEM facts with provenance (re-verified, superseded); knowledge = World Model entities and verdicts |
 | **Rubric (0-3 × 3)** | Critic: accuracy · appropriateness · actionability; pass at 7/9 |
-| **Stop conditions** | verdict grounded → report; evidence budget (3 rounds) spent → cannot-confirm; rules vs model disagree → needs-human; critic < 7/9 → one revision |
+| **Stop conditions** | verdict grounded → report; round budget (3 rounds) spent → report on the retrieved evidence, name the unfetched evidence, cannot-confirm if no decision could be grounded; time budget spent → partial/timed-out, unfetched evidence named; rules vs model disagree → needs-human; critic < 7/9 → one revision |
 | **Run log** | `logs/trace-<run_id>.jsonl`: step · decision · result · next agent, plus `traces/<run_id>.json` |
 | **Guardrails** | ≤3 evaluator rounds; ≤9 logical model calls per alert, enforced by a counter (up to three planning rounds, up to two second opinions, one summary, up to two critiques, one revision; retries inside a call excluded); read-only SQL on known tables only; every evidence lookup runs its vetted template unless the model's draft is canonically identical to it (comments, non-ASCII whitespace, extra columns, widened joins all fall back to the template) and the Evaluator re-checks that returned rows belong to this alert; a 480 s triage budget enforced before every query and every model call, inside retries and as the request timeout of each call (zero budget = no call; an in-flight request can overrun by at most its own timeout, no new query or call starts after the budget, and a query that cannot be sent for lack of time is reported as 'not retrieved within the budget', never as a source failure), model timeout ≤180 s; every model failure degrades to a template or 'unavailable', a summary that fails review is replaced by the deterministic one; secrets only from env; redaction before output |
 
