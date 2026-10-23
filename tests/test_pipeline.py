@@ -519,3 +519,25 @@ def test_budget_spent_mid_investigation_is_timed_out_with_retrieval_guidance(mon
     assert any("TRIAGE_TIMEOUT_S" in n for n in out["next_steps"])
     assert "No further action required" not in report and "not retrieved" in report
     assert any("skipped" in e["what"] for e in out["timeline"])
+
+
+def test_evidence_the_second_opinion_asked_for_but_budget_skipped_is_reported(monkeypatch):
+    """The second opinion disagrees and asks for a class not yet fetched; the budget runs out before that query. The run
+    must be timed-out and name the class as not retrieved, not 'complete / needs-human' with the request silently dropped."""
+    import time as _t
+    from agent import roles
+    real = roles.Evaluator.second_opinion
+    def slow_opinion(self, task, a):
+        _t.sleep(1.3)                                       # the model took most of the budget
+        return real(self, task, a)
+    monkeypatch.setattr(roles.Evaluator, "second_opinion", slow_opinion)
+    monkeypatch.setenv("SECOND_OPINION_FORCE", "investigate:exceptions")
+    monkeypatch.setenv("TRIAGE_TIMEOUT_S", "2.0")
+    report, out = agent_main.run(Task(alert_id="AL-001"))     # rules: compliant (valid ticket), exceptions never fetched
+    assert out["status"] == "timed-out"
+    assert out["verdict"] == "needs-human"                      # the unresolved disagreement still escalates; the timeout does not hide it
+    assert any("not retrieved: exceptions" in r for r in out["reasons"]), out["reasons"]
+    assert any("TRIAGE_TIMEOUT_S" in n for n in out["next_steps"])
+    assert any("not retrieved: exceptions" in f for f in out["confidence"]["factors"])
+    assert any(e["agent"] == "system" and "second-opinion" in e["what"] for e in out["timeline"]), out["timeline"]
+    assert "exceptions" in report and "No further action required" not in report

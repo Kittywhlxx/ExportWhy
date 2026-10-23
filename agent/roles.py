@@ -328,9 +328,9 @@ class Evaluator:
     # ---- second opinion: the model judges the same evidence independently; rules remain the floor
     def second_opinion(self, task: Task, a: "Assessment") -> dict:
         """Returns {"verdict", "reasons", "missing_evidence", "agrees", "source"}. Never raises."""
-        forced = os.environ.get("SECOND_OPINION_FORCE")          # test hook: simulate a disagreeing model
+        forced, _, forced_missing = (os.environ.get("SECOND_OPINION_FORCE") or "").partition(":")   # test hook: "verdict[:class,...]"
         if forced in VERDICTS:
-            op = {"verdict": forced, "reasons": ["forced disagreement (test)"], "missing_evidence": [], "source": "forced"}
+            op = {"verdict": forced, "reasons": ["forced disagreement (test)"], "missing_evidence": [m for m in forced_missing.split(",") if m in TEMPLATES], "source": "forced"}
         elif self.llm is None or self.llm.name == "stub":
             op = {"verdict": a.verdict, "reasons": ["stub: deterministic second opinion agrees with the rules"], "missing_evidence": [], "source": "stub"}
         else:
