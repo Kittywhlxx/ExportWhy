@@ -46,7 +46,7 @@ def test_same_account_two_alerts_builds_one_entity_and_prior_context():
 def test_unreachable_ticket_source_never_yields_compliant(monkeypatch):
     real = zetaris.SampleSQLite.query
 
-    def flaky(self, sql, limit=200):
+    def flaky(self, sql, limit=200, **kw):
         if "dexa.tickets" in sql:
             raise zetaris.DataLayerError("simulated: ticket system unreachable")
         return real(self, sql, limit)
@@ -145,7 +145,7 @@ def test_evaluator_ignores_exception_rows_for_other_accounts(monkeypatch):
     """Even if a widened query slipped through, another account's exception must not authorise this export."""
     real = zetaris.SampleSQLite.query
 
-    def widened(self, sql, limit=200):
+    def widened(self, sql, limit=200, **kw):
         if "dexa.policy_exceptions" in sql:
             return real(self, "SELECT exception_id, scope_type, scope_value, dataset_id, clause, valid_from, valid_to, approved_by FROM dexa.policy_exceptions WHERE dataset_id = 'DS04'", limit)
         return real(self, sql, limit)
@@ -184,7 +184,7 @@ def test_slow_backend_yields_partial_not_complete(monkeypatch):
     import time as _t
     real = zetaris.SampleSQLite.query
 
-    def slow(self, sql, limit=200):
+    def slow(self, sql, limit=200, **kw):
         _t.sleep(0.05); return real(self, sql, limit)
 
     monkeypatch.setattr(zetaris.SampleSQLite, "query", slow)
@@ -216,7 +216,7 @@ def test_evaluator_ignores_policy_rows_for_other_roles(monkeypatch):
     """Even if a widened policy query ran, the Evaluator must only use the row for this role and dataset."""
     real = zetaris.SampleSQLite.query
 
-    def widened(self, sql, limit=200):
+    def widened(self, sql, limit=200, **kw):
         if "dexa.policies" in sql:
             return real(self, "SELECT policy_id, role, dataset_id, allowed, allowed_hours_start, allowed_hours_end, max_rows_without_ticket, requires_ticket, notes FROM dexa.policies ORDER BY max_rows_without_ticket DESC", limit)
         return real(self, sql, limit)
@@ -235,7 +235,7 @@ def test_deadline_stops_queries_and_model_calls(monkeypatch):
     calls = {"queries": 0, "late_queries": 0}
     start = {"t": None}
 
-    def slow(self, sql, limit=200):
+    def slow(self, sql, limit=200, **kw):
         if start["t"] is None:
             start["t"] = _t.time()
         if _t.time() - start["t"] > 0.3:
@@ -316,3 +316,115 @@ def test_memory_two_sessions_do_not_lose_each_others_writes():
     rec = next(m for m in Memory().all() if m["id"] == r2.id)
     assert abs(float(rec["confidence"]) - 0.7) < 1e-9
     assert any(h["actor"] == "analyst" for h in Memory().history(r2.id))
+
+
+# ---- third review round
+
+def test_drafts_with_comments_or_exotic_whitespace_fall_back_to_template():
+    from agent.roles import Planner, TEMPLATES
+    t = Task(alert_id="AL-004", event_id="E00233", account_id="u1012", dataset_id="DS02", role="finance", ticket_ref="T-2629")
+    ds = TEMPLATES["dataset"][1].format(**{k: (v or "") for k, v in vars(t).items()})
+    pol = TEMPLATES["policy"][1].format(**{k: (v or "") for k, v in vars(t).items()})
+    comment_bypass = ("SELECT -- from\n d.dataset_id, d.name, d.sensitivity, d.owner_team, d.contains_pii, a.EMAIL "
+                      "FROM dexa.datasets d JOIN dexa.accounts a ON 1=1 WHERE d.dataset_id = 'DS02'")
+    assert Planner._validate(comment_bypass, t, template=ds, evidence="dataset")[0] is False
+    assert Planner._validate(pol.replace(" FROM ", "　FROM　"), t, template=pol, evidence="policy")[0] is False
+    assert Planner._validate(pol.replace(" FROM ", " /* x */ FROM "), t, template=pol, evidence="policy")[0] is False
+    assert Planner._validate(pol.replace("'E00233'", "'e00233'"), t, template=pol, evidence="policy")[0] is False
+    assert Planner._validate(pol + " AND 1=1", t, template=pol, evidence="policy")[0] is False
+    assert Planner._validate(pol.replace("SELECT", "select").replace(" FROM ", "\n from ") + ";", t, template=pol, evidence="policy")[0] is True
+    # literals are compared verbatim
+    assert Planner._canonical("SELECT x FROM t WHERE a = 'data  steward'") != Planner._canonical("SELECT x FROM t WHERE a = 'data steward'")
+    assert Planner._canonical("SELECT x FROM t WHERE a = 'a ,b'") != Planner._canonical("SELECT x FROM t WHERE a = 'a,b'")
+
+
+def test_data_layer_request_timeout_and_retries_respect_the_budget(monkeypatch):
+    import requests as rq
+    from agent.zetaris import DataLayerError, ZetarisREST
+    z = ZetarisREST(base_url="http://127.0.0.1:9", org_id="1", api_key="x", timeout=120)
+    seen = {"timeouts": [], "sleeps": []}
+
+    class Resp:
+        status_code = 200
+        text = ""
+        def json(self): return {"headers": ["one"], "data": [["1"]]}
+
+    def fake_post(url, headers=None, json=None, timeout=None):
+        seen["timeouts"].append(timeout)
+        if len(seen["timeouts"]) == 1:
+            raise rq.ConnectionError("blip")
+        return Resp()
+
+    monkeypatch.setattr(rq, "post", fake_post)
+    monkeypatch.setattr("agent.zetaris.time.sleep", lambda s: seen["sleeps"].append(s))
+    r = z.query("SELECT 1 AS one", max_seconds=10)
+    assert r.rows == [{"one": "1"}]
+    assert all(t <= 10 for t in seen["timeouts"]) and seen["sleeps"] == [1.5]      # retried once, within the budget
+    seen["timeouts"].clear(); seen["sleeps"].clear()
+    try:
+        z.query("SELECT 1 AS one", max_seconds=0.5)
+        assert False, "no time left: must not send"
+    except DataLayerError as exc:
+        assert "budget exhausted" in str(exc)
+    assert seen["timeouts"] == []
+    # a blip with only a little budget left: no retry, surfaced as a data-layer error
+    def always_blip(url, headers=None, json=None, timeout=None):
+        seen["timeouts"].append(timeout); raise rq.ConnectionError("blip")
+    monkeypatch.setattr(rq, "post", always_blip)
+    try:
+        z.query("SELECT 1 AS one", max_seconds=2.0); assert False
+    except DataLayerError:
+        pass
+    assert len(seen["timeouts"]) == 1 and seen["sleeps"] == []
+
+
+def test_model_retry_is_attempted_and_its_timeout_recomputed(monkeypatch):
+    import types
+    from agent.llm import Nightshift
+    n = Nightshift.__new__(Nightshift); n.model = "meterless/fast"
+    seen = {"timeouts": [], "calls": 0}
+
+    class Err(Exception):
+        status_code = 503
+
+    class Resp:
+        model = "m"; usage = None; model_extra = {}
+        choices = [types.SimpleNamespace(message=types.SimpleNamespace(content="ok"))]
+
+    class FakeClient:
+        def with_options(self, timeout):
+            seen["timeouts"].append(round(timeout, 1)); return self
+        class chat:
+            class completions:
+                @staticmethod
+                def create(**kw):
+                    seen["calls"] += 1
+                    if seen["calls"] == 1:
+                        raise Err("503")
+                    return Resp()
+    n.client = FakeClient()
+    monkeypatch.setattr("agent.llm.time.sleep", lambda s: None)
+    text, _ = n.chat("s", "u", max_seconds=30)
+    assert text == "ok" and seen["calls"] == 2
+    assert len(seen["timeouts"]) == 2 and seen["timeouts"][1] <= 30 and seen["timeouts"][1] <= seen["timeouts"][0]
+
+
+def test_memory_concurrent_writers_lose_nothing():
+    import threading
+    from agent.memory import Memory
+    errors = []
+
+    def writer(tag, n):
+        try:
+            m = Memory()
+            for i in range(n):
+                m.remember(f"{tag} fact {i}", source="t", refs=[], tags=["alert:C"], confidence=0.9, key=f"fact:C:{tag}:{i}")
+        except Exception as exc:  # noqa: BLE001
+            errors.append(exc)
+
+    threads = [threading.Thread(target=writer, args=(f"w{k}", 15)) for k in range(4)]
+    for t in threads: t.start()
+    for t in threads: t.join()
+    assert not errors
+    recs = Memory().all()
+    assert len(recs) == 60 and len({m["id"] for m in recs}) == 60

@@ -68,18 +68,25 @@ class ZetarisREST:
             "Content-Type": "application/json",
         }
 
-    def _run(self, sql: str, limit: int) -> QueryResult:
+    def _run(self, sql: str, limit: int, max_seconds: float | None = None) -> QueryResult:
+        """max_seconds: the triage's remaining budget. The request timeout never exceeds it and a retry is only
+        attempted while there is time for one; an in-flight request can overrun the budget by at most its timeout."""
         t0 = time.time()
+        deadline = t0 + max_seconds if max_seconds is not None else None
         body = {"queryId": str(uuid.uuid4()), "sql": sql, "source": "SqlEditor", "limit": limit}
         for attempt in range(3):
+            left = (deadline - time.time()) if deadline is not None else self.timeout
+            if left < 1.0:
+                raise DataLayerError("triage time budget exhausted before the query could be sent")
             try:
                 resp = requests.post(f"{self.base_url}/sql-editor/sqls/run", headers=self._headers(),
-                                     json=body, timeout=self.timeout)
+                                     json=body, timeout=min(self.timeout, left))
                 break
-            except requests.RequestException as exc:   # network blip: bounded retry
-                if attempt == 2:
+            except requests.RequestException as exc:   # network blip: bounded retry, only while the budget allows one
+                wait = 1.5 * (attempt + 1)
+                if attempt == 2 or (deadline is not None and time.time() + wait + 1.0 > deadline):
                     raise DataLayerError(f"Zetaris unreachable: {exc}") from exc
-                time.sleep(1.5 * (attempt + 1))
+                time.sleep(wait)
         if resp.status_code != 200:
             raise DataLayerError(f"Zetaris HTTP {resp.status_code}: {resp.text[:400]}")
         payload = resp.json()
@@ -87,10 +94,10 @@ class ZetarisREST:
         return QueryResult(sql=sql, rows=rows, columns=columns, source=self.name,
                            elapsed_ms=int((time.time() - t0) * 1000), query_id=body["queryId"])
 
-    def query(self, sql: str, limit: int = 200) -> QueryResult:
+    def query(self, sql: str, limit: int = 200, max_seconds: float | None = None) -> QueryResult:
         if not SELECT_ONLY.match(sql):
             raise DataLayerError("agent queries must be read-only (SELECT/SHOW/DESCRIBE)")
-        return self._run(sql, limit)
+        return self._run(sql, limit, max_seconds)
 
     def run_ddl(self, sql: str) -> QueryResult:
         """For registration scripts only. Never called from the agent loop."""
@@ -136,7 +143,7 @@ class SampleSQLite:
         from .catalog import SCHEMA
         self.conn.execute(f"ATTACH DATABASE ? AS {SCHEMA}", (self.path,))
 
-    def query(self, sql: str, limit: int = 200) -> QueryResult:
+    def query(self, sql: str, limit: int = 200, max_seconds: float | None = None) -> QueryResult:
         if not SELECT_ONLY.match(sql):
             raise DataLayerError("agent queries must be read-only (SELECT/SHOW/DESCRIBE)")
         t0 = time.time()
@@ -169,12 +176,12 @@ class OutageBackend:
         for item in [x.strip().lower() for x in spec.split(",") if x.strip()]:
             self.tables.update(SOURCES.get(item, [item]))
 
-    def query(self, sql: str, limit: int = 200) -> QueryResult:
+    def query(self, sql: str, limit: int = 200, max_seconds: float | None = None) -> QueryResult:
         from .catalog import tables_in_sql
         hit = sorted(set(tables_in_sql(sql)) & self.tables)
         if hit:
             raise DataLayerError(f"simulated outage: source for {', '.join(hit)} is unreachable")
-        return self.inner.query(sql, limit)
+        return self.inner.query(sql, limit, max_seconds=max_seconds)
 
     def run_ddl(self, sql: str) -> QueryResult:
         return self.inner.run_ddl(sql)

@@ -150,51 +150,56 @@ class Planner:
         return kept
 
     AUTH_CLASSES = {"policy", "ticket_cited", "tickets_account", "exceptions", "account", "alert"}
+    _ALLOWED = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.,=()'<>!-+*/%:@ \n\t\r")
 
     @staticmethod
-    def _predicates(sql: str) -> set[str]:
-        """Every `column = 'value'` filter in a query, normalised (alias prefixes dropped)."""
-        return {f"{c.lower()}='{v}'" for c, v in re.findall(r"(?:\b\w+\.)?(\w+)\s*=\s*'([^']*)'", sql)}
-
-    @staticmethod
-    def _canonical(sql: str) -> str:
-        """Whitespace-collapsed, case-folded outside string literals, trailing ; dropped."""
+    def _canonical(sql: str) -> str | None:
+        """Canonical form of a query: whitespace collapsed and case folded OUTSIDE string literals; literals
+        kept verbatim (including their spaces and case); trailing ';' dropped. Returns None when the text
+        contains a comment, a character outside the SQL subset the data layer accepts, or non-ASCII whitespace,
+        so such drafts are rejected instead of silently 'equalised'."""
+        text = sql.strip()
+        while text.endswith(";"):
+            text = text[:-1].rstrip()
+        if "--" in text or "/*" in text or "*/" in text:
+            return None
+        if any(ch not in Planner._ALLOWED for ch in text):
+            return None
         out, lit = [], False
-        for ch in sql.strip().rstrip(";"):
+        tight = set(",()=")                               # no spaces around these, outside literals only
+        for ch in text:
             if ch == "'":
-                lit = not lit
-            out.append(ch if lit else ch.lower())
-        return re.sub(r"\s+", " ", "".join(out)).replace(" ,", ",").replace("( ", "(").replace(" )", ")").strip()
-
-    @staticmethod
-    def _select_list(sql: str) -> str:
-        return re.split(r"\bfrom\b", sql, 1, flags=re.I)[0]
+                lit = not lit; out.append(ch)
+            elif lit:
+                out.append(ch)
+            elif ch in " \n\t\r":
+                if out and out[-1] != " " and out[-1] not in tight:
+                    out.append(" ")
+            else:
+                if ch in tight and out and out[-1] == " ":
+                    out.pop()
+                out.append(ch.lower())
+        if lit:
+            return None                                   # unterminated literal
+        return "".join(out).strip()
 
     @classmethod
     def _validate(cls, sql: str, task: Task, template: str | None = None, evidence: str | None = None) -> tuple[bool, str]:
+        """Model proposes, template disposes: a draft runs only if it is canonically identical to the vetted
+        template for its evidence class. Anything else (a widened join, an extra column, a comment, an exotic
+        whitespace character, a subquery) falls back to the template. This is what makes 'the model cannot
+        change what is read' a property of the code rather than a hope."""
         if not re.match(r"^\s*select\b", sql, re.I) or re.search(r"\b(insert|update|delete|drop|create|alter|grant|attach|union)\b", sql, re.I):
             return False, "not a plain SELECT"
-        if "*" in cls._select_list(sql):
+        if "*" in re.split(r"\bfrom\b", sql, 1, flags=re.I)[0]:
             return False, "'*' in the select list is never accepted (column scoping)"
-        if template is not None and evidence in cls.AUTH_CLASSES:
-            # A decision-critical lookup runs the template, or something canonically identical to it. String
-            # checks on predicates are not enough: `ON 1=1` or `OR 1=1` keep every literal and still widen the
-            # result set to other roles' policies or other accounts' exceptions.
-            if cls._canonical(sql) != cls._canonical(template):
-                return False, "authorisation lookups run the fixed template (draft was not equivalent)"
-            return True, ""
         if template is not None:
-            missing = cls._predicates(template) - cls._predicates(sql)
-            if missing:
-                return False, f"query lost filter(s): {', '.join(sorted(missing))}"
-            if re.search(r"\bor\b", sql, re.I) and not re.search(r"\bor\b", template, re.I):
-                return False, "query added an OR that the template does not have"
-            tcols = {c.lower() for c in re.findall(r"(?:\w+\.)?(\w+)", cls._select_list(template))}
-            dcols = {c.lower() for c in re.findall(r"(?:\w+\.)?(\w+)", cls._select_list(sql))}
-            known = {c.lower() for t in catalog.TABLES.values() for c in t["columns"]}
-            extra = (dcols - tcols) & known
-            if extra:
-                return False, f"query widened its column list: {', '.join(sorted(extra))}"
+            c_draft, c_tpl = cls._canonical(sql), cls._canonical(template)
+            if c_draft is None:
+                return False, "draft contains a comment or a character outside the accepted SQL subset"
+            if c_draft != c_tpl:
+                return False, "draft is not canonically identical to the vetted template for this evidence class"
+            return True, ""
         if not catalog.tables_in_sql(sql):
             return False, "no known dexa table referenced"
         for ref in re.findall(r"\b([a-z_]+)\.([a-z_]+)\b", sql, re.I):
@@ -224,7 +229,7 @@ class Retriever:
                 self.trace.step(self.name, "query_skipped", step=s.sid, evidence=s.evidence, why="time budget exhausted")
                 continue
             try:
-                s.result = self.backend.query(s.sql)
+                s.result = self.backend.query(s.sql, max_seconds=left)
                 for t in catalog.tables_in_sql(s.sql):
                     self.footprint.setdefault(t, set()).update(c for c in s.result.columns if c in catalog.TABLES[t]["columns"])
                 self.trace.step(self.name, "query", step=s.sid, evidence=s.evidence, backend=s.result.source, query_id=s.result.query_id,

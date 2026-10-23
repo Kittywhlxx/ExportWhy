@@ -107,7 +107,7 @@ Notes: Stress "critical path": remove either engine and a feature stops working 
 
 ## 7. NVIDIA Nemotron: where the model contributes
 
-- drafts the evidence SQL; a draft is used only if it is read-only and column-scoped, and an authorisation lookup only if the draft is canonically identical to the fixed template (otherwise the template runs). In the recorded AL-004 run all five drafts were accepted on those terms
+- proposes the evidence SQL; a draft runs only if it is canonically identical to the vetted template for its evidence class, otherwise the template runs (model proposes, template disposes). In the recorded AL-004 run all five drafts were accepted on those terms
 - gives the Evaluator's **second opinion** on the same facts, blind to the rules' answer
 - writes the analyst summary and **scores it as the Critic**
 - every call: `routed_model` and `receipt_id` in the trace (`nvidia/nemotron-3-ultra-550b-a55b`, `nemotron-3.5-super-vl-120b-a12b`)
@@ -123,11 +123,11 @@ Notes: Name the design rule: the model can make the verdict more conservative or
 | check | result |
 |---|---|
 | live Zetaris, rule verdicts | 13/13 alerts match ground truth |
-| live Zetaris + Nemotron (recorded runs AL-004, AL-011 in docs/examples-live) | verdicts match; drafts accepted only when equivalent to the template; critic 6/9 → revision → 9/9 |
+| live Zetaris + Nemotron, recorded run AL-004 (docs/examples-live) | verdict matches; all five drafts accepted because identical to the templates; critic 6/9 → revision → 9/9. (AL-011 in the same folder is the earlier recording of the critic loop) |
 | 12 seeds × 13 alerts, offline | 156/156 |
 | disclosure ablation (distinct sensitive-column reads over 13 synthetic triages) | naive `SELECT *` 113 · this system 5 (96% fewer), identical verdicts |
 | failure path | any critical source down → cannot-confirm, never compliant (3 outage tests) |
-| tests | 42 passed (two engine conformance suites + end-to-end) |
+| tests | 58 passed (two engine conformance suites + end-to-end + review regressions) |
 
 Visual: the confusion table (10 scenarios, every row in its expected column) and the ablation bar (113 vs 5).
 

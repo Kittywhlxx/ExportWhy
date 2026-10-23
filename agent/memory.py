@@ -6,10 +6,16 @@ run established, and the Evaluator re-verifies instead of trusting it blindly.
 """
 from __future__ import annotations
 
+import contextlib
 import time
 from pathlib import Path
 
 from . import config
+
+try:
+    import fcntl                       # POSIX advisory lock on the store directory
+except ImportError:                    # pragma: no cover - Windows: single-process use only
+    fcntl = None
 
 MEMORY_DIR = config.ROOT / "memory"
 
@@ -40,8 +46,19 @@ class Memory:
             kwargs["clock"] = self.clock
         return HMEM(**kwargs)
 
-    def _reload(self):
-        pass                                          # every operation already opens a fresh instance
+    @contextlib.contextmanager
+    def _lock(self):
+        """Serialises reload -> select -> write -> save across sessions and actors. The reference store
+        rewrites the whole state file on every mutation, so two interleaved writers would otherwise overwrite
+        each other; with the lock the second one re-opens the store after the first has saved."""
+        if not self.persist or fcntl is None:
+            yield; return
+        with open(MEMORY_DIR / ".lock", "a+") as fh:
+            fcntl.flock(fh, fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                fcntl.flock(fh, fcntl.LOCK_UN)
 
     # -- recall ------------------------------------------------------------------------------
     def recall(self, query: str, top_n: int = 5) -> tuple[str, list[dict]]:
@@ -63,18 +80,19 @@ class Memory:
         same key + new content   -> the new record supersedes the old one (old kept, ranked down, never deleted).
         Returns (record, action) with action in {"created", "reconfirmed", "superseded"}."""
         now = int(time.time() * 1000)
-        h = self.h                                   # one fresh instance for lookup + write
-        prev = self._latest_with_key(h, key) if key else None
-        if prev is not None and _g(prev, "content") == content:
-            h.feedback(_g(prev, "id"), "helpful")
-            return h.store.get(_g(prev, "id")), "reconfirmed"
-        rec = h.add(content=content, source=source, type=mtype, tags=tags + ([key] if key else []), confidence=confidence,
-                    provenance={"origin": "manual", "learnedAt": now, "label": f"learned from {source}", "refs": refs},
-                    goalRunId=goal_run_id, supersedes=_g(prev, "id") if prev is not None else None)
-        if prev is not None:
-            h.store.update(_g(prev, "id"), {"supersededBy": _g(rec, "id")})
-            return rec, "superseded"
-        return rec, "created"
+        with self._lock():
+            h = self.h                               # one fresh instance for lookup + write, inside the lock
+            prev = self._latest_with_key(h, key) if key else None
+            if prev is not None and _g(prev, "content") == content:
+                h.feedback(_g(prev, "id"), "helpful")
+                return h.store.get(_g(prev, "id")), "reconfirmed"
+            rec = h.add(content=content, source=source, type=mtype, tags=tags + ([key] if key else []), confidence=confidence,
+                        provenance={"origin": "manual", "learnedAt": now, "label": f"learned from {source}", "refs": refs},
+                        goalRunId=goal_run_id, supersedes=_g(prev, "id") if prev is not None else None)
+            if prev is not None:
+                h.store.update(_g(prev, "id"), {"supersededBy": _g(rec, "id")})
+                return rec, "superseded"
+            return rec, "created"
 
     @staticmethod
     def _latest_with_key(h, key: str):
@@ -84,7 +102,8 @@ class Memory:
     def feedback(self, memory_id: str, kind: str):
         """Human feedback on a fact. Logged by a separate actor ("analyst") so it is never confused with the
         agent's own re-verification, which also uses the helpful delta."""
-        self._as_analyst().feedback(memory_id, kind)
+        with self._lock():
+            self._as_analyst().feedback(memory_id, kind)
 
     def _as_analyst(self):
         return self._open("analyst")
@@ -109,11 +128,13 @@ class Memory:
     def verdict_feedback(self, alert_id: str, agree: bool, note: str = "") -> dict | None:
         """Analyst feedback on the verdict itself (Google SecOps-style thumbs on the disposition). Applied to the
         verdict memory as helpful/wrong, so the ledger keeps who-said-what and the next recall ranks it accordingly."""
-        cands = [m for m in self.all() if f"alert:{alert_id}" in (m.get("tags") or []) and "kind:verdict" in (m.get("tags") or []) and not m["superseded"]]
-        rec = cands[-1] if cands else None          # the current verdict record, never a superseded one
-        if rec is None:
-            return None
-        self._as_analyst().feedback(rec["id"], "helpful" if agree else "wrong")
+        with self._lock():
+            h = self._as_analyst()                   # select the current verdict and write the feedback on the same snapshot
+            cands = [m for m in h.store.all() if f"alert:{alert_id}" in (_g(m, "tags") or []) and "kind:verdict" in (_g(m, "tags") or []) and not _g(m, "supersededBy")]
+            rec = max(cands, key=lambda m: _g(m, "timestamp") or 0) if cands else None
+            if rec is None:
+                return None
+            h.feedback(_g(rec, "id"), "helpful" if agree else "wrong")
         if note:
             self.remember(f"Analyst note on {alert_id}: {note}", source=f"analyst:{alert_id}", refs=[], tags=[f"alert:{alert_id}", "kind:analyst-note"], confidence=1.0, mtype="general")
         return self.calibration()
