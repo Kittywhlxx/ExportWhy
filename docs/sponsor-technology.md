@@ -12,7 +12,7 @@ API (`agent/zetaris.py`). The two decision-critical lookups are cross-source joi
 `export_events ⋈ tickets`, logs ⋈ tickets); the remaining lookups are scoped single-source queries that
 the Evaluator correlates. The agent never opens a connection to a source. The same schema is served
 offline by a SQLite twin so judges can run everything without Zetaris (`SAMPLE_MODE=true`).
-Verified: 13/13 alerts on the federated backend; registration script and schema in the README.
+Verified: 13/13 alerts on the federated backend (one trace per alert in `docs/examples-live/zetaris-rules/`); registration script and schema in the README.
 
 ## Meterless Engines — H-MEM and World Model, both in working features
 
@@ -34,8 +34,8 @@ accounts, datasets, tickets and exceptions are entities with external keys; aler
 events are contexts; `exported`, `cited`, `covers` are edges; directory status and the verdict per
 alert are facts. Provenance on every write uses the event's own timestamp, so re-running an alert
 appends zero events (content-addressed ids). The account dossier (prior alerts and verdicts, status
-history, exports) is read before planning and used by the Evaluator: repeat alerts on an account
-raise an escalation; a status that changed between investigations is reported as a conflict.
+history, exports) is read before planning and used by the Evaluator: earlier uncleared alerts on the
+account add an escalation recommendation when the current investigation is also investigate or cannot-confirm; a status that changed between investigations is reported as a conflict.
 Test: `tests/test_worldmodel_conformance.py` reproduces the official runner's cases (stable ids,
 merge bands at 0.85/0.82, provenance rejection, idempotency, bitemporal edges, audit) plus
 persistence and supersede tests; the end-to-end test checks that the second alert on the same
@@ -47,8 +47,9 @@ account sees the first. 12 tests pass, one strict expected-fail documents a refe
 local runtime (`METERLESS_BASE_URL`, default `http://127.0.0.1:8088/v1`), `Authorization: Bearer
 <runtime token>`, `meterless-app: exportwhy` on every call and `meterless-scope: user` on chat,
 `GET /v1/models` as the online check, a 180 s timeout and bounded retries on 429/5xx. Model ids are
-routing modes (`meterless/fast`); the compute receipt returned by Nightshift (`requested_model`,
-`routed_model`, `receipt_id`) is written into every trace and JSONL log line. The model is used in
+routing modes (`meterless/fast`); the compute receipt returned by Nightshift is written into every
+successful model-call event: `model_requested`, `receipt_id`, and the routed model (`routed_model` in the
+JSON trace, `model` in the JSONL line). The model is used in
 four places: drafting evidence SQL (validator-gated), the Evaluator's second opinion, the Reporter's
 summary and the Critic's rubric score. Every model failure degrades to a template or an explicit
 "unavailable" rather than aborting a triage. `python -m agent.main health` shows the provider online.
@@ -75,9 +76,10 @@ folder is the earlier demonstration of the critic loop, made before that rule.
   path: without H-MEM there is no re-verification, no feedback with an audit trail; without the
   World Model the second alert on an account starts from nothing.
 - Nemotron is advisory by design: it can make a verdict more conservative (needs-human) or improve
-  the prose; it can never flip a block or a cannot-confirm to compliant. Alert-Bench (NeurIPS 2026)
-  reports revision stages that overturn correct decisions; this design rules that failure mode out
-  while still using the model on every alert.
+  the prose; it can never flip a block or a cannot-confirm to compliant. Alert-Bench ([Benchmarking LLM Agents for SOC Alert Triage, NeurIPS 2026 listing](https://neurips.cc/virtual/2026/168137))
+  reports revision stages that overturn more correct decisions than they repair; this design rules that
+  failure mode out. Normal live investigations use the model; offline mode and early exits (alert source
+  down, budget spent before the first query) use the deterministic fallbacks.
 
 Pre-existing components: no pre-existing product code. The two Meterless engines are Python
 implementations adapted from the published reference implementations and conformance suites

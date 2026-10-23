@@ -1,0 +1,696 @@
+{
+ "run_id": "20261023T032534Z-279764",
+ "task": "Triage alert AL-005",
+ "mode": "live",
+ "started_at": "2026-10-23T03:25:34Z",
+ "steps": [
+  {
+   "t": 0.0,
+   "agent": "planner",
+   "kind": "plan",
+   "reason": "identify the alert and its export event",
+   "evidence": [
+    "alert"
+   ],
+   "llm_drafted": 0,
+   "steps": [
+    {
+     "id": "q1",
+     "evidence": "alert",
+     "origin": "rules",
+     "sql": "SELECT a.alert_id, a.rule, a.severity, a.raised_at, e.event_id, e.ts, e.account_id, e.dataset_id, e.rows_exported, e.destination_type, e.tool, e.ticket_ref FROM dexa.alerts a JOIN dexa.export_events e ON e.event_id = a.event_id WHERE a.alert_id = 'AL-005'"
+    }
+   ]
+  },
+  {
+   "t": 0.842,
+   "agent": "retriever",
+   "kind": "query",
+   "step": "q1",
+   "evidence": "alert",
+   "backend": "zetaris",
+   "query_id": "00d6696f-9347-43b7-a4c9-a612c5a7b72f",
+   "rows": 1,
+   "elapsed_ms": 841,
+   "tables": [
+    "alerts",
+    "export_events"
+   ],
+   "sql": "SELECT a.alert_id, a.rule, a.severity, a.raised_at, e.event_id, e.ts, e.account_id, e.dataset_id, e.rows_exported, e.destination_type, e.tool, e.ticket_ref FROM dexa.alerts a JOIN dexa.export_events e ON e.event_id = a.event_id WHERE a.alert_id = 'AL-005'"
+  },
+  {
+   "t": 0.842,
+   "agent": "evaluator",
+   "kind": "assess",
+   "round": 0,
+   "facts": 1,
+   "conflicts": [],
+   "gaps": [],
+   "missing": [
+    "sensitivity",
+    "account",
+    "dataset"
+   ],
+   "verdict": null,
+   "reasons": [],
+   "disclosure": {
+    "tables_accessed": [
+     "alerts",
+     "export_events"
+    ],
+    "tables_used_in_answer": [
+     "alerts",
+     "export_events"
+    ],
+    "accessed_but_unused": [],
+    "sensitive_columns_touched": [],
+    "pii_columns_touched": []
+   }
+  },
+  {
+   "t": 0.842,
+   "agent": "planner",
+   "kind": "plan",
+   "reason": "identify the exporting account",
+   "evidence": [
+    "account"
+   ],
+   "llm_drafted": 0,
+   "steps": [
+    {
+     "id": "q2",
+     "evidence": "account",
+     "origin": "rules",
+     "sql": "SELECT account_id, role, department, status, status_since FROM dexa.accounts WHERE account_id = 'u1002'"
+    }
+   ]
+  },
+  {
+   "t": 1.197,
+   "agent": "retriever",
+   "kind": "query",
+   "step": "q2",
+   "evidence": "account",
+   "backend": "zetaris",
+   "query_id": "d17361a2-bb40-45d8-9162-457305b686eb",
+   "rows": 1,
+   "elapsed_ms": 354,
+   "tables": [
+    "accounts"
+   ],
+   "sql": "SELECT account_id, role, department, status, status_since FROM dexa.accounts WHERE account_id = 'u1002'"
+  },
+  {
+   "t": 1.198,
+   "agent": "evaluator",
+   "kind": "assess",
+   "round": 0,
+   "facts": 2,
+   "conflicts": [],
+   "gaps": [],
+   "missing": [
+    "sensitivity",
+    "dataset",
+    "policy"
+   ],
+   "verdict": null,
+   "reasons": [],
+   "disclosure": {
+    "tables_accessed": [
+     "accounts",
+     "alerts",
+     "export_events"
+    ],
+    "tables_used_in_answer": [
+     "accounts",
+     "alerts",
+     "export_events"
+    ],
+    "accessed_but_unused": [],
+    "sensitive_columns_touched": [],
+    "pii_columns_touched": []
+   }
+  },
+  {
+   "t": 1.205,
+   "agent": "memory",
+   "kind": "recall",
+   "query": "u1002 DS01 export alert ticket exception",
+   "hits": []
+  },
+  {
+   "t": 1.209,
+   "agent": "world",
+   "kind": "dossier",
+   "known": false,
+   "prior_alerts": [],
+   "status_history": []
+  },
+  {
+   "t": 1.21,
+   "agent": "planner",
+   "kind": "plan",
+   "reason": "evidence the verdict needs: sensitivity, dataset, policy",
+   "evidence": [
+    "sensitivity",
+    "dataset",
+    "policy"
+   ],
+   "llm_drafted": 0,
+   "steps": [
+    {
+     "id": "q3",
+     "evidence": "sensitivity",
+     "origin": "rules",
+     "sql": "SELECT table_name, column_name, level FROM dexa.field_sensitivity"
+    },
+    {
+     "id": "q4",
+     "evidence": "dataset",
+     "origin": "rules",
+     "sql": "SELECT dataset_id, name, sensitivity, owner_team, contains_pii FROM dexa.datasets WHERE dataset_id = 'DS01'"
+    },
+    {
+     "id": "q5",
+     "evidence": "policy",
+     "origin": "rules",
+     "sql": "SELECT p.policy_id, p.role, p.dataset_id, p.allowed, p.allowed_hours_start, p.allowed_hours_end, p.max_rows_without_ticket, p.requires_ticket, p.notes FROM dexa.export_events e JOIN dexa.accounts a ON a.account_id = e.account_id JOIN dexa.policies p ON p.role = a.role AND p.dataset_id = e.dataset_id WHERE e.event_id = 'E00234'"
+    }
+   ]
+  },
+  {
+   "t": 1.337,
+   "agent": "retriever",
+   "kind": "query",
+   "step": "q3",
+   "evidence": "sensitivity",
+   "backend": "zetaris",
+   "query_id": "1cbc6484-d80b-4da1-ac2a-3a9e7d689a3a",
+   "rows": 9,
+   "elapsed_ms": 126,
+   "tables": [
+    "field_sensitivity"
+   ],
+   "sql": "SELECT table_name, column_name, level FROM dexa.field_sensitivity"
+  },
+  {
+   "t": 1.489,
+   "agent": "retriever",
+   "kind": "query",
+   "step": "q4",
+   "evidence": "dataset",
+   "backend": "zetaris",
+   "query_id": "8a73beb0-239e-4f67-9d25-aa2b89010475",
+   "rows": 1,
+   "elapsed_ms": 151,
+   "tables": [
+    "datasets"
+   ],
+   "sql": "SELECT dataset_id, name, sensitivity, owner_team, contains_pii FROM dexa.datasets WHERE dataset_id = 'DS01'"
+  },
+  {
+   "t": 1.915,
+   "agent": "retriever",
+   "kind": "query",
+   "step": "q5",
+   "evidence": "policy",
+   "backend": "zetaris",
+   "query_id": "83d385bd-c658-463b-a603-5b732aafc2c8",
+   "rows": 1,
+   "elapsed_ms": 425,
+   "tables": [
+    "accounts",
+    "export_events",
+    "policies"
+   ],
+   "sql": "SELECT p.policy_id, p.role, p.dataset_id, p.allowed, p.allowed_hours_start, p.allowed_hours_end, p.max_rows_without_ticket, p.requires_ticket, p.notes FROM dexa.export_events e JOIN dexa.accounts a ON a.account_id = e.account_id JOIN dexa.policies p ON p.role = a.role AND p.dataset_id = e.dataset_id WHERE e.event_id = 'E00234'"
+  },
+  {
+   "t": 1.917,
+   "agent": "evaluator",
+   "kind": "assess",
+   "round": 1,
+   "facts": 4,
+   "conflicts": [],
+   "gaps": [],
+   "missing": [
+    "tickets_account",
+    "exceptions"
+   ],
+   "verdict": null,
+   "reasons": [],
+   "disclosure": {
+    "tables_accessed": [
+     "accounts",
+     "alerts",
+     "datasets",
+     "export_events",
+     "field_sensitivity",
+     "policies"
+    ],
+    "tables_used_in_answer": [
+     "accounts",
+     "alerts",
+     "datasets",
+     "export_events",
+     "field_sensitivity",
+     "policies"
+    ],
+    "accessed_but_unused": [],
+    "sensitive_columns_touched": [],
+    "pii_columns_touched": []
+   }
+  },
+  {
+   "t": 1.917,
+   "agent": "planner",
+   "kind": "plan",
+   "reason": "evaluator: evidence still insufficient -> fetch tickets_account, exceptions",
+   "evidence": [
+    "tickets_account",
+    "exceptions"
+   ],
+   "llm_drafted": 0,
+   "steps": [
+    {
+     "id": "q6",
+     "evidence": "tickets_account",
+     "origin": "rules",
+     "sql": "SELECT ticket_id, requester_account_id, dataset_id, max_rows, valid_from, valid_to, status, approver_id FROM dexa.tickets WHERE requester_account_id = 'u1002' AND dataset_id = 'DS01' ORDER BY valid_to DESC"
+    },
+    {
+     "id": "q7",
+     "evidence": "exceptions",
+     "origin": "rules",
+     "sql": "SELECT exception_id, scope_type, scope_value, dataset_id, clause, valid_from, valid_to, approved_by FROM dexa.policy_exceptions WHERE dataset_id = 'DS01' AND ((scope_type = 'role' AND scope_value = 'data-steward') OR (scope_type = 'account' AND scope_value = 'u1002'))"
+    }
+   ]
+  },
+  {
+   "t": 2.051,
+   "agent": "retriever",
+   "kind": "query",
+   "step": "q6",
+   "evidence": "tickets_account",
+   "backend": "zetaris",
+   "query_id": "fc15b4c8-a546-4943-a53c-c290ddfca8c7",
+   "rows": 0,
+   "elapsed_ms": 132,
+   "tables": [
+    "tickets"
+   ],
+   "sql": "SELECT ticket_id, requester_account_id, dataset_id, max_rows, valid_from, valid_to, status, approver_id FROM dexa.tickets WHERE requester_account_id = 'u1002' AND dataset_id = 'DS01' ORDER BY valid_to DESC"
+  },
+  {
+   "t": 2.183,
+   "agent": "retriever",
+   "kind": "query",
+   "step": "q7",
+   "evidence": "exceptions",
+   "backend": "zetaris",
+   "query_id": "c27d21f0-409d-434f-ac86-14b50ffc4d7d",
+   "rows": 1,
+   "elapsed_ms": 132,
+   "tables": [
+    "policy_exceptions"
+   ],
+   "sql": "SELECT exception_id, scope_type, scope_value, dataset_id, clause, valid_from, valid_to, approved_by FROM dexa.policy_exceptions WHERE dataset_id = 'DS01' AND ((scope_type = 'role' AND scope_value = 'data-steward') OR (scope_type = 'account' AND scope_value = 'u1002'))"
+  },
+  {
+   "t": 2.184,
+   "agent": "evaluator",
+   "kind": "assess",
+   "round": 2,
+   "facts": 6,
+   "conflicts": [],
+   "gaps": [],
+   "missing": [],
+   "verdict": "compliant",
+   "reasons": [
+    "standing policy exception X01 covers the export"
+   ],
+   "disclosure": {
+    "tables_accessed": [
+     "accounts",
+     "alerts",
+     "datasets",
+     "export_events",
+     "field_sensitivity",
+     "policies",
+     "policy_exceptions",
+     "tickets"
+    ],
+    "tables_used_in_answer": [
+     "accounts",
+     "alerts",
+     "datasets",
+     "export_events",
+     "field_sensitivity",
+     "policies",
+     "policy_exceptions",
+     "tickets"
+    ],
+    "accessed_but_unused": [],
+    "sensitive_columns_touched": [],
+    "pii_columns_touched": []
+   }
+  },
+  {
+   "t": 2.184,
+   "agent": "evaluator",
+   "kind": "second_opinion",
+   "rules_verdict": "compliant",
+   "verdict": "compliant",
+   "reasons": [
+    "stub: deterministic second opinion agrees with the rules"
+   ],
+   "missing_evidence": [],
+   "source": "stub",
+   "usable": true,
+   "agrees": true
+  },
+  {
+   "t": 2.184,
+   "agent": "critic",
+   "kind": "critique",
+   "attempt": 1,
+   "scores": {
+    "accuracy": 3,
+    "appropriateness": 3,
+    "actionability": 3
+   },
+   "total": 9,
+   "passed": true,
+   "fix": null,
+   "source": "stub"
+  },
+  {
+   "t": 2.185,
+   "agent": "evaluator",
+   "kind": "confidence",
+   "score": 1.0,
+   "label": "high",
+   "factors": [
+    "evidence completeness 1.00",
+    "second opinion agrees",
+    "critic 9/9"
+   ]
+  },
+  {
+   "t": 2.231,
+   "agent": "world",
+   "kind": "ingest",
+   "events_before": 39,
+   "events_after": 47,
+   "appended": 8,
+   "entities": 13,
+   "events": 47,
+   "merge_queue": 0
+  },
+  {
+   "t": 2.269,
+   "agent": "memory",
+   "kind": "remember",
+   "created": [
+    "mem-35",
+    "mem-36",
+    "mem-37",
+    "mem-38",
+    "mem-39",
+    "mem-40",
+    "mem-41"
+   ],
+   "reconfirmed": [],
+   "superseded": [],
+   "footprint": "mem-42",
+   "ledger": {
+    "create": 42
+   }
+  }
+ ],
+ "rounds": 2,
+ "outcome": {
+  "alert_id": "AL-005",
+  "verdict": "compliant",
+  "reasons": [
+   "standing policy exception X01 covers the export"
+  ],
+  "conflicts": [],
+  "gaps": [],
+  "missing": [],
+  "facts": 6,
+  "rounds": 2,
+  "disclosure": {
+   "tables_accessed": [
+    "accounts",
+    "alerts",
+    "datasets",
+    "export_events",
+    "field_sensitivity",
+    "policies",
+    "policy_exceptions",
+    "tickets"
+   ],
+   "tables_used_in_answer": [
+    "accounts",
+    "alerts",
+    "datasets",
+    "export_events",
+    "field_sensitivity",
+    "policies",
+    "policy_exceptions",
+    "tickets"
+   ],
+   "accessed_but_unused": [],
+   "sensitive_columns_touched": [],
+   "pii_columns_touched": []
+  },
+  "evidence": [
+   {
+    "text": "AL-005 (high, rule: off-hours bulk export of restricted data): account u1002 exported 42000 rows of DS01 at 2026-10-20 02:00:00 via api-client to a internal-share destination; ticket cited: none.",
+    "kind": "evidence",
+    "cites": [
+     {
+      "step": "q1",
+      "table": "dexa.export_events",
+      "column": "rows_exported"
+     },
+     {
+      "step": "q1",
+      "table": "dexa.alerts",
+      "column": null
+     }
+    ]
+   },
+   {
+    "text": "Account u1002: role data-steward, department risk, status active since 2026-07-25 00:00:00.",
+    "kind": "evidence",
+    "cites": [
+     {
+      "step": "q2",
+      "table": "dexa.accounts",
+      "column": "status"
+     }
+    ]
+   },
+   {
+    "text": "Dataset DS01 (customer_master) is classified restricted, owner risk, contains_pii=True.",
+    "kind": "evidence",
+    "cites": [
+     {
+      "step": "q4",
+      "table": "dexa.datasets",
+      "column": "sensitivity"
+     }
+    ]
+   },
+   {
+    "text": "Policy P009: role data-steward may export DS01; no-ticket cap 500 rows; advisory hours 07:00-19:00 (export was outside them).",
+    "kind": "evidence",
+    "cites": [
+     {
+      "step": "q5",
+      "table": "dexa.policies",
+      "column": "max_rows_without_ticket"
+     },
+     {
+      "step": "q5",
+      "table": "dexa.accounts",
+      "column": null
+     },
+     {
+      "step": "q5",
+      "table": "dexa.export_events",
+      "column": null
+     }
+    ]
+   },
+   {
+    "text": "0 other ticket(s) for u1002 on DS01; none covers this export.",
+    "kind": "evidence",
+    "cites": [
+     {
+      "step": "q6",
+      "table": "dexa.tickets",
+      "column": "status"
+     }
+    ]
+   },
+   {
+    "text": "Policy exception X01 (role data-steward, approved by u1003, valid 2026-10-18 00:00:00 .. 2026-10-25 23:59:59) applies: incident-response window INC-2026-311: stewards may export customer_master for breach-scope analysis",
+    "kind": "evidence",
+    "cites": [
+     {
+      "step": "q7",
+      "table": "dexa.policy_exceptions",
+      "column": "clause"
+     }
+    ]
+   }
+  ],
+  "next_steps": [],
+  "run_id": "20261023T032534Z-279764",
+  "log_file": "logs/trace-20261023T032534Z-279764.jsonl",
+  "summary": "Verdict compliant: standing policy exception X01 covers the export. No further action required.",
+  "second_opinion": {
+   "verdict": "compliant",
+   "reasons": [
+    "stub: deterministic second opinion agrees with the rules"
+   ],
+   "missing_evidence": [],
+   "source": "stub",
+   "usable": true,
+   "agrees": true,
+   "rules_verdict": "compliant"
+  },
+  "critic": {
+   "attempt": 1,
+   "scores": {
+    "accuracy": 3,
+    "appropriateness": 3,
+    "actionability": 3
+   },
+   "total": 9,
+   "passed": true,
+   "fix": null,
+   "source": "stub",
+   "review_status": "passed"
+  },
+  "confidence": {
+   "score": 1.0,
+   "label": "high",
+   "factors": [
+    "evidence completeness 1.00",
+    "second opinion agrees",
+    "critic 9/9"
+   ]
+  },
+  "priority": null,
+  "status": "complete",
+  "timeline": [
+   {
+    "t": 0.0,
+    "agent": "planner",
+    "what": "fetch alert"
+   },
+   {
+    "t": 0.842,
+    "agent": "retriever",
+    "what": "q1 alert: 1 rows from alerts, export_events (zetaris, 841 ms)"
+   },
+   {
+    "t": 0.842,
+    "agent": "evaluator",
+    "what": "needs more: sensitivity, account, dataset"
+   },
+   {
+    "t": 0.842,
+    "agent": "planner",
+    "what": "fetch account"
+   },
+   {
+    "t": 1.197,
+    "agent": "retriever",
+    "what": "q2 account: 1 rows from accounts (zetaris, 354 ms)"
+   },
+   {
+    "t": 1.198,
+    "agent": "evaluator",
+    "what": "needs more: sensitivity, dataset, policy"
+   },
+   {
+    "t": 1.21,
+    "agent": "planner",
+    "what": "fetch sensitivity, dataset, policy"
+   },
+   {
+    "t": 1.337,
+    "agent": "retriever",
+    "what": "q3 sensitivity: 9 rows from field_sensitivity (zetaris, 126 ms)"
+   },
+   {
+    "t": 1.489,
+    "agent": "retriever",
+    "what": "q4 dataset: 1 rows from datasets (zetaris, 151 ms)"
+   },
+   {
+    "t": 1.915,
+    "agent": "retriever",
+    "what": "q5 policy: 1 rows from accounts, export_events, policies (zetaris, 425 ms)"
+   },
+   {
+    "t": 1.917,
+    "agent": "evaluator",
+    "what": "needs more: tickets_account, exceptions"
+   },
+   {
+    "t": 1.917,
+    "agent": "planner",
+    "what": "fetch tickets_account, exceptions"
+   },
+   {
+    "t": 2.051,
+    "agent": "retriever",
+    "what": "q6 tickets_account: 0 rows from tickets (zetaris, 132 ms)"
+   },
+   {
+    "t": 2.183,
+    "agent": "retriever",
+    "what": "q7 exceptions: 1 rows from policy_exceptions (zetaris, 132 ms)"
+   },
+   {
+    "t": 2.184,
+    "agent": "evaluator",
+    "what": "verdict compliant"
+   },
+   {
+    "t": 2.184,
+    "agent": "evaluator",
+    "what": "second opinion compliant (agrees; stub)"
+   },
+   {
+    "t": 2.184,
+    "agent": "critic",
+    "what": "rubric 9/9 attempt 1"
+   }
+  ],
+  "queue": "none",
+  "memory_recalled": 0,
+  "memory": {
+   "created": 7,
+   "reconfirmed": 0,
+   "superseded": 0
+  },
+  "world": {
+   "events_before": 39,
+   "events_after": 47,
+   "appended": 8
+  },
+  "backend": "zetaris",
+  "llm": "stub",
+  "model_calls": 0
+ },
+ "finished_at": "2026-10-23T03:25:36Z",
+ "elapsed_s": 2.27,
+ "log_file": "logs/trace-20261023T032534Z-279764.jsonl"
+}

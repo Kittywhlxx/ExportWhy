@@ -1,0 +1,901 @@
+{
+ "run_id": "20261023T032545Z-bd1d59",
+ "task": "Triage alert AL-011",
+ "mode": "live",
+ "started_at": "2026-10-23T03:25:45Z",
+ "steps": [
+  {
+   "t": 0.0,
+   "agent": "planner",
+   "kind": "plan",
+   "reason": "identify the alert and its export event",
+   "evidence": [
+    "alert"
+   ],
+   "llm_drafted": 0,
+   "steps": [
+    {
+     "id": "q1",
+     "evidence": "alert",
+     "origin": "rules",
+     "sql": "SELECT a.alert_id, a.rule, a.severity, a.raised_at, e.event_id, e.ts, e.account_id, e.dataset_id, e.rows_exported, e.destination_type, e.tool, e.ticket_ref FROM dexa.alerts a JOIN dexa.export_events e ON e.event_id = a.event_id WHERE a.alert_id = 'AL-011'"
+    }
+   ]
+  },
+  {
+   "t": 0.75,
+   "agent": "retriever",
+   "kind": "query",
+   "step": "q1",
+   "evidence": "alert",
+   "backend": "zetaris",
+   "query_id": "990e5446-ad23-4d47-bdcb-681bddc325be",
+   "rows": 1,
+   "elapsed_ms": 749,
+   "tables": [
+    "alerts",
+    "export_events"
+   ],
+   "sql": "SELECT a.alert_id, a.rule, a.severity, a.raised_at, e.event_id, e.ts, e.account_id, e.dataset_id, e.rows_exported, e.destination_type, e.tool, e.ticket_ref FROM dexa.alerts a JOIN dexa.export_events e ON e.event_id = a.event_id WHERE a.alert_id = 'AL-011'"
+  },
+  {
+   "t": 0.75,
+   "agent": "evaluator",
+   "kind": "assess",
+   "round": 0,
+   "facts": 1,
+   "conflicts": [],
+   "gaps": [],
+   "missing": [
+    "sensitivity",
+    "account",
+    "dataset"
+   ],
+   "verdict": null,
+   "reasons": [],
+   "disclosure": {
+    "tables_accessed": [
+     "alerts",
+     "export_events"
+    ],
+    "tables_used_in_answer": [
+     "alerts",
+     "export_events"
+    ],
+    "accessed_but_unused": [],
+    "sensitive_columns_touched": [],
+    "pii_columns_touched": []
+   }
+  },
+  {
+   "t": 0.751,
+   "agent": "planner",
+   "kind": "plan",
+   "reason": "identify the exporting account",
+   "evidence": [
+    "account"
+   ],
+   "llm_drafted": 0,
+   "steps": [
+    {
+     "id": "q2",
+     "evidence": "account",
+     "origin": "rules",
+     "sql": "SELECT account_id, role, department, status, status_since FROM dexa.accounts WHERE account_id = 'u1022'"
+    }
+   ]
+  },
+  {
+   "t": 1.177,
+   "agent": "retriever",
+   "kind": "query",
+   "step": "q2",
+   "evidence": "account",
+   "backend": "zetaris",
+   "query_id": "160a39fa-37e9-4950-9c23-819ed09c9b57",
+   "rows": 1,
+   "elapsed_ms": 426,
+   "tables": [
+    "accounts"
+   ],
+   "sql": "SELECT account_id, role, department, status, status_since FROM dexa.accounts WHERE account_id = 'u1022'"
+  },
+  {
+   "t": 1.178,
+   "agent": "evaluator",
+   "kind": "assess",
+   "round": 0,
+   "facts": 2,
+   "conflicts": [],
+   "gaps": [],
+   "missing": [
+    "sensitivity",
+    "dataset",
+    "policy",
+    "ticket_cited"
+   ],
+   "verdict": null,
+   "reasons": [],
+   "disclosure": {
+    "tables_accessed": [
+     "accounts",
+     "alerts",
+     "export_events"
+    ],
+    "tables_used_in_answer": [
+     "accounts",
+     "alerts",
+     "export_events"
+    ],
+    "accessed_but_unused": [],
+    "sensitive_columns_touched": [],
+    "pii_columns_touched": []
+   }
+  },
+  {
+   "t": 1.191,
+   "agent": "memory",
+   "kind": "recall",
+   "query": "u1022 DS04 export alert ticket exception",
+   "hits": []
+  },
+  {
+   "t": 1.195,
+   "agent": "world",
+   "kind": "dossier",
+   "known": true,
+   "prior_alerts": [
+    {
+     "alert": "AL-001",
+     "verdict": "compliant",
+     "at": "2026-10-15T22:59:00"
+    }
+   ],
+   "status_history": [
+    {
+     "value": "active",
+     "at": "2026-10-15T22:59:00"
+    }
+   ]
+  },
+  {
+   "t": 1.195,
+   "agent": "planner",
+   "kind": "plan",
+   "reason": "evidence the verdict needs: sensitivity, dataset, policy, ticket_cited",
+   "evidence": [
+    "sensitivity",
+    "dataset",
+    "policy",
+    "ticket_cited"
+   ],
+   "llm_drafted": 0,
+   "steps": [
+    {
+     "id": "q3",
+     "evidence": "sensitivity",
+     "origin": "rules",
+     "sql": "SELECT table_name, column_name, level FROM dexa.field_sensitivity"
+    },
+    {
+     "id": "q4",
+     "evidence": "dataset",
+     "origin": "rules",
+     "sql": "SELECT dataset_id, name, sensitivity, owner_team, contains_pii FROM dexa.datasets WHERE dataset_id = 'DS04'"
+    },
+    {
+     "id": "q5",
+     "evidence": "policy",
+     "origin": "rules",
+     "sql": "SELECT p.policy_id, p.role, p.dataset_id, p.allowed, p.allowed_hours_start, p.allowed_hours_end, p.max_rows_without_ticket, p.requires_ticket, p.notes FROM dexa.export_events e JOIN dexa.accounts a ON a.account_id = e.account_id JOIN dexa.policies p ON p.role = a.role AND p.dataset_id = e.dataset_id WHERE e.event_id = 'E00240'"
+    },
+    {
+     "id": "q6",
+     "evidence": "ticket_cited",
+     "origin": "rules",
+     "sql": "SELECT t.ticket_id, t.requester_account_id, t.dataset_id, t.max_rows, t.valid_from, t.valid_to, t.status, t.approver_id FROM dexa.export_events e JOIN dexa.tickets t ON t.ticket_id = e.ticket_ref WHERE e.event_id = 'E00240'"
+    }
+   ]
+  },
+  {
+   "t": 1.294,
+   "agent": "retriever",
+   "kind": "query",
+   "step": "q3",
+   "evidence": "sensitivity",
+   "backend": "zetaris",
+   "query_id": "3a6bad1f-7a1e-4ccc-8868-b1dc24fca0cc",
+   "rows": 9,
+   "elapsed_ms": 98,
+   "tables": [
+    "field_sensitivity"
+   ],
+   "sql": "SELECT table_name, column_name, level FROM dexa.field_sensitivity"
+  },
+  {
+   "t": 1.4,
+   "agent": "retriever",
+   "kind": "query",
+   "step": "q4",
+   "evidence": "dataset",
+   "backend": "zetaris",
+   "query_id": "562786e4-1fe3-4a6d-b9a7-f44c1afc3891",
+   "rows": 1,
+   "elapsed_ms": 104,
+   "tables": [
+    "datasets"
+   ],
+   "sql": "SELECT dataset_id, name, sensitivity, owner_team, contains_pii FROM dexa.datasets WHERE dataset_id = 'DS04'"
+  },
+  {
+   "t": 1.827,
+   "agent": "retriever",
+   "kind": "query",
+   "step": "q5",
+   "evidence": "policy",
+   "backend": "zetaris",
+   "query_id": "e1bdb8ea-5f89-4d44-a5b7-7604080fa2d2",
+   "rows": 1,
+   "elapsed_ms": 426,
+   "tables": [
+    "accounts",
+    "export_events",
+    "policies"
+   ],
+   "sql": "SELECT p.policy_id, p.role, p.dataset_id, p.allowed, p.allowed_hours_start, p.allowed_hours_end, p.max_rows_without_ticket, p.requires_ticket, p.notes FROM dexa.export_events e JOIN dexa.accounts a ON a.account_id = e.account_id JOIN dexa.policies p ON p.role = a.role AND p.dataset_id = e.dataset_id WHERE e.event_id = 'E00240'"
+  },
+  {
+   "t": 2.057,
+   "agent": "retriever",
+   "kind": "query",
+   "step": "q6",
+   "evidence": "ticket_cited",
+   "backend": "zetaris",
+   "query_id": "41a6ef3c-f336-425a-80eb-579a7d02375d",
+   "rows": 0,
+   "elapsed_ms": 229,
+   "tables": [
+    "export_events",
+    "tickets"
+   ],
+   "sql": "SELECT t.ticket_id, t.requester_account_id, t.dataset_id, t.max_rows, t.valid_from, t.valid_to, t.status, t.approver_id FROM dexa.export_events e JOIN dexa.tickets t ON t.ticket_id = e.ticket_ref WHERE e.event_id = 'E00240'"
+  },
+  {
+   "t": 2.058,
+   "agent": "evaluator",
+   "kind": "assess",
+   "round": 1,
+   "facts": 5,
+   "conflicts": [],
+   "gaps": [
+    "cited ticket T-9999 does not exist in the ticket system"
+   ],
+   "missing": [
+    "tickets_account",
+    "exceptions"
+   ],
+   "verdict": null,
+   "reasons": [],
+   "disclosure": {
+    "tables_accessed": [
+     "accounts",
+     "alerts",
+     "datasets",
+     "export_events",
+     "field_sensitivity",
+     "policies",
+     "tickets"
+    ],
+    "tables_used_in_answer": [
+     "accounts",
+     "alerts",
+     "datasets",
+     "export_events",
+     "field_sensitivity",
+     "policies",
+     "tickets"
+    ],
+    "accessed_but_unused": [],
+    "sensitive_columns_touched": [],
+    "pii_columns_touched": []
+   }
+  },
+  {
+   "t": 2.058,
+   "agent": "planner",
+   "kind": "plan",
+   "reason": "evaluator: cited ticket T-9999 does not exist in the ticket system -> fetch tickets_account, exceptions",
+   "evidence": [
+    "tickets_account",
+    "exceptions"
+   ],
+   "llm_drafted": 0,
+   "steps": [
+    {
+     "id": "q7",
+     "evidence": "tickets_account",
+     "origin": "rules",
+     "sql": "SELECT ticket_id, requester_account_id, dataset_id, max_rows, valid_from, valid_to, status, approver_id FROM dexa.tickets WHERE requester_account_id = 'u1022' AND dataset_id = 'DS04' ORDER BY valid_to DESC"
+    },
+    {
+     "id": "q8",
+     "evidence": "exceptions",
+     "origin": "rules",
+     "sql": "SELECT exception_id, scope_type, scope_value, dataset_id, clause, valid_from, valid_to, approved_by FROM dexa.policy_exceptions WHERE dataset_id = 'DS04' AND ((scope_type = 'role' AND scope_value = 'analyst') OR (scope_type = 'account' AND scope_value = 'u1022'))"
+    }
+   ]
+  },
+  {
+   "t": 2.192,
+   "agent": "retriever",
+   "kind": "query",
+   "step": "q7",
+   "evidence": "tickets_account",
+   "backend": "zetaris",
+   "query_id": "ae6a56f6-edf8-40b7-b234-20d45d786772",
+   "rows": 0,
+   "elapsed_ms": 133,
+   "tables": [
+    "tickets"
+   ],
+   "sql": "SELECT ticket_id, requester_account_id, dataset_id, max_rows, valid_from, valid_to, status, approver_id FROM dexa.tickets WHERE requester_account_id = 'u1022' AND dataset_id = 'DS04' ORDER BY valid_to DESC"
+  },
+  {
+   "t": 2.308,
+   "agent": "retriever",
+   "kind": "query",
+   "step": "q8",
+   "evidence": "exceptions",
+   "backend": "zetaris",
+   "query_id": "8bb592ca-7c21-417c-ace9-37b4814b64f6",
+   "rows": 0,
+   "elapsed_ms": 115,
+   "tables": [
+    "policy_exceptions"
+   ],
+   "sql": "SELECT exception_id, scope_type, scope_value, dataset_id, clause, valid_from, valid_to, approved_by FROM dexa.policy_exceptions WHERE dataset_id = 'DS04' AND ((scope_type = 'role' AND scope_value = 'analyst') OR (scope_type = 'account' AND scope_value = 'u1022'))"
+  },
+  {
+   "t": 2.309,
+   "agent": "evaluator",
+   "kind": "assess",
+   "round": 2,
+   "facts": 7,
+   "conflicts": [],
+   "gaps": [
+    "cited ticket T-9999 does not exist in the ticket system"
+   ],
+   "missing": [
+    "account_history",
+    "destination"
+   ],
+   "verdict": null,
+   "reasons": [
+    "the only authorisation the exporter cites cannot be found, and nothing else covers the export"
+   ],
+   "disclosure": {
+    "tables_accessed": [
+     "accounts",
+     "alerts",
+     "datasets",
+     "export_events",
+     "field_sensitivity",
+     "policies",
+     "policy_exceptions",
+     "tickets"
+    ],
+    "tables_used_in_answer": [
+     "accounts",
+     "alerts",
+     "datasets",
+     "export_events",
+     "field_sensitivity",
+     "policies",
+     "policy_exceptions",
+     "tickets"
+    ],
+    "accessed_but_unused": [],
+    "sensitive_columns_touched": [],
+    "pii_columns_touched": []
+   }
+  },
+  {
+   "t": 2.309,
+   "agent": "planner",
+   "kind": "plan",
+   "reason": "evaluator: cited ticket T-9999 does not exist in the ticket system -> fetch account_history, destination",
+   "evidence": [
+    "account_history",
+    "destination"
+   ],
+   "llm_drafted": 0,
+   "steps": [
+    {
+     "id": "q9",
+     "evidence": "account_history",
+     "origin": "rules",
+     "sql": "SELECT COUNT(*) AS prior_exports, MAX(rows_exported) AS max_rows_before, SUM(rows_exported) AS total_rows_before FROM dexa.export_events WHERE account_id = 'u1022' AND dataset_id = 'DS04' AND ts < '2026-10-22 22:25:00'"
+    },
+    {
+     "id": "q10",
+     "evidence": "destination",
+     "origin": "rules",
+     "sql": "SELECT event_id, destination_type, destination FROM dexa.export_events WHERE event_id = 'E00240'"
+    }
+   ]
+  },
+  {
+   "t": 2.455,
+   "agent": "retriever",
+   "kind": "query",
+   "step": "q9",
+   "evidence": "account_history",
+   "backend": "zetaris",
+   "query_id": "97ec7933-c7bf-45f6-b3a7-566702a632fb",
+   "rows": 1,
+   "elapsed_ms": 145,
+   "tables": [
+    "export_events"
+   ],
+   "sql": "SELECT COUNT(*) AS prior_exports, MAX(rows_exported) AS max_rows_before, SUM(rows_exported) AS total_rows_before FROM dexa.export_events WHERE account_id = 'u1022' AND dataset_id = 'DS04' AND ts < '2026-10-22 22:25:00'"
+  },
+  {
+   "t": 2.571,
+   "agent": "retriever",
+   "kind": "query",
+   "step": "q10",
+   "evidence": "destination",
+   "backend": "zetaris",
+   "query_id": "dee96b75-b086-4f41-9382-33ee4371f3a9",
+   "rows": 1,
+   "elapsed_ms": 115,
+   "tables": [
+    "export_events"
+   ],
+   "sql": "SELECT event_id, destination_type, destination FROM dexa.export_events WHERE event_id = 'E00240'"
+  },
+  {
+   "t": 2.572,
+   "agent": "evaluator",
+   "kind": "assess",
+   "round": 3,
+   "facts": 8,
+   "conflicts": [],
+   "gaps": [
+    "cited ticket T-9999 does not exist in the ticket system"
+   ],
+   "missing": [],
+   "verdict": "cannot-confirm",
+   "reasons": [
+    "the only authorisation the exporter cites cannot be found, and nothing else covers the export"
+   ],
+   "disclosure": {
+    "tables_accessed": [
+     "accounts",
+     "alerts",
+     "datasets",
+     "export_events",
+     "field_sensitivity",
+     "policies",
+     "policy_exceptions",
+     "tickets"
+    ],
+    "tables_used_in_answer": [
+     "accounts",
+     "alerts",
+     "datasets",
+     "export_events",
+     "field_sensitivity",
+     "policies",
+     "policy_exceptions",
+     "tickets"
+    ],
+    "accessed_but_unused": [],
+    "sensitive_columns_touched": [
+     "export_events.destination (confidential)"
+    ],
+    "pii_columns_touched": []
+   }
+  },
+  {
+   "t": 2.572,
+   "agent": "evaluator",
+   "kind": "second_opinion",
+   "rules_verdict": "cannot-confirm",
+   "verdict": "cannot-confirm",
+   "reasons": [
+    "stub: deterministic second opinion agrees with the rules"
+   ],
+   "missing_evidence": [],
+   "source": "stub",
+   "usable": true,
+   "agrees": true
+  },
+  {
+   "t": 2.573,
+   "agent": "critic",
+   "kind": "critique",
+   "attempt": 1,
+   "scores": {
+    "accuracy": 3,
+    "appropriateness": 3,
+    "actionability": 3
+   },
+   "total": 9,
+   "passed": true,
+   "fix": null,
+   "source": "stub"
+  },
+  {
+   "t": 2.573,
+   "agent": "evaluator",
+   "kind": "confidence",
+   "score": 0.6,
+   "label": "medium",
+   "factors": [
+    "evidence completeness 1.00",
+    "second opinion agrees",
+    "critic 9/9",
+    "1 open gap(s)"
+   ]
+  },
+  {
+   "t": 2.666,
+   "agent": "world",
+   "kind": "ingest",
+   "events_before": 79,
+   "events_after": 87,
+   "appended": 8,
+   "entities": 21,
+   "events": 87,
+   "merge_queue": 0
+  },
+  {
+   "t": 2.757,
+   "agent": "memory",
+   "kind": "remember",
+   "created": [
+    "mem-82",
+    "mem-83",
+    "mem-84",
+    "mem-85",
+    "mem-86",
+    "mem-87",
+    "mem-88",
+    "mem-89",
+    "mem-90"
+   ],
+   "reconfirmed": [],
+   "superseded": [],
+   "footprint": "mem-91",
+   "ledger": {
+    "create": 91
+   }
+  }
+ ],
+ "rounds": 3,
+ "outcome": {
+  "alert_id": "AL-011",
+  "verdict": "cannot-confirm",
+  "reasons": [
+   "the only authorisation the exporter cites cannot be found, and nothing else covers the export"
+  ],
+  "conflicts": [],
+  "gaps": [
+   "cited ticket T-9999 does not exist in the ticket system"
+  ],
+  "missing": [],
+  "facts": 8,
+  "rounds": 3,
+  "disclosure": {
+   "tables_accessed": [
+    "accounts",
+    "alerts",
+    "datasets",
+    "export_events",
+    "field_sensitivity",
+    "policies",
+    "policy_exceptions",
+    "tickets"
+   ],
+   "tables_used_in_answer": [
+    "accounts",
+    "alerts",
+    "datasets",
+    "export_events",
+    "field_sensitivity",
+    "policies",
+    "policy_exceptions",
+    "tickets"
+   ],
+   "accessed_but_unused": [],
+   "sensitive_columns_touched": [
+    "export_events.destination (confidential)"
+   ],
+   "pii_columns_touched": []
+  },
+  "evidence": [
+   {
+    "text": "AL-011 (high, rule: off-hours bulk export citing a ticket): account u1022 exported 7000 rows of DS04 at 2026-10-22 22:25:00 via notebook to a email destination; ticket cited: T-9999.",
+    "kind": "evidence",
+    "cites": [
+     {
+      "step": "q1",
+      "table": "dexa.export_events",
+      "column": "rows_exported"
+     },
+     {
+      "step": "q1",
+      "table": "dexa.alerts",
+      "column": null
+     }
+    ]
+   },
+   {
+    "text": "Account u1022: role analyst, department customer-care, status active since 2026-01-12 00:00:00.",
+    "kind": "evidence",
+    "cites": [
+     {
+      "step": "q2",
+      "table": "dexa.accounts",
+      "column": "status"
+     }
+    ]
+   },
+   {
+    "text": "Dataset DS04 (marketing_leads) is classified confidential, owner marketing, contains_pii=True.",
+    "kind": "evidence",
+    "cites": [
+     {
+      "step": "q4",
+      "table": "dexa.datasets",
+      "column": "sensitivity"
+     }
+    ]
+   },
+   {
+    "text": "Policy P004: role analyst may export DS04; no-ticket cap 5000 rows; advisory hours 07:00-19:00 (export was outside them).",
+    "kind": "evidence",
+    "cites": [
+     {
+      "step": "q5",
+      "table": "dexa.policies",
+      "column": "max_rows_without_ticket"
+     },
+     {
+      "step": "q5",
+      "table": "dexa.accounts",
+      "column": null
+     },
+     {
+      "step": "q5",
+      "table": "dexa.export_events",
+      "column": null
+     }
+    ]
+   },
+   {
+    "text": "The exporter cited ticket T-9999, which does not exist in the ticket system.",
+    "kind": "gap",
+    "cites": [
+     {
+      "step": "q6",
+      "table": "dexa.tickets",
+      "column": "ticket_id"
+     },
+     {
+      "step": "q6",
+      "table": "dexa.export_events",
+      "column": null
+     }
+    ]
+   },
+   {
+    "text": "0 other ticket(s) for u1022 on DS04; none covers this export.",
+    "kind": "evidence",
+    "cites": [
+     {
+      "step": "q7",
+      "table": "dexa.tickets",
+      "column": "status"
+     }
+    ]
+   },
+   {
+    "text": "No policy exception covers role analyst or account u1022 on DS04 at 2026-10-22 22:25:00.",
+    "kind": "evidence",
+    "cites": [
+     {
+      "step": "q8",
+      "table": "dexa.policy_exceptions",
+      "column": "exception_id"
+     }
+    ]
+   },
+   {
+    "text": "The export went to an external email destination: <email redacted>.",
+    "kind": "evidence",
+    "cites": [
+     {
+      "step": "q10",
+      "table": "dexa.export_events",
+      "column": "destination"
+     }
+    ]
+   }
+  ],
+  "next_steps": [
+   "ask the exporter for the approval they relied on; check the ticket system's audit log for a deleted ticket",
+   "confirm whether the destination is a sanctioned location; request deletion if not"
+  ],
+  "run_id": "20261023T032545Z-bd1d59",
+  "log_file": "logs/trace-20261023T032545Z-bd1d59.jsonl",
+  "summary": "Verdict cannot-confirm: the only authorisation the exporter cites cannot be found, and nothing else covers the export. Next: ask the exporter for the approval they relied on; check the ticket system's audit log for a deleted ticket.",
+  "second_opinion": {
+   "verdict": "cannot-confirm",
+   "reasons": [
+    "stub: deterministic second opinion agrees with the rules"
+   ],
+   "missing_evidence": [],
+   "source": "stub",
+   "usable": true,
+   "agrees": true,
+   "rules_verdict": "cannot-confirm"
+  },
+  "critic": {
+   "attempt": 1,
+   "scores": {
+    "accuracy": 3,
+    "appropriateness": 3,
+    "actionability": 3
+   },
+   "total": 9,
+   "passed": true,
+   "fix": null,
+   "source": "stub",
+   "review_status": "passed"
+  },
+  "confidence": {
+   "score": 0.6,
+   "label": "medium",
+   "factors": [
+    "evidence completeness 1.00",
+    "second opinion agrees",
+    "critic 9/9",
+    "1 open gap(s)"
+   ]
+  },
+  "priority": null,
+  "status": "complete",
+  "timeline": [
+   {
+    "t": 0.0,
+    "agent": "planner",
+    "what": "fetch alert"
+   },
+   {
+    "t": 0.75,
+    "agent": "retriever",
+    "what": "q1 alert: 1 rows from alerts, export_events (zetaris, 749 ms)"
+   },
+   {
+    "t": 0.75,
+    "agent": "evaluator",
+    "what": "needs more: sensitivity, account, dataset"
+   },
+   {
+    "t": 0.751,
+    "agent": "planner",
+    "what": "fetch account"
+   },
+   {
+    "t": 1.177,
+    "agent": "retriever",
+    "what": "q2 account: 1 rows from accounts (zetaris, 426 ms)"
+   },
+   {
+    "t": 1.178,
+    "agent": "evaluator",
+    "what": "needs more: sensitivity, dataset, policy, ticket_cited"
+   },
+   {
+    "t": 1.195,
+    "agent": "planner",
+    "what": "fetch sensitivity, dataset, policy, ticket_cited"
+   },
+   {
+    "t": 1.294,
+    "agent": "retriever",
+    "what": "q3 sensitivity: 9 rows from field_sensitivity (zetaris, 98 ms)"
+   },
+   {
+    "t": 1.4,
+    "agent": "retriever",
+    "what": "q4 dataset: 1 rows from datasets (zetaris, 104 ms)"
+   },
+   {
+    "t": 1.827,
+    "agent": "retriever",
+    "what": "q5 policy: 1 rows from accounts, export_events, policies (zetaris, 426 ms)"
+   },
+   {
+    "t": 2.057,
+    "agent": "retriever",
+    "what": "q6 ticket_cited: 0 rows from export_events, tickets (zetaris, 229 ms)"
+   },
+   {
+    "t": 2.058,
+    "agent": "evaluator",
+    "what": "needs more: tickets_account, exceptions"
+   },
+   {
+    "t": 2.058,
+    "agent": "planner",
+    "what": "fetch tickets_account, exceptions"
+   },
+   {
+    "t": 2.192,
+    "agent": "retriever",
+    "what": "q7 tickets_account: 0 rows from tickets (zetaris, 133 ms)"
+   },
+   {
+    "t": 2.308,
+    "agent": "retriever",
+    "what": "q8 exceptions: 0 rows from policy_exceptions (zetaris, 115 ms)"
+   },
+   {
+    "t": 2.309,
+    "agent": "evaluator",
+    "what": "needs more: account_history, destination"
+   },
+   {
+    "t": 2.309,
+    "agent": "planner",
+    "what": "fetch account_history, destination"
+   },
+   {
+    "t": 2.455,
+    "agent": "retriever",
+    "what": "q9 account_history: 1 rows from export_events (zetaris, 145 ms)"
+   },
+   {
+    "t": 2.571,
+    "agent": "retriever",
+    "what": "q10 destination: 1 rows from export_events (zetaris, 115 ms)"
+   },
+   {
+    "t": 2.572,
+    "agent": "evaluator",
+    "what": "verdict cannot-confirm"
+   },
+   {
+    "t": 2.572,
+    "agent": "evaluator",
+    "what": "second opinion cannot-confirm (agrees; stub)"
+   },
+   {
+    "t": 2.573,
+    "agent": "critic",
+    "what": "rubric 9/9 attempt 1"
+   }
+  ],
+  "queue": "manual-review",
+  "memory_recalled": 0,
+  "memory": {
+   "created": 9,
+   "reconfirmed": 0,
+   "superseded": 0
+  },
+  "world": {
+   "events_before": 79,
+   "events_after": 87,
+   "appended": 8
+  },
+  "backend": "zetaris",
+  "llm": "stub",
+  "model_calls": 0
+ },
+ "finished_at": "2026-10-23T03:25:48Z",
+ "elapsed_s": 2.76,
+ "log_file": "logs/trace-20261023T032545Z-bd1d59.jsonl"
+}

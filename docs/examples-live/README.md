@@ -5,7 +5,7 @@ complete. Nemotron drafted the SQL for five evidence classes; the authorisation 
 ticket, other tickets, exceptions) were accepted because the drafts were canonically identical to the
 fixed templates, the dataset lookup passed the column and predicate checks; two of them (policy, cited
 ticket) are cross-source joins executed by Zetaris (`tables` in the trace: export_events + accounts +
-policies, export_events + tickets). The second opinion (`nemotron-3.5-super-vl-120b-a12b`) agreed with
+policies, export_events + tickets). The second opinion (`nvidia/nemotron-3.5-super-vl-120b-a12b`) agreed with
 the rules' *investigate* and named the scope mismatch; the Critic scored the first summary 6/9 (no next
 step), the Reporter revised once, the second review scored 9/9.
 
@@ -13,4 +13,6 @@ step), the Reporter revised once, the second review scored 9/9.
 (cited ticket does not exist); the second opinion agreed and gave three reasons. Kept as the historical
 demonstration of the loop; it predates the stricter authorisation-query rule.
 
-Every model call carries its routed model and receipt id. No secrets appear in these files.
+Every successful model call carries its routed model and receipt id. No secrets appear in these files.
+
+**zetaris-rules/**: one trace per alert from the 13/13 live Zetaris verification with the stub model (rule verdicts only); see its README.

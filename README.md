@@ -148,7 +148,7 @@ register them:
 ```bash
 docker compose --env-file .env -f infra/sources/docker-compose.yml up -d   # logsdb / policydb / ticketsdb
 .venv/bin/python data/zetaris/register.py                                 # 15 statements: 3 datasources + dexa views
-LLM_STUB=true .venv/bin/python -m agent.main evaluate                     # 13/13 on the federated backend
+LLM_STUB=true .venv/bin/python -m agent.main evaluate                     # 13/13 on the federated backend (recorded: docs/examples-live/zetaris-rules/)
 ```
 
 ### 4. Nightshift and Nemotron (the model)
@@ -231,7 +231,7 @@ the UI); the trust ledger keeps it and the calibration tally is shown per verdic
 
 `evaluate` also prints a trajectory table (rounds, queries, zero-row queries, sensitive columns,
 evidence/review score per alert, and the count of compliant verdicts that would rest on a zero-row authorisation
-query, which must be 0). Alert-Bench (NeurIPS 2026) found that revision stages overturn more correct
+query, which must be 0). Alert-Bench ([Benchmarking LLM Agents for SOC Alert Triage, NeurIPS 2026 listing](https://neurips.cc/virtual/2026/168137)) found that revision stages overturn more correct
 decisions than they repair; here the second opinion and the critic can only make a verdict more
 conservative (needs-human) or edit prose, never flip it to compliant.
 
@@ -295,8 +295,9 @@ verdict feedback, review-found regressions). 64 tests, one expected-fail that pi
 * The reference engines are implemented in Python from the Meterless specs; Node is not required.
   The official TypeScript runners were not executed here, their cases were ported to pytest.
 * Nightshift chooses the Nemotron model per request and currently prefers Nemotron 3 Ultra (550B), a
-  reasoning model that spends 400–1400 tokens thinking before it answers; a live triage therefore takes
-  4–5 minutes for five model calls, within the 5–10 minute budget. The stub path takes 2 seconds.
+  reasoning model that spends 400–1400 tokens thinking before it answers. The recorded live runs took
+  231 s (AL-004, 7 calls) and 298 s (AL-011, 8 recorded calls), within the 5–10 minute guideline; routing
+  and latency vary between runs. The stub path returns in well under a second.
 * `TRIAGE_TIMEOUT_S` is a whole-run budget with a 1 s floor per step: a query or model call is not started when
   less than 1 s is left, so a budget under about 1 s skips even the alert lookup and the run returns
   timed-out with nothing retrieved. Values below a few seconds are only useful for testing the timeout path.
