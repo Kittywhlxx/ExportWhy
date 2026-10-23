@@ -127,7 +127,7 @@ Notes: Name the design rule: the model can make the verdict more conservative or
 | 12 seeds × 13 alerts, offline | 156/156 |
 | disclosure ablation (distinct sensitive-column reads over 13 synthetic triages) | naive `SELECT *` 113 · this system 5 (96% fewer), identical verdicts |
 | failure path | any critical source down → cannot-confirm, never compliant (3 outage tests) |
-| tests | 60 passed (two engine conformance suites + end-to-end + review regressions) |
+| tests | 61 passed (two engine conformance suites + end-to-end + review regressions) |
 
 Visual: the confusion table (10 scenarios, every row in its expected column) and the ablation bar (113 vs 5).
 

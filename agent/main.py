@@ -100,12 +100,20 @@ def run(task: Task, persist_memory: bool = True, run_id: str | None = None) -> t
             done.setdefault(s.evidence, []).append(s)
         assessment = evaluator.assess(task, done, retriever.footprint, rounds)
         reason = "evaluator: " + (", ".join(assessment.conflicts + assessment.gaps) or "evidence still insufficient") + " -> fetch " + ", ".join(assessment.missing)
+    # a query the Retriever skipped for lack of budget is evidence the verdict never saw: that is a timeout too,
+    # whether or not the wall clock has passed the deadline by the time the rounds end
+    skipped_classes = sorted(cls for cls, steps in done.items() if steps and all(s.skipped for s in steps))
+    if skipped_classes and status != "timed-out":
+        status = "timed-out"; trace.step("system", "timeout", budget_s=budget_s, phase="evidence rounds", skipped=skipped_classes)
     if assessment.verdict is None:
         assessment.verdict = assessment.derived.get("verdict") or "cannot-confirm"
     if status == "timed-out":
         assessment.verdict = "cannot-confirm"
-        assessment.reasons.insert(0, f"time budget of {budget_s:.0f}s exhausted before the evidence was complete; manual review needed")
-        assessment.next_steps.insert(0, "re-run the triage, or review the partial evidence below by hand")
+        not_seen = sorted(set(assessment.derived.get("unfetched") or []) | set(assessment.missing) | set(skipped_classes))
+        assessment.derived["unfetched"] = not_seen; assessment.missing = []
+        assessment.reasons.insert(0, f"time budget of {budget_s:.0f}s exhausted before the evidence was complete"
+                                  + (f" (not retrieved: {', '.join(not_seen)})" if not_seen else "") + "; manual review needed")
+        assessment.next_steps.insert(0, "re-run the triage with a larger TRIAGE_TIMEOUT_S, or review the partial evidence below by hand")
 
     # second opinion: the model judges the same evidence; a disagreement buys one more evidence round, then escalates
     if time.time() > deadline:

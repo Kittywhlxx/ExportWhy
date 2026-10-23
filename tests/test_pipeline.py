@@ -450,7 +450,7 @@ def test_memory_concurrent_writers_lose_nothing():
 
 # ---- fourth review round
 
-def test_reader_waits_for_a_writer_holding_the_lock():
+def test_reader_waits_for_a_writer_holding_the_lock(monkeypatch):
     """A reader must never see a half-written state.json: it blocks on the directory lock until the writer is done."""
     import threading, time as _t
     from agent import memory as memory_mod
@@ -468,14 +468,27 @@ def test_reader_waits_for_a_writer_holding_the_lock():
             release.wait(5)
             state.write_text(original)
 
-    th = threading.Thread(target=writer_holding_lock); th.start(); holding.wait(5)
+    th = threading.Thread(target=writer_holding_lock); th.start(); assert holding.wait(5)
+    # confirm the reader actually reaches the lock request (so "blocked" is not just "not scheduled yet")
+    import fcntl as _fcntl
+    attempted = threading.Event(); real_flock = _fcntl.flock
+    def flock(fd, op):
+        if op == _fcntl.LOCK_EX:
+            attempted.set()
+        return real_flock(fd, op)
+    monkeypatch.setattr(memory_mod.fcntl, "flock", flock)
     result = {}
     def reader():
-        result["recs"] = Memory().all()
+        try:
+            result["recs"] = Memory().all()
+        except Exception as exc:                        # noqa: BLE001 - surfaced by the assertions below
+            result["error"] = exc
     rt = threading.Thread(target=reader); rt.start()
-    _t.sleep(0.2)
-    assert "recs" not in result                            # still blocked while the file is truncated
+    assert attempted.wait(5)                                # the reader asked for the lock ...
+    _t.sleep(0.1)
+    assert "recs" not in result and "error" not in result   # ... and is still blocked while the file is truncated
     release.set(); th.join(5); rt.join(5)
+    assert "error" not in result, result.get("error")
     assert [r["content"] for r in result["recs"]] == ["seed fact"]
 
 
@@ -485,3 +498,24 @@ def test_small_budget_is_reported_as_budget_not_source_failure(monkeypatch):
     assert out["status"] == "timed-out"
     assert not any("unreachable" in r for r in out["reasons"]) and "budget" in " ".join(out["reasons"])
     assert "unreachable" not in report
+
+
+def test_budget_spent_mid_investigation_is_timed_out_with_retrieval_guidance(monkeypatch):
+    """The first query eats most of the budget; later queries are skipped. That must surface as timed-out with the
+    unretrieved evidence named, never as a complete verdict with 'no further action required'."""
+    import time as _t
+    real = zetaris.SampleSQLite.query
+    calls = {"n": 0}
+    def slow_first(self, sql, limit=200, **kw):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            _t.sleep(1.1)
+        return real(self, sql, limit)
+    monkeypatch.setattr(zetaris.SampleSQLite, "query", slow_first)
+    monkeypatch.setenv("TRIAGE_TIMEOUT_S", "1.5")
+    report, out = agent_main.run(Task(alert_id="AL-004"))
+    assert out["status"] == "timed-out" and out["verdict"] == "cannot-confirm"
+    assert any("budget" in r and "not retrieved" in r for r in out["reasons"]), out["reasons"]
+    assert any("TRIAGE_TIMEOUT_S" in n for n in out["next_steps"])
+    assert "No further action required" not in report and "not retrieved" in report
+    assert any("skipped" in e["what"] for e in out["timeline"])

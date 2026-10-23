@@ -223,7 +223,8 @@ Every verdict carries an **evidence/review score** (a heuristic in [0, 1], not a
 evidence completeness, second-opinion agreement, critic score, open gaps, unretrieved evidence), a **priority** for the analyst's queue when it needs work (dataset sensitivity, rows,
 external destination, account status → P1/P2/P3), a **status** (complete, partial, timed-out: the
 whole triage has a wall-clock budget, `TRIAGE_TIMEOUT_S`, default 480 s, and returns what it has with
-"manual review" instead of hanging), the **investigation timeline** (every plan, query with row counts,
+"manual review" instead of hanging; any evidence skipped for lack of budget makes the run timed-out and is
+named in the report, so a verdict never reads as complete on evidence it did not see), the **investigation timeline** (every plan, query with row counts,
 evaluation round, second opinion and critique, in order), and the **memory updates** it made, each with
 its source. Analysts can agree or disagree with the verdict itself (`feedback-verdict`, or the buttons in
 the UI); the trust ledger keeps it and the calibration tally is shown per verdict type.
@@ -285,7 +286,7 @@ an authorisation template, so a draft cannot widen what is read.
 `pytest -q` runs the H-MEM conformance vectors, the World Model conformance cases, and the
 end-to-end loop in `SAMPLE_MODE` (ground truth, cross-alert world state, outage injection per source,
 redaction, second-opinion escalation, critic-driven revision, confidence/priority/timeline, time budget,
-verdict feedback, review-found regressions). 60 tests, one expected-fail that pins a known reference-implementation behaviour.
+verdict feedback, review-found regressions). 61 tests, one expected-fail that pins a known reference-implementation behaviour.
 
 ## Limits and honest notes
 
