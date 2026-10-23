@@ -107,7 +107,7 @@ Notes: Stress "critical path": remove either engine and a feature stops working 
 
 ## 7. NVIDIA Nemotron: where the model contributes
 
-- drafts the evidence SQL (validator keeps a draft only if it is read-only, column-scoped and, for authorisation lookups, carries every filter of the template; 48 of 48 kept in the recorded live run)
+- drafts the evidence SQL; a draft is used only if it is read-only and column-scoped, and an authorisation lookup only if the draft is canonically identical to the fixed template (otherwise the template runs). In the recorded AL-004 run all five drafts were accepted on those terms
 - gives the Evaluator's **second opinion** on the same facts, blind to the rules' answer
 - writes the analyst summary and **scores it as the Critic**
 - every call: `routed_model` and `receipt_id` in the trace (`nvidia/nemotron-3-ultra-550b-a55b`, `nemotron-3.5-super-vl-120b-a12b`)
@@ -123,7 +123,7 @@ Notes: Name the design rule: the model can make the verdict more conservative or
 | check | result |
 |---|---|
 | live Zetaris, rule verdicts | 13/13 alerts match ground truth |
-| live Zetaris + Nemotron drafting (recorded 2026-10-22 run) | 13/13; 48/48 drafted SQL kept |
+| live Zetaris + Nemotron (recorded runs AL-004, AL-011 in docs/examples-live) | verdicts match; drafts accepted only when equivalent to the template; critic 6/9 → revision → 9/9 |
 | 12 seeds × 13 alerts, offline | 156/156 |
 | disclosure ablation (distinct sensitive-column reads over 13 synthetic triages) | naive `SELECT *` 113 · this system 5 (96% fewer), identical verdicts |
 | failure path | any critical source down → cannot-confirm, never compliant (3 outage tests) |

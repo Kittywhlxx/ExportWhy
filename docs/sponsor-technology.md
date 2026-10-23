@@ -59,8 +59,10 @@ With the NVIDIA key stored in Nightshift's Providers tab (never in the app), req
 Nemotron models (`nvidia/nemotron-3-ultra-550b-a55b`, `nvidia/nemotron-3.5-super-vl-120b-a12b` in
 the live runs). Nemotron does the work that needs language: it writes the SQL for each evidence
 class, judges the facts independently as a second opinion, writes the analyst summary and scores it.
-The logs show which Nemotron model handled each request. In the live run over 13 alerts, 48 of 48
-Nemotron-drafted queries passed the validator and 13/13 verdicts matched the ground truth.
+The logs show which Nemotron model handled each request. Model-drafted SQL is used only when it is
+read-only and column-scoped, and for authorisation lookups only when it is canonically identical to the fixed
+template; otherwise the template runs. The recorded live runs (docs/examples-live) show the drafts accepted
+on those terms, the second opinion agreeing with the rules, and the Critic forcing one revision.
 
 ## What is unique about this use of the sponsor technologies
 

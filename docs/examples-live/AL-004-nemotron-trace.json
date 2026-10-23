@@ -1,0 +1,1066 @@
+{
+ "run_id": "20261023T004337Z-288dc3",
+ "task": "Triage alert AL-004",
+ "mode": "live",
+ "started_at": "2026-10-23T00:43:37Z",
+ "steps": [
+  {
+   "t": 0.428,
+   "agent": "planner",
+   "kind": "plan",
+   "reason": "identify the alert and its export event",
+   "evidence": [
+    "alert"
+   ],
+   "llm_drafted": 0,
+   "steps": [
+    {
+     "id": "q1",
+     "evidence": "alert",
+     "origin": "rules",
+     "sql": "SELECT a.alert_id, a.rule, a.severity, a.raised_at, e.event_id, e.ts, e.account_id, e.dataset_id, e.rows_exported, e.destination_type, e.tool, e.ticket_ref FROM dexa.alerts a JOIN dexa.export_events e ON e.event_id = a.event_id WHERE a.alert_id = 'AL-004'"
+    }
+   ]
+  },
+  {
+   "t": 0.802,
+   "agent": "retriever",
+   "kind": "query",
+   "step": "q1",
+   "evidence": "alert",
+   "backend": "zetaris",
+   "query_id": "f980989e-f14d-4ee5-8da3-86aaac726f2a",
+   "rows": 1,
+   "elapsed_ms": 372,
+   "tables": [
+    "alerts",
+    "export_events"
+   ],
+   "sql": "SELECT a.alert_id, a.rule, a.severity, a.raised_at, e.event_id, e.ts, e.account_id, e.dataset_id, e.rows_exported, e.destination_type, e.tool, e.ticket_ref FROM dexa.alerts a JOIN dexa.export_events e ON e.event_id = a.event_id WHERE a.alert_id = 'AL-004'"
+  },
+  {
+   "t": 0.806,
+   "agent": "evaluator",
+   "kind": "assess",
+   "round": 0,
+   "facts": 1,
+   "conflicts": [],
+   "gaps": [],
+   "missing": [
+    "sensitivity",
+    "account",
+    "dataset"
+   ],
+   "verdict": null,
+   "reasons": [],
+   "disclosure": {
+    "tables_accessed": [
+     "alerts",
+     "export_events"
+    ],
+    "tables_used_in_answer": [
+     "alerts",
+     "export_events"
+    ],
+    "accessed_but_unused": [],
+    "sensitive_columns_touched": [],
+    "pii_columns_touched": []
+   }
+  },
+  {
+   "t": 0.806,
+   "agent": "planner",
+   "kind": "plan",
+   "reason": "identify the exporting account",
+   "evidence": [
+    "account"
+   ],
+   "llm_drafted": 0,
+   "steps": [
+    {
+     "id": "q2",
+     "evidence": "account",
+     "origin": "rules",
+     "sql": "SELECT account_id, role, department, status, status_since FROM dexa.accounts WHERE account_id = 'u1012'"
+    }
+   ]
+  },
+  {
+   "t": 0.946,
+   "agent": "retriever",
+   "kind": "query",
+   "step": "q2",
+   "evidence": "account",
+   "backend": "zetaris",
+   "query_id": "50a6d37c-945f-4a47-80e7-bb43717422a8",
+   "rows": 1,
+   "elapsed_ms": 139,
+   "tables": [
+    "accounts"
+   ],
+   "sql": "SELECT account_id, role, department, status, status_since FROM dexa.accounts WHERE account_id = 'u1012'"
+  },
+  {
+   "t": 0.947,
+   "agent": "evaluator",
+   "kind": "assess",
+   "round": 0,
+   "facts": 2,
+   "conflicts": [],
+   "gaps": [],
+   "missing": [
+    "sensitivity",
+    "dataset",
+    "policy",
+    "ticket_cited"
+   ],
+   "verdict": null,
+   "reasons": [],
+   "disclosure": {
+    "tables_accessed": [
+     "accounts",
+     "alerts",
+     "export_events"
+    ],
+    "tables_used_in_answer": [
+     "accounts",
+     "alerts",
+     "export_events"
+    ],
+    "accessed_but_unused": [],
+    "sensitive_columns_touched": [],
+    "pii_columns_touched": []
+   }
+  },
+  {
+   "t": 0.949,
+   "agent": "memory",
+   "kind": "recall",
+   "query": "u1012 DS02 export alert ticket exception",
+   "hits": []
+  },
+  {
+   "t": 0.965,
+   "agent": "world",
+   "kind": "dossier",
+   "known": false,
+   "prior_alerts": [],
+   "status_history": []
+  },
+  {
+   "t": 11.876,
+   "agent": "planner",
+   "kind": "llm",
+   "provider": "meterless-nightshift",
+   "model_requested": "meterless/fast",
+   "model_served": "nvidia/nemotron-3-ultra-550b-a55b",
+   "routed_model": "nvidia/nemotron-3-ultra-550b-a55b",
+   "receipt_id": "rcpt_req_v4ggz1hl",
+   "usage": {
+    "completion_tokens": 352,
+    "prompt_tokens": 1703,
+    "total_tokens": 2055,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": null
+   }
+  },
+  {
+   "t": 11.876,
+   "agent": "planner",
+   "kind": "plan",
+   "reason": "evidence the verdict needs: sensitivity, dataset, policy, ticket_cited",
+   "evidence": [
+    "sensitivity",
+    "dataset",
+    "policy",
+    "ticket_cited"
+   ],
+   "llm_drafted": 3,
+   "steps": [
+    {
+     "id": "q3",
+     "evidence": "sensitivity",
+     "origin": "rules",
+     "sql": "SELECT table_name, column_name, level FROM dexa.field_sensitivity"
+    },
+    {
+     "id": "q4",
+     "evidence": "dataset",
+     "origin": "llm",
+     "sql": "SELECT dataset_id, name, sensitivity, owner_team, contains_pii FROM dexa.datasets WHERE dataset_id = 'DS02'"
+    },
+    {
+     "id": "q5",
+     "evidence": "policy",
+     "origin": "llm",
+     "sql": "SELECT p.policy_id, p.role, p.dataset_id, p.allowed, p.allowed_hours_start, p.allowed_hours_end, p.max_rows_without_ticket, p.requires_ticket, p.notes FROM dexa.export_events e JOIN dexa.accounts a ON a.account_id = e.account_id JOIN dexa.policies p ON p.role = a.role AND p.dataset_id = e.dataset_id WHERE e.event_id = 'E00233'"
+    },
+    {
+     "id": "q6",
+     "evidence": "ticket_cited",
+     "origin": "llm",
+     "sql": "SELECT t.ticket_id, t.requester_account_id, t.dataset_id, t.max_rows, t.valid_from, t.valid_to, t.status, t.approver_id FROM dexa.export_events e JOIN dexa.tickets t ON t.ticket_id = e.ticket_ref WHERE e.event_id = 'E00233'"
+    }
+   ]
+  },
+  {
+   "t": 12.163,
+   "agent": "retriever",
+   "kind": "query",
+   "step": "q3",
+   "evidence": "sensitivity",
+   "backend": "zetaris",
+   "query_id": "4a136a4f-6d6a-4a34-a2b5-7c0857782060",
+   "rows": 9,
+   "elapsed_ms": 286,
+   "tables": [
+    "field_sensitivity"
+   ],
+   "sql": "SELECT table_name, column_name, level FROM dexa.field_sensitivity"
+  },
+  {
+   "t": 12.312,
+   "agent": "retriever",
+   "kind": "query",
+   "step": "q4",
+   "evidence": "dataset",
+   "backend": "zetaris",
+   "query_id": "e09f64a7-9343-44f4-b364-addc7e35bbca",
+   "rows": 1,
+   "elapsed_ms": 148,
+   "tables": [
+    "datasets"
+   ],
+   "sql": "SELECT dataset_id, name, sensitivity, owner_team, contains_pii FROM dexa.datasets WHERE dataset_id = 'DS02'"
+  },
+  {
+   "t": 12.716,
+   "agent": "retriever",
+   "kind": "query",
+   "step": "q5",
+   "evidence": "policy",
+   "backend": "zetaris",
+   "query_id": "a2a1bd25-c39e-44c8-83c6-2002f1c7cde4",
+   "rows": 1,
+   "elapsed_ms": 403,
+   "tables": [
+    "accounts",
+    "export_events",
+    "policies"
+   ],
+   "sql": "SELECT p.policy_id, p.role, p.dataset_id, p.allowed, p.allowed_hours_start, p.allowed_hours_end, p.max_rows_without_ticket, p.requires_ticket, p.notes FROM dexa.export_events e JOIN dexa.accounts a ON a.account_id = e.account_id JOIN dexa.policies p ON p.role = a.role AND p.dataset_id = e.dataset_id WHERE e.event_id = 'E00233'"
+  },
+  {
+   "t": 13.063,
+   "agent": "retriever",
+   "kind": "query",
+   "step": "q6",
+   "evidence": "ticket_cited",
+   "backend": "zetaris",
+   "query_id": "3eee99ab-f811-4aa2-82ac-1a22f837b480",
+   "rows": 1,
+   "elapsed_ms": 346,
+   "tables": [
+    "export_events",
+    "tickets"
+   ],
+   "sql": "SELECT t.ticket_id, t.requester_account_id, t.dataset_id, t.max_rows, t.valid_from, t.valid_to, t.status, t.approver_id FROM dexa.export_events e JOIN dexa.tickets t ON t.ticket_id = e.ticket_ref WHERE e.event_id = 'E00233'"
+  },
+  {
+   "t": 13.063,
+   "agent": "evaluator",
+   "kind": "assess",
+   "round": 1,
+   "facts": 5,
+   "conflicts": [
+    "ticket T-2629 was cited but does not cover the export: 48000 rows exported exceed the ticket's max_rows 5000"
+   ],
+   "gaps": [],
+   "missing": [
+    "tickets_account",
+    "exceptions"
+   ],
+   "verdict": null,
+   "reasons": [],
+   "disclosure": {
+    "tables_accessed": [
+     "accounts",
+     "alerts",
+     "datasets",
+     "export_events",
+     "field_sensitivity",
+     "policies",
+     "tickets"
+    ],
+    "tables_used_in_answer": [
+     "accounts",
+     "alerts",
+     "datasets",
+     "export_events",
+     "field_sensitivity",
+     "policies",
+     "tickets"
+    ],
+    "accessed_but_unused": [],
+    "sensitive_columns_touched": [],
+    "pii_columns_touched": []
+   }
+  },
+  {
+   "t": 29.418,
+   "agent": "planner",
+   "kind": "llm",
+   "provider": "meterless-nightshift",
+   "model_requested": "meterless/fast",
+   "model_served": "nvidia/nemotron-3-ultra-550b-a55b",
+   "routed_model": "nvidia/nemotron-3-ultra-550b-a55b",
+   "receipt_id": "rcpt_req_trrampav",
+   "usage": {
+    "completion_tokens": 342,
+    "prompt_tokens": 1968,
+    "total_tokens": 2310,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": null
+   }
+  },
+  {
+   "t": 29.42,
+   "agent": "planner",
+   "kind": "plan",
+   "reason": "evaluator: ticket T-2629 was cited but does not cover the export: 48000 rows exported exceed the ticket's max_rows 5000 -> fetch tickets_account, exceptions",
+   "evidence": [
+    "tickets_account",
+    "exceptions"
+   ],
+   "llm_drafted": 2,
+   "steps": [
+    {
+     "id": "q7",
+     "evidence": "tickets_account",
+     "origin": "llm",
+     "sql": "SELECT ticket_id, requester_account_id, dataset_id, max_rows, valid_from, valid_to, status, approver_id FROM dexa.tickets WHERE requester_account_id = 'u1012' AND dataset_id = 'DS02' ORDER BY valid_to DESC"
+    },
+    {
+     "id": "q8",
+     "evidence": "exceptions",
+     "origin": "llm",
+     "sql": "SELECT exception_id, scope_type, scope_value, dataset_id, clause, valid_from, valid_to, approved_by FROM dexa.policy_exceptions WHERE dataset_id = 'DS02' AND ((scope_type = 'role' AND scope_value = 'finance') OR (scope_type = 'account' AND scope_value = 'u1012'))"
+    }
+   ]
+  },
+  {
+   "t": 29.716,
+   "agent": "retriever",
+   "kind": "query",
+   "step": "q7",
+   "evidence": "tickets_account",
+   "backend": "zetaris",
+   "query_id": "e57111b4-d648-4e28-8c20-d81b7e041fad",
+   "rows": 1,
+   "elapsed_ms": 296,
+   "tables": [
+    "tickets"
+   ],
+   "sql": "SELECT ticket_id, requester_account_id, dataset_id, max_rows, valid_from, valid_to, status, approver_id FROM dexa.tickets WHERE requester_account_id = 'u1012' AND dataset_id = 'DS02' ORDER BY valid_to DESC"
+  },
+  {
+   "t": 29.973,
+   "agent": "retriever",
+   "kind": "query",
+   "step": "q8",
+   "evidence": "exceptions",
+   "backend": "zetaris",
+   "query_id": "b0d43292-aa46-48b3-b57a-dc3792397402",
+   "rows": 1,
+   "elapsed_ms": 255,
+   "tables": [
+    "policy_exceptions"
+   ],
+   "sql": "SELECT exception_id, scope_type, scope_value, dataset_id, clause, valid_from, valid_to, approved_by FROM dexa.policy_exceptions WHERE dataset_id = 'DS02' AND ((scope_type = 'role' AND scope_value = 'finance') OR (scope_type = 'account' AND scope_value = 'u1012'))"
+  },
+  {
+   "t": 29.974,
+   "agent": "evaluator",
+   "kind": "assess",
+   "round": 2,
+   "facts": 7,
+   "conflicts": [
+    "ticket T-2629 was cited but does not cover the export: 48000 rows exported exceed the ticket's max_rows 5000"
+   ],
+   "gaps": [],
+   "missing": [
+    "account_history",
+    "destination"
+   ],
+   "verdict": null,
+   "reasons": [
+    "the cited ticket does not cover this export and no other authorisation does"
+   ],
+   "disclosure": {
+    "tables_accessed": [
+     "accounts",
+     "alerts",
+     "datasets",
+     "export_events",
+     "field_sensitivity",
+     "policies",
+     "policy_exceptions",
+     "tickets"
+    ],
+    "tables_used_in_answer": [
+     "accounts",
+     "alerts",
+     "datasets",
+     "export_events",
+     "field_sensitivity",
+     "policies",
+     "policy_exceptions",
+     "tickets"
+    ],
+    "accessed_but_unused": [],
+    "sensitive_columns_touched": [],
+    "pii_columns_touched": []
+   }
+  },
+  {
+   "t": 29.974,
+   "agent": "planner",
+   "kind": "plan",
+   "reason": "evaluator: ticket T-2629 was cited but does not cover the export: 48000 rows exported exceed the ticket's max_rows 5000 -> fetch account_history, destination",
+   "evidence": [
+    "account_history",
+    "destination"
+   ],
+   "llm_drafted": 0,
+   "steps": [
+    {
+     "id": "q9",
+     "evidence": "account_history",
+     "origin": "rules",
+     "sql": "SELECT COUNT(*) AS prior_exports, MAX(rows_exported) AS max_rows_before, SUM(rows_exported) AS total_rows_before FROM dexa.export_events WHERE account_id = 'u1012' AND dataset_id = 'DS02' AND ts < '2026-10-19 03:30:00'"
+    },
+    {
+     "id": "q10",
+     "evidence": "destination",
+     "origin": "rules",
+     "sql": "SELECT event_id, destination_type, destination FROM dexa.export_events WHERE event_id = 'E00233'"
+    }
+   ]
+  },
+  {
+   "t": 30.901,
+   "agent": "retriever",
+   "kind": "query",
+   "step": "q9",
+   "evidence": "account_history",
+   "backend": "zetaris",
+   "query_id": "d1b9cf64-abd1-402a-91bd-7faf7d8794f6",
+   "rows": 1,
+   "elapsed_ms": 926,
+   "tables": [
+    "export_events"
+   ],
+   "sql": "SELECT COUNT(*) AS prior_exports, MAX(rows_exported) AS max_rows_before, SUM(rows_exported) AS total_rows_before FROM dexa.export_events WHERE account_id = 'u1012' AND dataset_id = 'DS02' AND ts < '2026-10-19 03:30:00'"
+  },
+  {
+   "t": 31.057,
+   "agent": "retriever",
+   "kind": "query",
+   "step": "q10",
+   "evidence": "destination",
+   "backend": "zetaris",
+   "query_id": "3b3f52eb-eea4-45b5-9376-cd1bd86accae",
+   "rows": 1,
+   "elapsed_ms": 155,
+   "tables": [
+    "export_events"
+   ],
+   "sql": "SELECT event_id, destination_type, destination FROM dexa.export_events WHERE event_id = 'E00233'"
+  },
+  {
+   "t": 31.058,
+   "agent": "evaluator",
+   "kind": "assess",
+   "round": 3,
+   "facts": 9,
+   "conflicts": [
+    "ticket T-2629 was cited but does not cover the export: 48000 rows exported exceed the ticket's max_rows 5000"
+   ],
+   "gaps": [],
+   "missing": [],
+   "verdict": "investigate",
+   "reasons": [
+    "the cited ticket does not cover this export and no other authorisation does"
+   ],
+   "disclosure": {
+    "tables_accessed": [
+     "accounts",
+     "alerts",
+     "datasets",
+     "export_events",
+     "field_sensitivity",
+     "policies",
+     "policy_exceptions",
+     "tickets"
+    ],
+    "tables_used_in_answer": [
+     "accounts",
+     "alerts",
+     "datasets",
+     "export_events",
+     "field_sensitivity",
+     "policies",
+     "policy_exceptions",
+     "tickets"
+    ],
+    "accessed_but_unused": [],
+    "sensitive_columns_touched": [
+     "export_events.destination (confidential)"
+    ],
+    "pii_columns_touched": []
+   }
+  },
+  {
+   "t": 42.084,
+   "agent": "evaluator",
+   "kind": "llm",
+   "provider": "meterless-nightshift",
+   "model_requested": "meterless/fast",
+   "model_served": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+   "routed_model": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+   "receipt_id": "rcpt_req_32m095lu",
+   "usage": {
+    "completion_tokens": 1125,
+    "prompt_tokens": 1768,
+    "total_tokens": 2893,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": null
+   }
+  },
+  {
+   "t": 42.087,
+   "agent": "evaluator",
+   "kind": "second_opinion",
+   "rules_verdict": "investigate",
+   "verdict": "investigate",
+   "reasons": [
+    "Export of 48,000 rows exceeds the no-ticket cap of 500 rows for role finance on DS02",
+    "Cited ticket T-2629 is approved and valid at the export time, but its max_rows of 5,000 does not cover the 48,000 rows exported",
+    "No other ticket for u1012 on DS02 covers this export",
+    "No policy exception covers role finance or account u1012 on DS02 at 2026-10-19 03:30:00"
+   ],
+   "missing_evidence": [],
+   "source": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+   "usable": true,
+   "agrees": true
+  },
+  {
+   "t": 62.454,
+   "agent": "reporter",
+   "kind": "llm",
+   "provider": "meterless-nightshift",
+   "model_requested": "meterless/fast",
+   "model_served": "nvidia/nemotron-3-ultra-550b-a55b",
+   "routed_model": "nvidia/nemotron-3-ultra-550b-a55b",
+   "receipt_id": "rcpt_req_d2o9bcy5",
+   "usage": {
+    "completion_tokens": 299,
+    "prompt_tokens": 1528,
+    "total_tokens": 1827,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": null
+   }
+  },
+  {
+   "t": 118.368,
+   "agent": "critic",
+   "kind": "llm",
+   "provider": "meterless-nightshift",
+   "model_requested": "meterless/fast",
+   "model_served": "nvidia/nemotron-3-ultra-550b-a55b",
+   "routed_model": "nvidia/nemotron-3-ultra-550b-a55b",
+   "receipt_id": "rcpt_req_rv1p338v",
+   "usage": {
+    "completion_tokens": 1490,
+    "prompt_tokens": 3445,
+    "total_tokens": 4935,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": null
+   }
+  },
+  {
+   "t": 118.369,
+   "agent": "critic",
+   "kind": "critique",
+   "attempt": 1,
+   "scores": {
+    "accuracy": 3,
+    "appropriateness": 3,
+    "actionability": 0
+   },
+   "total": 6,
+   "passed": false,
+   "fix": "Include a concrete next step (e.g., contact the ticket approver and exporter's manager, and verify the destination bucket's sanction status).",
+   "source": "nvidia/nemotron-3-ultra-550b-a55b"
+  },
+  {
+   "t": 118.37,
+   "agent": "reporter",
+   "kind": "revise",
+   "fix": "Include a concrete next step (e.g., contact the ticket approver and exporter's manager, and verify the destination bucket's sanction status)."
+  },
+  {
+   "t": 186.093,
+   "agent": "reporter",
+   "kind": "llm",
+   "provider": "meterless-nightshift",
+   "model_requested": "meterless/fast",
+   "model_served": "nvidia/nemotron-3-ultra-550b-a55b",
+   "routed_model": "nvidia/nemotron-3-ultra-550b-a55b",
+   "receipt_id": "rcpt_req_ajcnsicl",
+   "usage": {
+    "completion_tokens": 2783,
+    "prompt_tokens": 6846,
+    "total_tokens": 9629,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": null
+   }
+  },
+  {
+   "t": 231.13,
+   "agent": "critic",
+   "kind": "llm",
+   "provider": "meterless-nightshift",
+   "model_requested": "meterless/fast",
+   "model_served": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+   "routed_model": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+   "receipt_id": "rcpt_req_a5yn9pqr",
+   "usage": {
+    "completion_tokens": 1363,
+    "prompt_tokens": 3464,
+    "total_tokens": 4827,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": null
+   }
+  },
+  {
+   "t": 231.131,
+   "agent": "critic",
+   "kind": "critique",
+   "attempt": 2,
+   "scores": {
+    "accuracy": 3,
+    "appropriateness": 3,
+    "actionability": 3
+   },
+   "total": 9,
+   "passed": true,
+   "fix": null,
+   "source": "nvidia/nemotron-3.5-super-vl-120b-a12b"
+  },
+  {
+   "t": 231.132,
+   "agent": "evaluator",
+   "kind": "confidence",
+   "score": 1.0,
+   "label": "high",
+   "factors": [
+    "evidence completeness 1.00",
+    "second opinion agrees",
+    "critic 9/9"
+   ]
+  },
+  {
+   "t": 231.157,
+   "agent": "world",
+   "kind": "ingest",
+   "events_before": 0,
+   "events_after": 10,
+   "appended": 10,
+   "entities": 3,
+   "events": 10,
+   "merge_queue": 0
+  },
+  {
+   "t": 231.174,
+   "agent": "memory",
+   "kind": "remember",
+   "created": [
+    "mem-1",
+    "mem-2",
+    "mem-3",
+    "mem-4",
+    "mem-5",
+    "mem-6",
+    "mem-7",
+    "mem-8",
+    "mem-9",
+    "mem-10"
+   ],
+   "reconfirmed": [],
+   "superseded": [],
+   "footprint": "mem-11",
+   "ledger": {
+    "create": 11
+   }
+  }
+ ],
+ "rounds": 3,
+ "outcome": {
+  "alert_id": "AL-004",
+  "verdict": "investigate",
+  "reasons": [
+   "the cited ticket does not cover this export and no other authorisation does"
+  ],
+  "conflicts": [
+   "ticket T-2629 was cited but does not cover the export: 48000 rows exported exceed the ticket's max_rows 5000"
+  ],
+  "gaps": [],
+  "missing": [],
+  "facts": 9,
+  "rounds": 3,
+  "disclosure": {
+   "tables_accessed": [
+    "accounts",
+    "alerts",
+    "datasets",
+    "export_events",
+    "field_sensitivity",
+    "policies",
+    "policy_exceptions",
+    "tickets"
+   ],
+   "tables_used_in_answer": [
+    "accounts",
+    "alerts",
+    "datasets",
+    "export_events",
+    "field_sensitivity",
+    "policies",
+    "policy_exceptions",
+    "tickets"
+   ],
+   "accessed_but_unused": [],
+   "sensitive_columns_touched": [
+    "export_events.destination (confidential)"
+   ],
+   "pii_columns_touched": []
+  },
+  "evidence": [
+   {
+    "text": "AL-004 (high, rule: rows exported exceed ticket scope): account u1012 exported 48000 rows of DS02 at 2026-10-19 03:30:00 via sql-console to a cloud-bucket destination; ticket cited: T-2629.",
+    "kind": "evidence",
+    "cites": [
+     {
+      "step": "q1",
+      "table": "dexa.export_events",
+      "column": "rows_exported"
+     },
+     {
+      "step": "q1",
+      "table": "dexa.alerts",
+      "column": null
+     }
+    ]
+   },
+   {
+    "text": "Account u1012: role finance, department marketing, status active since 2025-07-03 00:00:00.",
+    "kind": "evidence",
+    "cites": [
+     {
+      "step": "q2",
+      "table": "dexa.accounts",
+      "column": "status"
+     }
+    ]
+   },
+   {
+    "text": "Dataset DS02 (payment_transactions) is classified restricted, owner finance, contains_pii=True.",
+    "kind": "evidence",
+    "cites": [
+     {
+      "step": "q4",
+      "table": "dexa.datasets",
+      "column": "sensitivity"
+     }
+    ]
+   },
+   {
+    "text": "Policy P041: role finance may export DS02; no-ticket cap 500 rows; advisory hours 07:00-19:00 (export was outside them).",
+    "kind": "evidence",
+    "cites": [
+     {
+      "step": "q5",
+      "table": "dexa.policies",
+      "column": "max_rows_without_ticket"
+     },
+     {
+      "step": "q5",
+      "table": "dexa.accounts",
+      "column": null
+     },
+     {
+      "step": "q5",
+      "table": "dexa.export_events",
+      "column": null
+     }
+    ]
+   },
+   {
+    "text": "Ticket T-2629: requester u1012, dataset DS02, max_rows 5000, approved, valid 2026-10-18 03:30:00 .. 2026-10-25 03:30:00, approver u1005.",
+    "kind": "evidence",
+    "cites": [
+     {
+      "step": "q6",
+      "table": "dexa.tickets",
+      "column": "valid_to"
+     },
+     {
+      "step": "q6",
+      "table": "dexa.export_events",
+      "column": null
+     }
+    ]
+   },
+   {
+    "text": "0 other ticket(s) for u1012 on DS02; none covers this export.",
+    "kind": "evidence",
+    "cites": [
+     {
+      "step": "q7",
+      "table": "dexa.tickets",
+      "column": "status"
+     }
+    ]
+   },
+   {
+    "text": "No policy exception covers role finance or account u1012 on DS02 at 2026-10-19 03:30:00.",
+    "kind": "evidence",
+    "cites": [
+     {
+      "step": "q8",
+      "table": "dexa.policy_exceptions",
+      "column": "exception_id"
+     }
+    ]
+   },
+   {
+    "text": "The export went to an external cloud-bucket destination: <destination redacted>",
+    "kind": "evidence",
+    "cites": [
+     {
+      "step": "q10",
+      "table": "dexa.export_events",
+      "column": "destination"
+     }
+    ]
+   },
+   {
+    "text": "Baseline: 0 earlier export(s) of DS02 by this account, largest 0 rows; this export is far above that baseline.",
+    "kind": "evidence",
+    "cites": [
+     {
+      "step": "q9",
+      "table": "dexa.export_events",
+      "column": "rows_exported"
+     }
+    ]
+   }
+  ],
+  "next_steps": [
+   "contact the ticket approver and the exporter's manager; preserve the exported file",
+   "confirm whether the destination is a sanctioned location; request deletion if not"
+  ],
+  "run_id": "20261023T004337Z-288dc3",
+  "log_file": "logs/trace-20261023T004337Z-288dc3.jsonl",
+  "summary": "Verdict: investigate \u2014 the cited ticket T\u20112629 authorizes only 5,000 rows for DS02, but the export moved 48,000 rows to an external cloud bucket, and no other authorization covers this action. The export occurred outside advisory hours (03:30 vs. 07:00\u201319:00) and far exceeds the no\u2011ticket cap of 500 rows for the finance role. Account u1012 has no prior DS02 exports, making this a significant baseline deviation. No policy exception applies to this role or account at the time of export. Nothing remains unconfirmed; next steps: contact ticket approver u1005 and the exporter's manager, and verify the sanction status of the destination bucket <destination redacted>",
+  "second_opinion": {
+   "verdict": "investigate",
+   "reasons": [
+    "Export of 48,000 rows exceeds the no-ticket cap of 500 rows for role finance on DS02",
+    "Cited ticket T-2629 is approved and valid at the export time, but its max_rows of 5,000 does not cover the 48,000 rows exported",
+    "No other ticket for u1012 on DS02 covers this export",
+    "No policy exception covers role finance or account u1012 on DS02 at 2026-10-19 03:30:00"
+   ],
+   "missing_evidence": [],
+   "source": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+   "usable": true,
+   "agrees": true,
+   "rules_verdict": "investigate"
+  },
+  "critic": {
+   "attempt": 2,
+   "scores": {
+    "accuracy": 3,
+    "appropriateness": 3,
+    "actionability": 3
+   },
+   "total": 9,
+   "passed": true,
+   "fix": null,
+   "source": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+   "fix_applied": "Include a concrete next step (e.g., contact the ticket approver and exporter's manager, and verify the destination bucket's sanction status).",
+   "first_total": 6,
+   "review_status": "passed"
+  },
+  "confidence": {
+   "score": 1.0,
+   "label": "high",
+   "factors": [
+    "evidence completeness 1.00",
+    "second opinion agrees",
+    "critic 9/9"
+   ]
+  },
+  "priority": {
+   "score": 8.0,
+   "bucket": "P1",
+   "factors": [
+    "dataset restricted (+4)",
+    "48000 rows (+2)",
+    "external destination (+2)"
+   ]
+  },
+  "status": "complete",
+  "timeline": [
+   {
+    "t": 0.428,
+    "agent": "planner",
+    "what": "fetch alert"
+   },
+   {
+    "t": 0.802,
+    "agent": "retriever",
+    "what": "q1 alert: 1 rows from alerts, export_events (zetaris, 372 ms)"
+   },
+   {
+    "t": 0.806,
+    "agent": "evaluator",
+    "what": "needs more: sensitivity, account, dataset"
+   },
+   {
+    "t": 0.806,
+    "agent": "planner",
+    "what": "fetch account"
+   },
+   {
+    "t": 0.946,
+    "agent": "retriever",
+    "what": "q2 account: 1 rows from accounts (zetaris, 139 ms)"
+   },
+   {
+    "t": 0.947,
+    "agent": "evaluator",
+    "what": "needs more: sensitivity, dataset, policy, ticket_cited"
+   },
+   {
+    "t": 11.876,
+    "agent": "planner",
+    "what": "fetch sensitivity, dataset, policy, ticket_cited (model drafted 3 SQL)"
+   },
+   {
+    "t": 12.163,
+    "agent": "retriever",
+    "what": "q3 sensitivity: 9 rows from field_sensitivity (zetaris, 286 ms)"
+   },
+   {
+    "t": 12.312,
+    "agent": "retriever",
+    "what": "q4 dataset: 1 rows from datasets (zetaris, 148 ms)"
+   },
+   {
+    "t": 12.716,
+    "agent": "retriever",
+    "what": "q5 policy: 1 rows from accounts, export_events, policies (zetaris, 403 ms)"
+   },
+   {
+    "t": 13.063,
+    "agent": "retriever",
+    "what": "q6 ticket_cited: 1 rows from export_events, tickets (zetaris, 346 ms)"
+   },
+   {
+    "t": 13.063,
+    "agent": "evaluator",
+    "what": "needs more: tickets_account, exceptions"
+   },
+   {
+    "t": 29.42,
+    "agent": "planner",
+    "what": "fetch tickets_account, exceptions (model drafted 2 SQL)"
+   },
+   {
+    "t": 29.716,
+    "agent": "retriever",
+    "what": "q7 tickets_account: 1 rows from tickets (zetaris, 296 ms)"
+   },
+   {
+    "t": 29.973,
+    "agent": "retriever",
+    "what": "q8 exceptions: 1 rows from policy_exceptions (zetaris, 255 ms)"
+   },
+   {
+    "t": 29.974,
+    "agent": "evaluator",
+    "what": "needs more: account_history, destination"
+   },
+   {
+    "t": 29.974,
+    "agent": "planner",
+    "what": "fetch account_history, destination"
+   },
+   {
+    "t": 30.901,
+    "agent": "retriever",
+    "what": "q9 account_history: 1 rows from export_events (zetaris, 926 ms)"
+   },
+   {
+    "t": 31.057,
+    "agent": "retriever",
+    "what": "q10 destination: 1 rows from export_events (zetaris, 155 ms)"
+   },
+   {
+    "t": 31.058,
+    "agent": "evaluator",
+    "what": "verdict investigate"
+   },
+   {
+    "t": 42.087,
+    "agent": "evaluator",
+    "what": "second opinion investigate (agrees; nvidia/nemotron-3.5-super-vl-120b-a12b)"
+   },
+   {
+    "t": 118.369,
+    "agent": "critic",
+    "what": "rubric 6/9 attempt 1, fix: Include a concrete next step (e.g., contact the ticket approver and exporter's manager, and verify the destination bucket's sanction status)."
+   },
+   {
+    "t": 118.37,
+    "agent": "reporter",
+    "what": "revised the summary once"
+   },
+   {
+    "t": 231.131,
+    "agent": "critic",
+    "what": "rubric 9/9 attempt 2"
+   }
+  ],
+  "queue": "P1",
+  "memory_recalled": 0,
+  "memory": {
+   "created": 10,
+   "reconfirmed": 0,
+   "superseded": 0
+  },
+  "world": {
+   "events_before": 0,
+   "events_after": 10,
+   "appended": 10
+  },
+  "backend": "zetaris",
+  "llm": "meterless-nightshift",
+  "model_calls": 7
+ },
+ "finished_at": "2026-10-23T00:47:28Z",
+ "elapsed_s": 231.17,
+ "log_file": "logs/trace-20261023T004337Z-288dc3.jsonl"
+}
