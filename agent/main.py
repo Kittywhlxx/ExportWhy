@@ -105,9 +105,10 @@ def run(task: Task, persist_memory: bool = True, run_id: str | None = None) -> t
     # round (the main rounds and the one the second opinion may buy), on the assessment that round produced.
     noted_skipped: set[str] = set()
 
-    def settle_budget(phase: str):
+    def settle_budget(phase: str, unplanned: list[str] | None = None):
+        """`unplanned`: evidence classes that were asked for but never even planned (the round could not start)."""
         nonlocal status, assessment
-        skipped_classes = sorted(cls for cls, steps in done.items() if steps and all(s.skipped for s in steps))
+        skipped_classes = sorted({cls for cls, steps in done.items() if steps and all(s.skipped for s in steps)} | set(unplanned or []))
         if set(skipped_classes) - noted_skipped:
             noted_skipped.update(skipped_classes)
             status = "timed-out"; trace.step("system", "timeout", budget_s=budget_s, phase=phase, skipped=skipped_classes)
@@ -141,6 +142,13 @@ def run(task: Task, persist_memory: bool = True, run_id: str | None = None) -> t
             settle_budget("second-opinion evidence round")
             if time.time() < deadline:
                 opinion = evaluator.second_opinion(task, assessment)
+        elif extra and time.time() >= deadline:
+            # the round could not start: the evidence the model asked for is "not retrieved", exactly as if its queries were skipped
+            settle_budget("second-opinion evidence round", unplanned=extra)
+        elif extra:
+            # round budget (not time) spent: say what was asked for and not fetched
+            assessment.derived["unfetched"] = sorted(set(assessment.derived.get("unfetched") or []) | set(extra))
+            assessment.reasons.insert(0, f"the {MAX_ROUNDS}-round evidence budget was spent before the second opinion's request ({', '.join(extra)}) could be fetched")
         if not opinion["agrees"]:
             assessment.conflicts.append(f"rules say {assessment.verdict}, model second opinion says {opinion['verdict']}: " + "; ".join(opinion.get("reasons", [])[:2]))
             assessment.reasons.insert(0, f"rules-based verdict {assessment.verdict} disputed by the model second opinion; a human must decide")

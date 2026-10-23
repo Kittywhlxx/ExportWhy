@@ -541,3 +541,24 @@ def test_evidence_the_second_opinion_asked_for_but_budget_skipped_is_reported(mo
     assert any("not retrieved: exceptions" in f for f in out["confidence"]["factors"])
     assert any(e["agent"] == "system" and "second-opinion" in e["what"] for e in out["timeline"]), out["timeline"]
     assert "exceptions" in report and "No further action required" not in report
+
+
+def test_second_opinion_request_that_cannot_start_for_lack_of_time_is_still_reported(monkeypatch):
+    """The second opinion comes back after the deadline, so its evidence round never starts. The class it asked for must
+    still be named as not retrieved, with a timeout event and re-run guidance, not dropped silently as partial."""
+    import time as _t
+    from agent import roles
+    real = roles.Evaluator.second_opinion
+    def slow_opinion(self, task, a):
+        _t.sleep(2.2)                                       # returns after the deadline
+        return real(self, task, a)
+    monkeypatch.setattr(roles.Evaluator, "second_opinion", slow_opinion)
+    monkeypatch.setenv("SECOND_OPINION_FORCE", "investigate:exceptions")
+    monkeypatch.setenv("TRIAGE_TIMEOUT_S", "2.0")             # (a budget under ~1 s skips even the alert query: 1 s floor per query)
+    report, out = agent_main.run(Task(alert_id="AL-001"))
+    assert out["status"] == "timed-out" and out["verdict"] == "needs-human"
+    assert any("not retrieved: exceptions" in r for r in out["reasons"]), out["reasons"]
+    assert any("TRIAGE_TIMEOUT_S" in n for n in out["next_steps"])
+    assert any("not retrieved: exceptions" in f for f in out["confidence"]["factors"])
+    assert any(e["agent"] == "system" and "second-opinion" in e["what"] for e in out["timeline"]), out["timeline"]
+    assert "exceptions" in report
