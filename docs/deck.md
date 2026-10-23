@@ -1,14 +1,16 @@
 # ExportWhy — pitch deck content
 
 GenAI · product: ExportWhy · Open Agent Hackathon 2026, Track 2 "The Agent That Can Explain Why" · solo entry
-Framing: a business-plan style pitch. GenAI is the company; ExportWhy is the skill it sells to security
-teams. 12 slides, 16:9. Each slide: title, on-slide text, visual, speaker notes (≤40 s).
-The deck is read by the judges on its own; the 1–4 minute video does not walk through it (see
-`video-script.md`: 30 s of problem framing, then the system running).
+Framing: GenAI presents ExportWhy to a prospective customer. The judges should be able to read it as that
+customer: is this my problem, what does it do for me, why is it worth trying, can I trust it. Architecture,
+sponsor components and results are there as the reasons to believe, not as a research chapter.
+10 slides, 16:9. Each slide: title, on-slide text, visual, speaker notes (≤40 s).
+The deck is read by the judges on its own; the 1–4 minute video tells the same story in its own order
+(see `video-script.md`) and does not walk through these slides.
 Numbers are from the repository at submission time; re-run `evaluate`, `seed_sweep.py` and
 `ablation_disclosure.py` before exporting and replace any figure that changed. The organiser's checklist
 (problem and users · solution · agent workflow/architecture · technical stack · how Zetaris and Meterless
-were used · what was unique · product visuals · future enhancements) maps onto slides 2–12.
+were used · what was unique · product visuals · future enhancements) maps onto slides 2–10.
 
 ---
 
@@ -41,7 +43,7 @@ Notes: Keep it concrete. Say the ticket is real and approved, and still does not
 
 ---
 
-## 3. Target customers and their pain
+## 3. Who it is for, and what hurts
 
 **Who buys:** security operations / data-protection teams in organisations that have a data-access policy and a ticketed approval process, and handle regulated data (payments, personal data).
 **Who uses it:** the analyst on the DLP / insider-risk queue. Closing or escalating the alert stays their decision.
@@ -78,25 +80,37 @@ Notes: Read one evidence line aloud so the judges hear the citation format. Poin
 
 ---
 
-## 5. How it differs from what exists
+## 5. What you get: the product
+
+- single-page UI: verdict banner with reasons · evidence/review score · queue · evidence with citations · conflicts · what could not be confirmed · next checks · access footprint · investigation timeline · "correct the agent" buttons · outage switch for drills
+- the same investigation from the command line or over HTTP (`run.py`: JSON in, JSON out, structured errors), as a Docker image, and fully offline in sample mode
+- every run leaves a readable log, a JSONL audit log and a full JSON trace: the answer to "why was this alert closed" is on file
+
+Visual: UI screenshot with the banner, the metrics row and the timeline column; a second screenshot of the "Correct the agent" section.
+
+Notes: Show the product before explaining how it is built. The UI is how the analyst acts; the investigation is the same with or without it.
+
+---
+
+## 6. How it differs from what exists
 
 | | Microsoft Purview DLP triage agent | Mimecast Mihra (Incydr) | general "AI SOC analyst" agents | **ExportWhy** |
 |---|---|---|---|---|
 | question answered | how urgent is this alert (Needs attention / Less urgent / Not categorised) | DLP alert triage | investigate any alert type | **was this export authorised, and on what evidence** |
 | evidence sources | the vendor's own M365 and endpoint telemetry | the vendor's own platform | the vendor's integrations | **three independent systems, federated through Zetaris; cross-source joins run in the data layer** |
 | output | a priority bucket | a triage result | an investigation report and priority | **verdict + cited evidence lines + conflicts + what could not be confirmed + next checks + disclosure footprint** |
-| role of the model | the model decides | the model decides | the model decides | **rules are the floor; the model drafts SQL (template-gated), gives a second opinion (can only escalate) and reviews the prose (can only edit)** |
+| how the verdict is reached | not described in the public materials we read | not described in the public materials we read | varies by vendor | **rules decide; the model drafts SQL (template-gated), gives a second opinion (can only escalate) and reviews the prose (can only edit)** |
 | what is not read | not stated | not stated | not stated | **column-scoped: 96% fewer distinct sensitive-column reads than a naive planner, same verdicts** |
 
-Sources for the first two columns: Microsoft Learn (Copilot in Purview agents overview) and Mimecast's product announcement; the third column describes the category, not one vendor.
+Sources for the first two columns: Microsoft Learn (Copilot in Purview agents overview) and Mimecast's product announcement; the third column describes the category, not one vendor. "Not described" means exactly that, not a claim about how they work.
 
 Visual: the table.
 
-Notes: Do not say "nobody does this": alert triage automation is an industry direction and the judges will know it. Say what is different: the question (authorised or not, not just urgent), the evidence granularity, independent sources through a federated layer, and a model that cannot loosen a conclusion. The last point is what Alert-Bench ([NeurIPS 2026 AIWILD workshop](https://neurips.cc/virtual/2026/168137)) found commercial revision stages get wrong: they overturn more correct decisions than they repair.
+Notes: Do not say "nobody does this": alert triage automation is an industry direction and the judges will know it. Say what is different: the question (authorised or not, not just urgent), the evidence granularity, independent sources through a federated layer, and a verdict the model cannot loosen. That last design choice is motivated by Alert-Bench ([NeurIPS 2026 AIWILD workshop](https://neurips.cc/virtual/2026/168137)), which found that in the agent configurations it benchmarked, a revision stage overturned more correct decisions than it repaired.
 
 ---
 
-## 6. System architecture
+## 7. How it works: architecture and workflow
 
 ```
                      logsdb        policydb        ticketsdb        (three Postgres databases)
@@ -116,62 +130,36 @@ Notes: Do not say "nobody does this": alert triage automation is an industry dir
                     report · JSON trace · JSONL log · CLI / HTTP / Streamlit UI
 ```
 
+Workflow: alert id → plan the evidence classes → fetch through Zetaris → evaluate with rules → ask the model for a second opinion → draft the summary → Critic scores it (one revision) → report, memory update, trace.
+
 - not a pipeline: the Evaluator sends the Planner back, up to 3 rounds, and the next evidence class depends on what came back (a cited ticket that fails a check triggers the search for other tickets and exceptions)
-- the model is advisory; the rules are the floor
-- shared state: H-MEM remembers findings with provenance; the World Model carries the account across alerts
+- the rules decide; the model is advisory (drafts, second opinion, prose review)
+- bounded: 3 rounds, 9 model calls, a 480 s budget checked before every query and model call; a source failure or an exhausted budget is reported, never guessed around
 
-Visual: the diagram, with the feedback arrow highlighted.
+Visual: the diagram, with the feedback arrow highlighted; the workflow as a strip underneath.
 
-Notes: Name the pairings for the judges' checklist: Planner + Doer, Evaluator critiques and sends back, Proposer + Critic on the summary, shared structured memory, fallback on source failure, traceable evidence in every answer. Autonomy level L2: loop with checks, analyst in the loop.
+Notes: For the judges' checklist: Planner + Doer, Evaluator critiques and sends back, Proposer + Critic on the summary, shared structured memory, fallback on source failure, traceable evidence in every answer. Autonomy level L2: loop with checks, analyst in the loop.
 
 ---
 
-## 7. Workflow and technical stack: why each piece
+## 8. What the sponsor technology gives the customer
 
-| step | component | why this choice |
+| the customer gets | because of | proof it works |
 |---|---|---|
-| reach three systems with one query language | **Zetaris** (JDBC datasources, schemastore container, Lightning SQL) | the agent never opens a source connection; governance and the cross-source joins live in the data layer, not in agent code |
-| remember findings with provenance and let analysts correct them | **Meterless H-MEM** | memory records carry source, confidence and a trust ledger; feedback changes ranking next time instead of being lost |
-| know the account across alerts | **Meterless World Model** | entities and contexts with event-time provenance; the second alert on an account sees the first |
-| draft SQL, second-opinion the verdict, review the prose | **NVIDIA Nemotron through Meterless Nightshift** | one OpenAI-compatible provider with routing receipts; every call shows which model served it |
-| decide | **rules in Python** | auditable, testable, deterministic; the model can tighten, never loosen |
-| run anywhere | Python 3.11, SQLite twin for offline mode, Docker image, Streamlit UI | judges can run the whole loop with no network in 30 seconds |
+| **one investigation checks authorisation evidence spread across three systems**, without the agent ever holding a connection to any of them | **Zetaris**: three Postgres databases as three JDBC datasources, one schemastore container `dexa`; the policy and cited-ticket lookups are cross-source joins executed in Zetaris; 15 scripted registration statements; the same schema served offline by a SQLite twin | 13/13 alerts on the federated backend, one trace per alert in `docs/examples-live/zetaris-rules/` |
+| **findings and analyst corrections stay available to later investigations**, with their source and a trust ledger | **Meterless H-MEM**: every finding stored with provenance; a re-run re-verifies (+confidence), a changed fact supersedes the old one; helpful / wrong and verdict agree / disagree go to the ledger and change ranking next time | Python implementation of the spec; the official conformance vectors reproduced in pytest (13 cases, byte-identical vectors file) |
+| **the current alert is read against the account's history** (earlier alerts, status changes) | **Meterless World Model**: accounts, datasets, tickets, exceptions as entities, alerts and events as contexts, event-time provenance; re-runs append nothing | the official runner's 8 cases reproduced in pytest; idempotency and persistence tests; the cross-alert test (AL-001 then AL-011 on the same account) |
+| **language work done by a capable model, inside fixed limits**: SQL drafts that run only when identical to the vetted template, a second opinion that can only escalate, a summary that ships only after review | **NVIDIA Nemotron through Meterless Nightshift**: OpenAI-compatible runtime contract (bearer token, `meterless-app`, `meterless-scope`), `GET /v1/models` as the online check, bounded retries | every successful call logs `routed_model` and `receipt_id` (`nvidia/nemotron-3-ultra-550b-a55b`, `nvidia/nemotron-3.5-super-vl-120b-a12b`, `nvidia/nemotron-3.5-lightning-30b-a3b` in the recorded runs); recorded run AL-004: five drafts accepted as template-identical, critic 6/9 → revision → 9/9 |
 
-Visual: the workflow as a horizontal strip (alert → plan → fetch → evaluate → second opinion → summarise → review → report) with the component logo under each step.
+Visual: Zetaris Data Explorer with the three datasources and one federated query; the UI "Correct the agent" section with the ledger; the World state block; a JSONL excerpt with `model` and `receipt_id`.
 
-Notes: This slide sells the sponsors: Zetaris is the only tool the agent has for data; both Meterless engines are on the critical path (remove either and a feature stops working); Nemotron does three jobs with receipts.
+Notes: Lead each row with the benefit, then name the component. Both Meterless engines are on the critical path: remove either and a feature stops working (cross-alert context, feedback with an audit trail). Nemotron does three jobs and every one of them is receipted.
 
 ---
 
-## 8. Zetaris: what it provides here
+## 9. Can you trust it? Validation
 
-- three independent Postgres databases (logs, policy, tickets) registered as **three JDBC datasources**
-- one schemastore container `dexa` with a view per table: the agent writes ordinary SQL; the policy and cited-ticket lookups are **cross-source joins executed by Zetaris** (logs ⋈ policy, logs ⋈ tickets), the rest are scoped single-source queries
-- the agent never connects to a source directly; the data layer is its only tool
-- 15 registration statements, scripted; the same schema is served offline from a SQLite twin (`SAMPLE_MODE`)
-- verified: 13/13 alerts on the federated backend, one trace per alert in `docs/examples-live/zetaris-rules/`
-
-Visual: Zetaris Data Explorer screenshot showing the three datasources and the `dexa` container; one federated query with its result.
-
-Notes: This is the Track-2 shape: the evidence is spread across systems and the agent reaches all of them through one governed access point.
-
----
-
-## 9. Meterless: two engines on the critical path, Nightshift as the provider
-
-| | what it does here | proof |
-|---|---|---|
-| **H-MEM** | every finding stored with source and provenance; a re-run re-verifies (+confidence), a changed fact supersedes the old one; analyst feedback (helpful / wrong, verdict agree / disagree) goes to the trust ledger | Python implementation of the spec; the official conformance vectors reproduced in pytest (13 cases, byte-identical vectors file) |
-| **World Model** | accounts, datasets, tickets, exceptions as entities; alerts and events as contexts; the second alert on an account knows about the first; re-runs append nothing | official runner's 8 cases reproduced in pytest; idempotency and persistence tests |
-| **Nightshift → Nemotron** | primary AI provider via the OpenAI-compatible runtime contract (bearer token, `meterless-app`, `meterless-scope`), `GET /v1/models` as the online check, bounded retries; Nemotron drafts the evidence SQL (a draft runs only if canonically identical to the vetted template), gives the second opinion blind to the rules' answer, scores the summary as the Critic | every successful call logs `routed_model` and `receipt_id` (`nvidia/nemotron-3-ultra-550b-a55b`, `nvidia/nemotron-3.5-super-vl-120b-a12b`, `nvidia/nemotron-3.5-lightning-30b-a3b` in the recorded runs) |
-
-Visual: the UI "Correct the agent" section (feedback buttons + ledger history), the World state block, and a JSONL excerpt with `model` and `receipt_id`.
-
-Notes: Stress "critical path": remove either engine and a feature stops working (cross-alert context, feedback with audit trail). Name the design rule: the model can make the verdict more conservative or improve the prose; it cannot flip a block to compliant.
-
----
-
-## 10. Does it work? Validation
+What a customer needs to believe: it runs, the evidence is checkable, failures are reported, it does not read more than it needs.
 
 | check | result |
 |---|---|
@@ -188,19 +176,7 @@ Notes: Be honest: ground truth is generated with the data, so 156/156 measures c
 
 ---
 
-## 11. The product
-
-- single-page UI: verdict banner with reasons · evidence/review score · queue · evidence · conflicts · footprint · investigation timeline · feedback buttons · outage switch
-- CLI and HTTP entry point (`run.py`: JSON in, JSON out, structured errors), Docker image, sample mode with no network
-- every run: readable log on stderr, structured CLI output on stdout, `logs/trace-<run_id>.jsonl`, full trace JSON
-
-Visual: UI screenshot with the banner, the metrics row and the timeline column; a second screenshot of the "Correct the agent" section.
-
-Notes: 10 seconds. The UI exists so the analyst can act; the system is the same with or without it.
-
----
-
-## 12. Limits and phase two
+## 10. Limits and phase two
 
 **Limits (stated in the README):** synthetic sources and policies; rules cover the ten injected scenarios; the recorded live runs took 231 s (AL-004, 7 calls) and 298 s (AL-011, 8 recorded calls), with Nightshift routing to a 550B reasoning model for most calls, so latency varies by routing; the official TypeScript conformance runners were ported to pytest, not executed.
 

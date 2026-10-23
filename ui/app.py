@@ -86,7 +86,7 @@ if "last" not in st.session_state:
     st.markdown("### Pick an alert on the left and press **Triage this alert**.")
     st.markdown(
         "The agent plans which evidence it needs, queries Zetaris (access log, policy and tickets as one schema), "
-        "checks whether the evidence is sufficient and consistent, and reports a verdict with a citation per claim, "
+        "checks whether the evidence is sufficient and consistent, and reports a verdict with a citation on every evidence line, "
         "the conflicts it found, what it could not confirm, and which tables and sensitive columns it touched."
     )
     st.stop()
