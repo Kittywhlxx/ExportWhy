@@ -1,8 +1,8 @@
 # Export-alert triage: AL-011
 
-**Verdict: cannot-confirm** · confidence 0.60 (medium) · queue: manual review (unresolved evidence)
+**Verdict: cannot-confirm** · evidence/review score 0.60 (medium; heuristic, not a probability) · queue: manual review (unresolved evidence)
 
-Confidence: evidence completeness 1.00; second opinion agrees; critic 9/9; 1 open gap(s)
+Score factors: evidence completeness 1.00; second opinion agrees; critic 9/9; 1 open gap(s)
 
 Why:
 - the only authorisation the exporter cites cannot be found, and nothing else covers the export
@@ -32,7 +32,7 @@ Verdict cannot-confirm: the only authorisation the exporter cites cannot be foun
 - sensitive columns touched: export_events.destination (confidential)
 - values redacted in this report: 1
 
-## Second opinion (Evaluator, model-backed)
+## Second opinion (Evaluator, deterministic stub: offline mode)
 - agrees: model verdict cannot-confirm vs rules cannot-confirm (stub)
   - stub: deterministic second opinion agrees with the rules
 

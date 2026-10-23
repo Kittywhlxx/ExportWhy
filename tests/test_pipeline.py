@@ -172,6 +172,7 @@ def test_summary_gate_falls_back_when_critic_keeps_failing(monkeypatch):
 def test_run_py_respects_sample_mode_env_and_outage_keys(monkeypatch):
     import run as entry
     monkeypatch.setenv("SAMPLE_MODE", "true")
+    monkeypatch.setenv("SIMULATE_OUTAGE", "")        # triage() writes this env var; monkeypatch restores it after the test
     body = entry.triage({"run_id": "t-1", "input": {"alert_id": "AL-001"}, "options": {"simulate_outage": "logs"}})
     assert body["status"] == "success" and body["output"]["data_layer"] == "sqlite"
     assert body["output"]["verdict"] == "cannot-confirm" and body["output"]["triage_status"] == "partial"
@@ -190,3 +191,128 @@ def test_slow_backend_yields_partial_not_complete(monkeypatch):
     monkeypatch.setenv("TRIAGE_TIMEOUT_S", "0.2")
     _, out = agent_main.run(Task(alert_id="AL-004"))
     assert out["status"] in ("partial", "timed-out")
+
+
+
+# ---- second review round
+
+def test_authorisation_lookups_reject_semantic_widening():
+    from agent.roles import Planner, TEMPLATES
+    t = Task(alert_id="AL-004", event_id="E00233", account_id="u1012", dataset_id="DS02", role="finance", ticket_ref="T-2629")
+    base = TEMPLATES["policy"][1].format(**{k: (v or "") for k, v in vars(t).items()})
+    bad = [base.replace("p.role = a.role AND p.dataset_id = e.dataset_id", "1=1") + " ORDER BY p.max_rows_without_ticket DESC",
+           base + " OR 1=1 ORDER BY p.max_rows_without_ticket DESC",
+           base.replace("SELECT p.policy_id,", "SELECT p.policy_id, a.EMAIL,"),
+           base.replace("p.notes FROM", "p.notes, a.* FROM"),
+           base.replace("WHERE e.event_id = 'E00233'", "AND e.event_id = 'E00233'"),
+           base.replace("JOIN dexa.policies p ON", "LEFT JOIN dexa.policies p ON")]
+    for sql in bad:
+        assert Planner._validate(sql, t, template=base, evidence="policy")[0] is False, sql
+    ok = base.replace("SELECT", "select").replace(" FROM ", "\n  from ").replace(" JOIN ", "\n  join ") + ";"
+    assert Planner._validate(ok, t, template=base, evidence="policy")[0] is True
+
+
+def test_evaluator_ignores_policy_rows_for_other_roles(monkeypatch):
+    """Even if a widened policy query ran, the Evaluator must only use the row for this role and dataset."""
+    real = zetaris.SampleSQLite.query
+
+    def widened(self, sql, limit=200):
+        if "dexa.policies" in sql:
+            return real(self, "SELECT policy_id, role, dataset_id, allowed, allowed_hours_start, allowed_hours_end, max_rows_without_ticket, requires_ticket, notes FROM dexa.policies ORDER BY max_rows_without_ticket DESC", limit)
+        return real(self, sql, limit)
+
+    monkeypatch.setattr(zetaris.SampleSQLite, "query", widened)
+    _, out = agent_main.run(Task(alert_id="AL-004"))
+    assert out["verdict"] == "investigate"
+    assert any("other roles/datasets" in c for c in out["conflicts"])
+
+
+def test_deadline_stops_queries_and_model_calls(monkeypatch):
+    """Once the budget is spent, no further query is issued and no model call is attempted."""
+    import time as _t
+    from agent import llm as llm_mod
+    real = zetaris.SampleSQLite.query
+    calls = {"queries": 0, "late_queries": 0}
+    start = {"t": None}
+
+    def slow(self, sql, limit=200):
+        if start["t"] is None:
+            start["t"] = _t.time()
+        if _t.time() - start["t"] > 0.3:
+            calls["late_queries"] += 1
+        calls["queries"] += 1
+        _t.sleep(0.12)
+        return real(self, sql, limit)
+
+    monkeypatch.setattr(zetaris.SampleSQLite, "query", slow)
+    monkeypatch.setenv("TRIAGE_TIMEOUT_S", "0.3")
+    _, out = agent_main.run(Task(alert_id="AL-004"))
+    assert out["status"] in ("partial", "timed-out")
+    assert calls["late_queries"] <= 1, calls           # at most the query that was already in flight when the budget ran out
+    assert out["model_calls"] == 0 or out["llm"] != "stub"
+
+
+def test_chat_zero_budget_does_not_call_and_retry_timeout_is_recomputed(monkeypatch):
+    import types
+    from agent.llm import LLMError, Nightshift
+    n = Nightshift.__new__(Nightshift)
+    n.model = "meterless/fast"
+    seen = {"timeouts": []}
+
+    class FakeClient:
+        def with_options(self, timeout):
+            seen["timeouts"].append(round(timeout, 1)); return self
+        class chat:
+            class completions:
+                @staticmethod
+                def create(**kw):
+                    raise RuntimeError("should not be called")
+    n.client = FakeClient()
+    try:
+        n.chat("s", "u", max_seconds=0)
+        assert False, "zero budget must not call the model"
+    except LLMError as exc:
+        assert "budget exhausted" in str(exc)
+    assert seen["timeouts"] == []
+    # a positive budget bounds the per-attempt timeout
+    class Resp:
+        model = "m"; usage = None
+        choices = [types.SimpleNamespace(message=types.SimpleNamespace(content="ok"))]
+        model_extra = {}
+    FakeClient.chat.completions.create = staticmethod(lambda **kw: Resp())
+    text, _ = n.chat("s", "u", max_seconds=7)
+    assert text == "ok" and seen["timeouts"] and seen["timeouts"][0] <= 7.0
+
+
+def test_logs_outage_report_never_calls_the_reporter_model(monkeypatch):
+    from agent import roles
+    def boom(self, task, a):
+        raise AssertionError("draft_summary must not run on the early-exit path")
+    monkeypatch.setattr(roles.Reporter, "draft_summary", boom)
+    monkeypatch.setenv("SIMULATE_OUTAGE", "logs")
+    report, out = agent_main.run(Task(alert_id="AL-001"))
+    assert out["status"] == "partial" and out["summary"] in report
+
+
+def test_model_call_cap_is_enforced():
+    from agent.llm import CountedLLM, LLMError, StubLLM
+    c = CountedLLM(StubLLM(), max_calls=2)
+    c.chat("s", "u"); c.chat("s", "u")
+    try:
+        c.chat("s", "u"); assert False
+    except LLMError:
+        pass
+    assert c.calls == 2
+
+
+def test_memory_two_sessions_do_not_lose_each_others_writes():
+    from agent.memory import Memory
+    a, b = Memory(), Memory()                          # two live sessions on the same store
+    r1, _ = a.remember("fact one", source="t", refs=[], tags=["alert:X"], confidence=0.9, key="fact:X:1")
+    r2, _ = b.remember("fact two", source="t", refs=[], tags=["alert:X"], confidence=0.9, key="fact:X:2")
+    ids = {m["id"] for m in Memory().all()}
+    assert r1.id in ids and r2.id in ids and r1.id != r2.id
+    a.feedback(r2.id, "wrong")                         # analyst actor, via session a, on a record session b wrote
+    rec = next(m for m in Memory().all() if m["id"] == r2.id)
+    assert abs(float(rec["confidence"]) - 0.7) < 1e-9
+    assert any(h["actor"] == "analyst" for h in Memory().history(r2.id))

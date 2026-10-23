@@ -18,7 +18,7 @@ ACTION = {"plan": "plan_evidence", "query": "query_zetaris", "query_failed": "qu
           "assess": "evaluate_evidence", "llm": "model_call", "recall": "hmem_recall", "remember": "hmem_store",
           "dossier": "world_model_read", "ingest": "world_model_write", "second_opinion": "evaluate_second_opinion",
           "critique": "critique_report", "revise": "revise_report", "model_unavailable": "model_fallback",
-          "confidence": "score_confidence", "timeout": "time_budget", "summary_fallback": "summary_gate"}
+          "confidence": "score_confidence", "timeout": "time_budget", "summary_fallback": "summary_gate", "query_skipped": "query_zetaris"}
 
 
 class Trace:
@@ -59,6 +59,8 @@ class Trace:
         elif kind == "query":
             line.update(input_summary=p.get("sql", "")[:300], output_summary=f"{p.get('rows')} rows from {', '.join(p.get('tables', []))} via {p.get('backend')} in {p.get('elapsed_ms')} ms",
                         query_id=p.get("query_id"), step=p.get("step"))
+        elif kind == "query_skipped":
+            line.update(output_summary=f"skipped: {p.get('why')}", status="escalated", step=p.get("step"))
         elif kind == "query_failed":
             line.update(input_summary=p.get("sql", "")[:300], output_summary=p.get("error", "")[:200], status="error", step=p.get("step"))
         elif kind == "rejected_llm_sql":

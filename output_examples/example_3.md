@@ -1,8 +1,8 @@
 # Export-alert triage: AL-007
 
-**Verdict: investigate** · confidence 1.00 (high) · priority P2 (6/10)
+**Verdict: investigate** · evidence/review score 1.00 (high; heuristic, not a probability) · priority P2 (6/10)
 
-Confidence: evidence completeness 1.00; second opinion agrees; critic 9/9
+Score factors: evidence completeness 1.00; second opinion agrees; critic 9/9
 
 Priority: dataset confidential (+3); 4800 rows (+1); external destination (+2)
 
@@ -32,7 +32,7 @@ Verdict investigate: 4800 rows exceed the no-ticket cap and no ticket or excepti
 - sensitive columns touched: export_events.destination (confidential)
 - values redacted in this report: 1
 
-## Second opinion (Evaluator, model-backed)
+## Second opinion (Evaluator, deterministic stub: offline mode)
 - agrees: model verdict investigate vs rules investigate (stub)
   - stub: deterministic second opinion agrees with the rules
 

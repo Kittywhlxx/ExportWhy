@@ -47,6 +47,7 @@ class Step:
     origin: str = "rules"            # "rules" | "llm"
     result: QueryResult | None = None
     error: str | None = None
+    skipped: bool = False          # not run: the time budget was already spent
 
 
 # evidence class -> (purpose, SQL template). ANSI; identical on Zetaris Lightning SQL and SQLite.
@@ -155,23 +156,45 @@ class Planner:
         """Every `column = 'value'` filter in a query, normalised (alias prefixes dropped)."""
         return {f"{c.lower()}='{v}'" for c, v in re.findall(r"(?:\b\w+\.)?(\w+)\s*=\s*'([^']*)'", sql)}
 
+    @staticmethod
+    def _canonical(sql: str) -> str:
+        """Whitespace-collapsed, case-folded outside string literals, trailing ; dropped."""
+        out, lit = [], False
+        for ch in sql.strip().rstrip(";"):
+            if ch == "'":
+                lit = not lit
+            out.append(ch if lit else ch.lower())
+        return re.sub(r"\s+", " ", "".join(out)).replace(" ,", ",").replace("( ", "(").replace(" )", ")").strip()
+
+    @staticmethod
+    def _select_list(sql: str) -> str:
+        return re.split(r"\bfrom\b", sql, 1, flags=re.I)[0]
+
     @classmethod
     def _validate(cls, sql: str, task: Task, template: str | None = None, evidence: str | None = None) -> tuple[bool, str]:
-        if not re.match(r"^\s*select\b", sql, re.I) or re.search(r"\b(insert|update|delete|drop|create|alter|grant|attach)\b", sql, re.I):
+        if not re.match(r"^\s*select\b", sql, re.I) or re.search(r"\b(insert|update|delete|drop|create|alter|grant|attach|union)\b", sql, re.I):
             return False, "not a plain SELECT"
-        if re.search(r"select\s+(\w+\.)?\*", sql, re.I):
-            return False, "SELECT * is never accepted (column scoping)"
+        if "*" in cls._select_list(sql):
+            return False, "'*' in the select list is never accepted (column scoping)"
         if template is not None and evidence in cls.AUTH_CLASSES:
-            # a decision-critical lookup may not lose a filter or widen its column list: dropping the account
-            # or role predicate on an exceptions query would let another account's exception authorise this export
+            # A decision-critical lookup runs the template, or something canonically identical to it. String
+            # checks on predicates are not enough: `ON 1=1` or `OR 1=1` keep every literal and still widen the
+            # result set to other roles' policies or other accounts' exceptions.
+            if cls._canonical(sql) != cls._canonical(template):
+                return False, "authorisation lookups run the fixed template (draft was not equivalent)"
+            return True, ""
+        if template is not None:
             missing = cls._predicates(template) - cls._predicates(sql)
             if missing:
-                return False, f"authorisation query lost filter(s): {', '.join(sorted(missing))}"
-            tcols = set(re.findall(r"(?:\w+\.)?(\w+)", re.split(r"\bfrom\b", template, 1, flags=re.I)[0], re.I))
-            dcols = set(re.findall(r"(?:\w+\.)?(\w+)", re.split(r"\bfrom\b", sql, 1, flags=re.I)[0], re.I))
-            extra = {c for c in dcols - tcols if c.lower() not in ("select", "as", "distinct")} & {c for t in catalog.TABLES.values() for c in t["columns"]}
+                return False, f"query lost filter(s): {', '.join(sorted(missing))}"
+            if re.search(r"\bor\b", sql, re.I) and not re.search(r"\bor\b", template, re.I):
+                return False, "query added an OR that the template does not have"
+            tcols = {c.lower() for c in re.findall(r"(?:\w+\.)?(\w+)", cls._select_list(template))}
+            dcols = {c.lower() for c in re.findall(r"(?:\w+\.)?(\w+)", cls._select_list(sql))}
+            known = {c.lower() for t in catalog.TABLES.values() for c in t["columns"]}
+            extra = (dcols - tcols) & known
             if extra:
-                return False, f"authorisation query widened its column list: {', '.join(sorted(extra))}"
+                return False, f"query widened its column list: {', '.join(sorted(extra))}"
         if not catalog.tables_in_sql(sql):
             return False, "no known dexa table referenced"
         for ref in re.findall(r"\b([a-z_]+)\.([a-z_]+)\b", sql, re.I):
@@ -188,12 +211,18 @@ class Planner:
 class Retriever:
     name = "retriever"
 
-    def __init__(self, backend, trace):
+    def __init__(self, backend, trace, remaining=None):
         self.backend, self.trace = backend, trace
+        self.remaining = remaining
         self.footprint: dict[str, set[str]] = {}      # table -> result columns seen
 
     def run(self, steps: list[Step]) -> list[Step]:
         for s in steps:
+            left = _budget(self)
+            if left is not None and left <= 0:
+                s.skipped = True
+                self.trace.step(self.name, "query_skipped", step=s.sid, evidence=s.evidence, why="time budget exhausted")
+                continue
             try:
                 s.result = self.backend.query(s.sql)
                 for t in catalog.tables_in_sql(s.sql):
@@ -321,7 +350,7 @@ class Evaluator:
     def assess(self, task: Task, done: dict[str, list[Step]], footprint: dict, rounds: int) -> Assessment:
         rows = {cls: [r for s in steps if s.result for r in s.result.rows] for cls, steps in done.items()}
         fetched = {cls for cls, steps in done.items() if any(s.result is not None for s in steps)}
-        failed = {cls for cls, steps in done.items() if steps and all(s.error for s in steps)}
+        failed = {cls for cls, steps in done.items() if steps and all(s.error for s in steps if not s.skipped) and any(not s.skipped for s in steps)}
         cite = {cls: steps[-1].sid for cls, steps in done.items() if steps}
         step_tables = {cls: sorted({t for s in steps for t in catalog.tables_in_sql(s.sql)}) for cls, steps in done.items()}
         facts: list[Fact] = []; conflicts: list[str] = []; gaps: list[str] = []; missing: list[str] = []
@@ -364,7 +393,7 @@ class Evaluator:
         need("sensitivity")   # the classification drives redaction and the disclosure check
 
         # ---- account
-        acc = (rows.get("account") or [None])[0]
+        acc = next((r for r in rows.get("account", []) if r.get("account_id") == task.account_id), None)
         if "account" in fetched and not acc:
             gaps.append(f"account {task.account_id} is not in the directory")
             fact("account", f"Account {task.account_id} does not exist in the identity directory.", "account", "accounts", "account_id", kind="gap")
@@ -397,7 +426,16 @@ class Evaluator:
             fact("policy", f"No data-access policy exists for role {task.role} on {task.dataset_id}; entitlement cannot be determined from policy.", "policy", "policies", "policy_id", kind="gap")
             derived.setdefault("verdict", "cannot-confirm"); reasons.append("no policy covers this role and dataset")
             next_steps.append("ask the dataset owner to publish a policy row for this role; treat as unauthorised until then")
-        elif pol:
+        elif pol and not (pol.get("role") == task.role and pol.get("dataset_id") == task.dataset_id):
+            foreign = [f"{r.get('policy_id')}({r.get('role')}/{r.get('dataset_id')})" for r in rows.get("policy", []) if not (r.get("role") == task.role and r.get("dataset_id") == task.dataset_id)]
+            conflicts.append(f"policy query returned rows for other roles/datasets ({', '.join(foreign[:5])}); ignored")
+            mine = next((r for r in rows.get("policy", []) if r.get("role") == task.role and r.get("dataset_id") == task.dataset_id), None)
+            if mine is None:
+                gaps.append(f"no policy row for role {task.role} on {task.dataset_id} among the returned rows")
+                derived.setdefault("verdict", "cannot-confirm"); reasons.append("no applicable policy row")
+            else:
+                pol = mine
+        if pol and pol.get("role") == task.role and pol.get("dataset_id") == task.dataset_id:
             cap = int(pol.get("max_rows_without_ticket") or 0); allowed = _truthy(pol.get("allowed"))
             derived["cap"] = cap
             hours_ok = str(pol.get("allowed_hours_start")) <= ts.strftime("%H:%M") <= str(pol.get("allowed_hours_end"))
@@ -702,10 +740,10 @@ class Reporter:
         redacted = 0
         head = f"**Verdict: {a.verdict}**"
         if confidence:
-            head += f" · confidence {confidence['score']:.2f} ({confidence['label']})"
+            head += f" · evidence/review score {confidence['score']:.2f} ({confidence['label']}; heuristic, not a probability)"
         if a.priority:
             head += f" · priority {a.priority['bucket']} ({a.priority['score']:.0f}/10)"
-        elif a.verdict in ("cannot-confirm", "needs-human"):
+        if a.verdict in ("cannot-confirm", "needs-human"):
             head += " · queue: manual review (unresolved evidence)"
         if status != "complete":
             head += f" · **{status}**"
@@ -713,7 +751,7 @@ class Reporter:
             head += f" · review: {critique['review_status']}"
         lines = [f"# Export-alert triage: {task.alert_id}", "", head, ""]
         if confidence and confidence.get("factors"):
-            lines += ["Confidence: " + "; ".join(confidence["factors"]), ""]
+            lines += ["Score factors: " + "; ".join(confidence["factors"]), ""]
         if a.priority:
             lines += ["Priority: " + "; ".join(a.priority["factors"]), ""]
         if a.reasons:
@@ -752,7 +790,8 @@ class Reporter:
                 head = f"- no usable opinion: the model reply was {second_opinion.get('verdict')}{src}; the rules-based verdict stands"
             else:
                 head = f"- {'agrees' if second_opinion['agrees'] else 'DISAGREES'}: model verdict {second_opinion.get('verdict')} vs rules {second_opinion.get('rules_verdict', a.verdict)}{src}"
-            lines += ["", "## Second opinion (Evaluator, model-backed)", head] + [f"  - {r}" for r in second_opinion.get("reasons", [])[:3]]
+            title = "## Second opinion (Evaluator, deterministic stub: offline mode)" if second_opinion.get("source") == "stub" else "## Second opinion (Evaluator, model-backed)"
+            lines += ["", title, head] + [f"  - {r}" for r in second_opinion.get("reasons", [])[:3]]
         if critique:
             sc = critique.get("scores")
             if sc is None:

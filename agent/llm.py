@@ -47,8 +47,7 @@ class Nightshift:
     def chat(self, system: str, user: str, json_mode: bool = False, max_tokens: int = 2000, max_seconds: float | None = None) -> tuple[str, dict]:
         """max_seconds: the triage's remaining wall-clock budget; the request timeout and the retries never exceed it."""
         delays = [2, 4, 8]
-        deadline = time.time() + max_seconds if max_seconds else None
-        client = self.client.with_options(timeout=max(5.0, min(180.0, max_seconds))) if max_seconds else self.client
+        deadline = time.time() + max_seconds if max_seconds is not None else None   # 0 means: no time left, do not call
         # Nightshift may route to a reasoning model (Nemotron 3 Ultra) that emits its thinking as text before
         # the answer and ignores thinking toggles. A low max_tokens cuts the reply off mid-thought, so the
         # budget stays large enough for ~600 thinking tokens plus the answer; strip_thinking() removes the
@@ -56,8 +55,10 @@ class Nightshift:
         system = "/no_think " + system
         for attempt in range(4):
             try:
-                if deadline and time.time() > deadline:
+                left = (deadline - time.time()) if deadline is not None else 180.0
+                if left < 1.0:
                     raise LLMError("triage time budget exhausted before the model call")
+                client = self.client.with_options(timeout=min(180.0, left))          # recomputed for every attempt
                 resp = client.chat.completions.create(
                     model=self.model, temperature=0.1, max_tokens=max_tokens,
                     messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
@@ -71,7 +72,7 @@ class Nightshift:
                 return text, meta
             except Exception as exc:  # noqa: BLE001 - provider errors are heterogeneous
                 status = getattr(exc, "status_code", None)
-                if status in (429, 500, 502, 503, 504) and attempt < 3 and not (deadline and time.time() + delays[attempt] > deadline):
+                if status in (429, 500, 502, 503, 504) and attempt < 3 and not (deadline is not None and time.time() + delays[attempt] + 1.0 > deadline):
                     time.sleep(delays[attempt]); continue           # transient provider/route error, only while the budget allows a retry
                 raise LLMError(f"Nightshift request failed: {exc}") from exc
         raise LLMError("unreachable")
@@ -87,6 +88,25 @@ class StubLLM:
 
     def chat(self, system: str, user: str, json_mode: bool = False, max_tokens: int = 0, max_seconds: float | None = None) -> tuple[str, dict]:
         return ("", {"provider": self.name, "model_requested": "stub", "model_served": "stub"})
+
+
+class CountedLLM:
+    """Hard cap on logical model calls per triage (retries inside a call do not count). The cap is the
+    documented maximum of the control flow: up to 3 planning rounds, 2 second opinions, 1 summary,
+    2 critiques, 1 revision = 9. Beyond it every role takes its deterministic fallback."""
+
+    def __init__(self, inner, max_calls: int = 9):
+        self.inner, self.max_calls, self.calls = inner, max_calls, 0
+        self.name = inner.name
+
+    def health(self):
+        return self.inner.health()
+
+    def chat(self, system: str, user: str, json_mode: bool = False, **kw):
+        if self.calls >= self.max_calls:
+            raise LLMError(f"model call cap reached ({self.max_calls} per triage)")
+        self.calls += 1
+        return self.inner.chat(system, user, json_mode=json_mode, **kw)
 
 
 def get_llm():

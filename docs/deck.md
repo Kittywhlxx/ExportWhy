@@ -165,4 +165,4 @@ Notes: End on the one-liner: an analyst can read the verdict, see every claim's 
 
 ## Appendix slide (optional): the eight-line agent loop spec
 
-Goal · Plan (≤5 steps) · Tools with fail modes · Memory (scratchpad / decisions / knowledge) · Rubric 0-3×3 · Stop conditions (grounded → report; budget spent → cannot-confirm; disagreement → needs-human; critic <7/9 → one revision, still failing → deterministic summary) · Run log (JSONL) · Guardrails (3 rounds, ≤8 model calls, read-only SQL with fixed authorisation predicates, column-scoped, 480 s budget enforced per call, redaction).
+Goal · Plan (≤5 steps) · Tools with fail modes · Memory (scratchpad / decisions / knowledge) · Rubric 0-3×3 · Stop conditions (grounded → report; budget spent → cannot-confirm; disagreement → needs-human; critic <7/9 → one revision, still failing → deterministic summary) · Run log (JSONL) · Guardrails (3 rounds, ≤9 logical model calls by counter, authorisation lookups run the fixed template, column-scoped, 480 s budget enforced before every query and model call and inside retries, redaction).

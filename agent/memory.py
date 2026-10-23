@@ -15,25 +15,33 @@ MEMORY_DIR = config.ROOT / "memory"
 
 
 class Memory:
+    """One persisted H-MEM store, two actors (the agent "exportwhy" and the human "analyst"). With persistence
+    every public operation re-opens the store from disk first, so a UI session, a CLI run and an analyst
+    action never work from a stale snapshot and never overwrite each other's writes (the reference
+    implementation persists the whole state file on every mutation)."""
+
     def __init__(self, persist: bool = True, clock=None):
         from .hmem import HMEM  # the Python port of the Meterless H-MEM spec (agent/hmem/)
         self.persist, self.clock = persist, clock
-        kwargs = {"actor": "exportwhy"}
         if persist:
             MEMORY_DIR.mkdir(exist_ok=True)
-            kwargs["persist_dir"] = str(MEMORY_DIR)
-        if clock:
-            kwargs["clock"] = clock
-        self.h = HMEM(**kwargs)
+        self._mem_only = None if persist else HMEM(actor="exportwhy", **({"clock": clock} if clock else {}))
+
+    @property
+    def h(self):
+        return self._open("exportwhy")
+
+    def _open(self, actor: str):
+        if not self.persist:
+            return self._mem_only                     # memory-only (tests): a single shared instance
+        from .hmem import HMEM
+        kwargs = {"actor": actor, "persist_dir": str(MEMORY_DIR)}
+        if self.clock:
+            kwargs["clock"] = self.clock
+        return HMEM(**kwargs)
 
     def _reload(self):
-        """Re-open the persisted store after another actor wrote to it."""
-        if self.persist:
-            from .hmem import HMEM
-            kwargs = {"actor": "exportwhy", "persist_dir": str(MEMORY_DIR)}
-            if self.clock:
-                kwargs["clock"] = self.clock
-            self.h = HMEM(**kwargs)
+        pass                                          # every operation already opens a fresh instance
 
     # -- recall ------------------------------------------------------------------------------
     def recall(self, query: str, top_n: int = 5) -> tuple[str, list[dict]]:
@@ -55,36 +63,31 @@ class Memory:
         same key + new content   -> the new record supersedes the old one (old kept, ranked down, never deleted).
         Returns (record, action) with action in {"created", "reconfirmed", "superseded"}."""
         now = int(time.time() * 1000)
-        prev = self._latest_with_key(key) if key else None
+        h = self.h                                   # one fresh instance for lookup + write
+        prev = self._latest_with_key(h, key) if key else None
         if prev is not None and _g(prev, "content") == content:
-            self.h.feedback(_g(prev, "id"), "helpful")
-            return self.h.store.get(_g(prev, "id")), "reconfirmed"
-        rec = self.h.add(content=content, source=source, type=mtype, tags=tags + ([key] if key else []), confidence=confidence,
-                         provenance={"origin": "manual", "learnedAt": now, "label": f"learned from {source}", "refs": refs},
-                         goalRunId=goal_run_id, supersedes=_g(prev, "id") if prev is not None else None)
+            h.feedback(_g(prev, "id"), "helpful")
+            return h.store.get(_g(prev, "id")), "reconfirmed"
+        rec = h.add(content=content, source=source, type=mtype, tags=tags + ([key] if key else []), confidence=confidence,
+                    provenance={"origin": "manual", "learnedAt": now, "label": f"learned from {source}", "refs": refs},
+                    goalRunId=goal_run_id, supersedes=_g(prev, "id") if prev is not None else None)
         if prev is not None:
-            self.h.store.update(_g(prev, "id"), {"supersededBy": _g(rec, "id")})
+            h.store.update(_g(prev, "id"), {"supersededBy": _g(rec, "id")})
             return rec, "superseded"
         return rec, "created"
 
-    def _latest_with_key(self, key: str):
-        cands = [m for m in self.h.store.all() if key in (_g(m, "tags") or []) and not _g(m, "supersededBy")]
+    @staticmethod
+    def _latest_with_key(h, key: str):
+        cands = [m for m in h.store.all() if key in (_g(m, "tags") or []) and not _g(m, "supersededBy")]
         return max(cands, key=lambda m: _g(m, "timestamp") or 0) if cands else None
 
     def feedback(self, memory_id: str, kind: str):
         """Human feedback on a fact. Logged by a separate actor ("analyst") so it is never confused with the
         agent's own re-verification, which also uses the helpful delta."""
         self._as_analyst().feedback(memory_id, kind)
-        self._reload()
 
     def _as_analyst(self):
-        from .hmem import HMEM
-        if not self.persist:
-            return self.h                         # memory-only: same object (tests); actor distinction needs persistence
-        kwargs = {"actor": "analyst", "persist_dir": str(MEMORY_DIR)}
-        if self.clock:
-            kwargs["clock"] = self.clock
-        return HMEM(**kwargs)
+        return self._open("analyst")
 
     def all(self) -> list[dict]:
         return [{"id": _g(m, "id"), "content": _g(m, "content"), "confidence": _g(m, "confidence"), "tags": _g(m, "tags"),
@@ -111,7 +114,6 @@ class Memory:
         if rec is None:
             return None
         self._as_analyst().feedback(rec["id"], "helpful" if agree else "wrong")
-        self._reload()
         if note:
             self.remember(f"Analyst note on {alert_id}: {note}", source=f"analyst:{alert_id}", refs=[], tags=[f"alert:{alert_id}", "kind:analyst-note"], confidence=1.0, mtype="general")
         return self.calibration()

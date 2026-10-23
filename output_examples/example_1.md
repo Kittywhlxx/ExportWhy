@@ -1,8 +1,8 @@
 # Export-alert triage: AL-001
 
-**Verdict: compliant** · confidence 1.00 (high)
+**Verdict: compliant** · evidence/review score 1.00 (high; heuristic, not a probability)
 
-Confidence: evidence completeness 1.00; second opinion agrees; critic 9/9
+Score factors: evidence completeness 1.00; second opinion agrees; critic 9/9
 
 Why:
 - approved ticket T-2626 covers the account, dataset, 13578 rows and the time of export
@@ -23,7 +23,7 @@ Verdict compliant: approved ticket T-2626 covers the account, dataset, 13578 row
 - sensitive columns touched: none
 - values redacted in this report: 0
 
-## Second opinion (Evaluator, model-backed)
+## Second opinion (Evaluator, deterministic stub: offline mode)
 - agrees: model verdict compliant vs rules compliant (stub)
   - stub: deterministic second opinion agrees with the rules
 
