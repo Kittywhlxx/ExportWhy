@@ -46,7 +46,8 @@ Notes: Keep it concrete. Say the ticket is real and approved, and still does not
 ## 3. Who it is for, and what hurts
 
 **Who buys:** security operations / data-protection teams in organisations that have a data-access policy and a ticketed approval process, and handle regulated data (payments, personal data).
-**Who uses it:** the analyst on the DLP / insider-risk queue. Closing or escalating the alert stays their decision.
+**Who uses it:** the analyst on the DLP / insider-risk queue.
+**The decision it supports:** does the authorisation on file cover this export? On the answer, the analyst continues the investigation, fetches what is missing, or hands the alert to human review. Closing or escalating stays their call.
 **Who else benefits:** compliance and audit, who later ask "on what evidence was this alert closed?"
 
 | pain | what it costs them |
@@ -59,7 +60,7 @@ Notes: Keep it concrete. Say the ticket is real and approved, and still does not
 
 Visual: the table, one row highlighted per sentence of the voice-over.
 
-Notes: Not the customer: the person who exported the data, and teams without a policy or a ticket process (two of the three sources would be missing).
+Notes: Not the customer: the person who exported the data, and teams without a policy or a ticket process (two of the three sources would be missing). What we can show today is fit to the scenario and the function. Analyst time saved, uncovered exports no longer closed as compliant, and willingness to pay are not measured; they are the pilot targets on slide 10, not results. Do not state them as benefits achieved.
 
 ---
 
@@ -88,7 +89,7 @@ Notes: Read one evidence line aloud so the judges hear the citation format. Poin
 
 Visual: UI screenshot with the banner, the metrics row and the timeline column; a second screenshot of the "Correct the agent" section.
 
-Notes: Show the product before explaining how it is built. The UI is how the analyst acts; the investigation is the same with or without it.
+Notes: Show the product before explaining how it is built. Walk the analyst's reading order on the AL-004 screen: the Conflicts line says why the ticket does not cover the export, the evidence line above it carries the table, column and query it came from, Next checks says what to do and who, and the feedback buttons are where a disagreement goes. Only then move on to how it is built. The UI is how the analyst acts; the investigation is the same with or without it.
 
 ---
 
@@ -106,7 +107,7 @@ Sources for the first two columns: Microsoft Learn (Copilot in Purview agents ov
 
 Visual: the table.
 
-Notes: Do not say "nobody does this": alert triage automation is an industry direction and the judges will know it. Say what is different: the question (authorised or not, not just urgent), the evidence granularity, independent sources through a federated layer, and a verdict the model cannot loosen. That last design choice is motivated by Alert-Bench ([NeurIPS 2026 AIWILD workshop](https://neurips.cc/virtual/2026/168137)), which found that in the agent configurations it benchmarked, a revision stage overturned more correct decisions than it repaired.
+Notes: Do not say "nobody does this": alert triage automation is an industry direction and the judges will know it. Do not present citations, memory, a third verdict or several roles as inventions either; each exists elsewhere. The originality is the combination: cross-source authorisation checking, evidence fetched on demand, constrained model review and a traceable report, as one investigation workflow. Show it on AL-004: the cited ticket is checked field by field against the export log (cross-source); it fails on rows, which is what triggers the fetch of other tickets and exceptions (on demand); the model's second opinion agrees and could only have escalated (constrained); every line of the report names its query (traceable). The constrained-review choice is motivated by Alert-Bench ([NeurIPS 2026 AIWILD workshop](https://neurips.cc/virtual/2026/168137)), which found that in the agent configurations it benchmarked, a revision stage overturned more correct decisions than it repaired.
 
 ---
 
@@ -144,16 +145,16 @@ Notes: For the judges' checklist: Planner + Doer, Evaluator critiques and sends 
 
 ## 8. What the sponsor technology gives the customer
 
-| the customer gets | because of | proof it works |
+| the customer gets | because of | proof: what the demo shows, what the repository holds |
 |---|---|---|
-| **one investigation checks authorisation evidence spread across three systems**, without the agent ever holding a connection to any of them | **Zetaris**: three Postgres databases as three JDBC datasources, one schemastore container `dexa`; the policy and cited-ticket lookups are cross-source joins executed in Zetaris; 15 scripted registration statements; the same schema served offline by a SQLite twin | 13/13 alerts on the federated backend, one trace per alert in `docs/examples-live/zetaris-rules/` |
-| **findings and analyst corrections stay available to later investigations**, with their source and a trust ledger | **Meterless H-MEM**: every finding stored with provenance; a re-run re-verifies (+confidence), a changed fact supersedes the old one; helpful / wrong and verdict agree / disagree go to the ledger and change ranking next time | Python implementation of the spec; the official conformance vectors reproduced in pytest (13 cases, byte-identical vectors file) |
-| **the current alert is read against the account's history** (earlier alerts, status changes) | **Meterless World Model**: accounts, datasets, tickets, exceptions as entities, alerts and events as contexts, event-time provenance; re-runs append nothing | the official runner's 8 cases reproduced in pytest; idempotency and persistence tests; the cross-alert test (AL-001 then AL-011 on the same account) |
-| **language work done by a capable model, inside fixed limits**: SQL drafts that run only when identical to the vetted template, a second opinion that can only escalate, a summary that ships only after review | **NVIDIA Nemotron through Meterless Nightshift**: OpenAI-compatible runtime contract (bearer token, `meterless-app`, `meterless-scope`), `GET /v1/models` as the online check, bounded retries | every successful call logs `routed_model` and `receipt_id` (`nvidia/nemotron-3-ultra-550b-a55b`, `nvidia/nemotron-3.5-super-vl-120b-a12b`, `nvidia/nemotron-3.5-lightning-30b-a3b` in the recorded runs); recorded run AL-004: five drafts accepted as template-identical, critic 6/9 → revision → 9/9 |
+| **one investigation checks authorisation evidence spread across three systems**, without the agent ever holding a connection to any of them | **Zetaris**: three Postgres databases as three JDBC datasources, one schemastore container `dexa`; the policy and cited-ticket lookups are cross-source joins executed in Zetaris; 15 scripted registration statements; the same schema served offline by a SQLite twin | demo 2:15: one federated query in the Data Explorer joins the export event to its ticket and policy. Repo: 13/13 alerts on the federated backend, one trace per alert in `docs/examples-live/zetaris-rules/` |
+| **findings and analyst corrections stay available to later investigations**, with their source and a trust ledger | **Meterless H-MEM**: every finding stored with provenance; a re-run re-verifies (+confidence), a changed fact supersedes the old one; helpful / wrong and verdict agree / disagree go to the ledger and change ranking next time | demo 2:45: one `wrong` click drops a fact's confidence 0.90 → 0.70, tags it `review` and writes a ledger row. Repo: Python implementation of the spec; the official conformance vectors reproduced in pytest (13 cases, byte-identical vectors file) |
+| **the current alert is read against the account's history** (earlier alerts, status changes) | **Meterless World Model**: accounts, datasets, tickets, exceptions as entities, alerts and events as contexts, event-time provenance; re-runs append nothing | demo 1:45: AL-011 is read against AL-001 on the same account (the World state block). Repo: the official runner's 8 cases reproduced in pytest; idempotency and persistence tests; the cross-alert test (AL-001 then AL-011 on the same account) |
+| **language work done by a capable model, inside fixed limits**: SQL drafts that run only when identical to the vetted template, a second opinion that can only escalate, a summary that ships only after review | **NVIDIA Nemotron through Meterless Nightshift**: OpenAI-compatible runtime contract (bearer token, `meterless-app`, `meterless-scope`), `GET /v1/models` as the online check, bounded retries | demo 2:30: the recorded AL-011 second opinion and the Critic's 6/9 → revision → 9/9, with the model id and receipt on every call. Repo: every successful call logs `routed_model` and `receipt_id` (`nvidia/nemotron-3-ultra-550b-a55b`, `nvidia/nemotron-3.5-super-vl-120b-a12b`, `nvidia/nemotron-3.5-lightning-30b-a3b` in the recorded runs); recorded run AL-004: five drafts accepted as template-identical, critic 6/9 → revision → 9/9 |
 
 Visual: Zetaris Data Explorer with the three datasources and one federated query; the UI "Correct the agent" section with the ledger; the World state block; a JSONL excerpt with `model` and `receipt_id`.
 
-Notes: Lead each row with the benefit, then name the component. Both Meterless engines are on the critical path: remove either and a feature stops working (cross-alert context, feedback with an audit trail). Nemotron does three jobs and every one of them is receipted.
+Notes: The ten points are not for naming the sponsors often; each row is a contribution the judges watch happen on screen, then the repository evidence behind it. Lead each row with the benefit, then name the component. Both Meterless engines are on the critical path: remove either and a feature stops working (cross-alert context, feedback with an audit trail). Nemotron does three jobs and every one of them is receipted.
 
 ---
 
@@ -172,7 +173,7 @@ What a customer needs to believe: it runs, the evidence is checkable, failures a
 
 Visual: the confusion table (10 scenarios, every row in its expected column) and the ablation bar (113 vs 5).
 
-Notes: Be honest: ground truth is generated with the data, so 156/156 measures consistency on the ten scenarios the generator injects, not real-world detection quality. The ablation is the differentiator: 96% fewer distinct sensitive-column accesses on these 13 synthetic alerts, for the same verdicts.
+Notes: Say which is which: offline runs use a deterministic stub for the second opinion and the Critic, and the report labels it `(stub)`; the model's part is shown only on the recorded live runs, with model ids and receipts. The division of labour, stated precisely: business evidence comes from the queries, the rules form the base verdict, the model drafts SQL, gives the second opinion and reviews the summary, and the trace records what actually ran. Be honest: ground truth is generated with the data, so 156/156 measures consistency on the ten scenarios the generator injects, not real-world detection quality. The ablation is the differentiator: 96% fewer distinct sensitive-column accesses on these 13 synthetic alerts, for the same verdicts.
 
 ---
 
@@ -181,6 +182,7 @@ Notes: Be honest: ground truth is generated with the data, so 156/156 measures c
 **Limits (stated in the README):** synthetic sources and policies; rules cover the ten injected scenarios; the recorded live runs took 231 s (AL-004, 7 calls) and 298 s (AL-011, 8 recorded calls), with Nightshift routing to a 550B reasoning model for most calls, so latency varies by routing; the official TypeScript conformance runners were ported to pytest, not executed.
 
 **Phase two:**
+- a pilot on a customer's real queue, measuring analyst minutes per alert, uncovered exports closed as compliant, and whether the team keeps using it: the validation targets, none measured today
 - real connectors (SIEM, IAM, ticketing) behind the same Zetaris schema
 - richer context: device, geo, identity risk, prior incidents on the account
 - write-back: open the case, assign, attach the evidence pack
