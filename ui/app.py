@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -23,7 +24,101 @@ from agent.roles import Task, redact
 from agent.zetaris import DataLayerError, get_backend
 
 st.set_page_config(page_title="ExportWhy", page_icon="🔎", layout="wide")
-VERDICT_STYLE = {"compliant": "success", "investigate": "error", "cannot-confirm": "warning"}
+st.markdown(
+    """<style>
+    [data-testid="stMarkdownContainer"] code {
+        background: #eef2f7; color: #1f3a5f; border: 1px solid #dde3ea; border-radius: 4px;
+        padding: 1px 6px; font-size: 0.82em; white-space: nowrap;
+    }
+    </style>""",
+    unsafe_allow_html=True,
+)
+VERDICT_STYLE = {
+    "compliant": "success",
+    "investigate": "error",
+    "cannot-confirm": "warning",
+}
+
+# The report text is written once, for the CLI, by Reporter.report. The page shows the same text
+# but with short section titles (the explanation moves to the title's help icon), without the parts
+# the banner, the metrics row and the right-hand trace already show, and with each evidence line's
+# citation as a tag.
+SECTIONS = {
+    "Evidence": (
+        "Evidence",
+        "each line ends with the table, column and query step it came from",
+    ),
+    "Conflicts": ("Conflicts", "flagged, not silently resolved"),
+    "Cannot be confirmed from the sources": (
+        "Cannot confirm",
+        "the sources did not answer this",
+    ),
+    "Evidence not retrieved": ("Evidence not retrieved", None),
+    "Suggested next checks": (
+        "Next checks",
+        "owner to be assigned by the analyst; SLA not modelled",
+    ),
+    "Access footprint": (
+        "Access footprint",
+        "every table read, and which of them the verdict used",
+    ),
+    "Second opinion": ("Second opinion", None),
+    "Review": (
+        "Critic review",
+        "0-3 x 3 rubric: accuracy, appropriateness, actionability",
+    ),
+    "World state": (
+        "World state",
+        "Meterless World Model: what is already known about this account",
+    ),
+}
+FOLDED = ("Memory used", "Memory updated")  # also listed under "Correct the agent"
+DROPPED = ("Investigation timeline",)  # the right-hand column shows it step by step
+PREAMBLE_SHOWN_ELSEWHERE = ("# ", "**Verdict:", "Score factors:", "Priority:", "Why:")
+CITATION = re.compile(r"\s+\[([^\]|]+) \| (q\d+)\]\s*$", re.MULTILINE)
+
+
+def report_sections(body: str) -> list[tuple[str, str]]:
+    """(title, markdown) per report section; the preamble's title is ''. Only the report's own
+    titles start a section: the memory context quoted inside it has '## domain' lines of its own,
+    which are demoted to bold text."""
+    known = tuple(SECTIONS) + FOLDED + DROPPED
+    out = [["", []]]
+    for line in body.splitlines():
+        if line.startswith("## "):
+            title = line[3:]
+            if title.startswith(known):
+                out.append([title, []])
+                continue
+            line = f"**{title}**"
+        out[-1][1].append(line)
+    return [(title, "\n".join(lines)) for title, lines in out]
+
+
+def show_report(body: str) -> None:
+    folded = []
+    for title, text in report_sections(body):
+        text = CITATION.sub(r"  `\1 | \2`", text).strip()
+        if not title:
+            for paragraph in text.split("\n\n"):
+                if paragraph.strip() and not paragraph.startswith(PREAMBLE_SHOWN_ELSEWHERE):
+                    st.markdown(paragraph)
+            continue
+        base, _, detail = title.partition(" (")
+        if base.startswith(DROPPED):
+            continue
+        if base.startswith(FOLDED):
+            folded.append((title, text))
+            continue
+        short, help_text = next(
+            (v for k, v in SECTIONS.items() if base.startswith(k)), (base, None)
+        )
+        st.subheader(short, help=help_text or detail.rstrip(")") or None)
+        st.markdown(text)
+    for title, text in folded:
+        with st.expander(title):
+            st.markdown(text)
+
 
 # ------------------------------------------------------------------ sidebar: mode + alert
 with st.sidebar:
@@ -33,7 +128,11 @@ with st.sidebar:
     )
     mode = st.radio(
         "Run mode",
-        ["Live (Zetaris + Nightshift)", "Live data, stub model", "Offline sample (SQLite + stub)"],
+        [
+            "Live (Zetaris + Nightshift)",
+            "Live data, stub model",
+            "Offline sample (SQLite + stub)",
+        ],
         index=2,
     )
     os.environ["SAMPLE_MODE"] = "true" if mode.startswith("Offline") else "false"
@@ -66,7 +165,10 @@ with st.sidebar:
     if alert_id:
         st.caption(next(r["rule"] for r in alerts if r["alert_id"] == alert_id))
     go = st.button(
-        "Triage this alert", type="primary", disabled=not alert_id, use_container_width=True
+        "Triage this alert",
+        type="primary",
+        disabled=not alert_id,
+        use_container_width=True,
     )
     st.divider()
     st.caption(
@@ -163,8 +265,8 @@ if cal:
 # ------------------------------------------------------------------ report + trace
 left, right = st.columns([3, 2])
 with left:
-    body = report.split("\n_trace:")[0]
-    st.markdown(body.replace("# Export-alert triage", "## Export-alert triage"))
+    st.subheader("What the agent found")
+    show_report(report.split("\n_trace:")[0])
 with right:
     st.subheader("How the agent got there")
     for s in trace.get("steps", []):
@@ -268,7 +370,9 @@ try:
             )
             st.rerun()
     pick = st.selectbox(
-        "Trust-ledger history for", [m["id"] for m in records] or ["-"], key="ledger-pick"
+        "Trust-ledger history for",
+        [m["id"] for m in records] or ["-"],
+        key="ledger-pick",
     )
     if records:
         hist = mem.history(pick)
