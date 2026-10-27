@@ -120,6 +120,81 @@ def show_report(body: str) -> None:
             st.markdown(text)
 
 
+def trace_step(s: dict) -> tuple[str, str, str | None]:
+    """One trace step as (role, text, sql): every kind renders the same way."""
+    k = s["kind"]
+    if k == "plan":
+        text = "fetch " + ", ".join(s["evidence"]) + f"  \n_{s['reason'][:140]}_"
+        if s.get("llm_drafted"):
+            text += f"  \nmodel drafted {s['llm_drafted']} SQL"
+        return "planner", text, None
+    if k == "query":
+        return (
+            "retriever",
+            f"{s['step']} {s['evidence']} → {s['rows']} rows ({s['backend']}, {s['elapsed_ms']} ms)",
+            s["sql"],
+        )
+    if k == "query_failed":
+        return "retriever", f"⚠ {s['step']} {s['evidence']} failed: {s['error'][:160]}", None
+    if k == "rejected_llm_sql":
+        return "planner", f"⚠ model SQL for {s['step']} rejected: {s['why']}", None
+    if k == "assess":
+        if s["verdict"]:
+            return "evaluator", f"round {s['round']}: verdict **{s['verdict']}**", None
+        return "evaluator", f"round {s['round']}: needs more: " + ", ".join(s["missing"]), None
+    if k == "second_opinion":
+        ag = s.get("agrees")
+        outcome_text = (
+            "✓ agrees"
+            if ag
+            else ("no usable opinion; rules stand" if ag is None else "⚠ disagrees, escalating")
+        )
+        text = f"second opinion ({s.get('source')}): model says **{s.get('verdict')}**, "
+        text += f"rules say **{s.get('rules_verdict')}** → {outcome_text}"
+        return "evaluator", text, None
+    if k == "critique":
+        sc = s.get("scores")
+        if sc is None:
+            return "critic", f"⚠ unavailable: {s.get('note')}", None
+        text = (
+            f"attempt {s['attempt']}: accuracy {sc['accuracy']} · appropriateness "
+            f"{sc['appropriateness']} · actionability {sc['actionability']} = {s['total']}/9 "
+            + ("✓ pass" if s["passed"] else "⚠ fail")
+        )
+        if s.get("fix"):
+            text += f" → fix: {s['fix']}"
+        return "critic", text, None
+    if k == "revise":
+        return "reporter", "revised the summary once", None
+    if k == "llm":
+        model = s.get("routed_model") or s.get("model_served")
+        tokens = (s.get("usage") or {}).get("total_tokens", "?")
+        return "model", f"{s['agent']} ← {model} ({tokens} tokens)", None
+    if k == "recall":
+        return "H-MEM", f"recalled {len(s['hits'])} memories", None
+    if k == "dossier":
+        known = "known" if s["known"] else "new"
+        return "World Model", f"account {known}, {len(s['prior_alerts'])} prior alert(s)", None
+    if k == "remember":
+        text = f"{len(s['created'])} created, {len(s['reconfirmed'])} re-verified, "
+        text += f"{len(s['superseded'])} superseded"
+        return "H-MEM", text, None
+    if k == "confidence":
+        return (
+            "evaluator",
+            f"score {s['score']:.2f} ({s['label']}): " + "; ".join(s["factors"]),
+            None,
+        )
+    if k == "ingest":
+        return (
+            "World Model",
+            f"+{s['appended']} events ({s['entities']} entities, {s['events']} events total)",
+            None,
+        )
+    return k, str({x: y for x, y in s.items() if x not in ("kind", "t")})[:160], None
+
+
+# ------------------------------------------------------------------ sidebar: mode + alert
 # ------------------------------------------------------------------ sidebar: mode + alert
 with st.sidebar:
     st.title("ExportWhy")
@@ -211,55 +286,66 @@ if tstatus != "complete":
     banner = f"[{tstatus.upper()}] " + banner
 getattr(st, VERDICT_STYLE.get(verdict, "info"))(banner)
 queue = outcome.get("queue", "none")
+queue_value = (
+    prio["bucket"] if prio else {"manual-review": "review", "none": "none"}.get(queue, queue)
+)
+queue_note = (
+    f"priority {prio['score']:.0f}/10: " + "; ".join(prio["factors"])
+    if prio
+    else ("manual review: unresolved evidence" if queue == "manual-review" else "no action")
+)
 c0, c1, c2, c3, c4, c5 = st.columns(6)
 c0.metric(
-    "evidence/review score",
+    "evidence score",
     f"{conf.get('score', 0):.2f}",
-    conf.get("label"),
     help="heuristic, not a probability: evidence completeness, second-opinion agreement, critic score, open gaps",
 )
 c1.metric(
-    "queue",
-    {"manual-review": "manual review", "none": "not queued"}.get(queue, queue),
-    (
-        f"{prio['score']:.0f}/10"
-        if prio
-        else ("unresolved evidence" if queue == "manual-review" else "no action")
-    ),
+    "queue", queue_value, help="P1-P3 from the priority score; 'review' when evidence is unresolved"
 )
-c2.metric("evaluator rounds", outcome["rounds"])
+c2.metric("rounds", outcome["rounds"], help="evidence rounds the Evaluator asked for (max 3)")
 c3.metric("facts cited", outcome["facts"])
 c4.metric("cannot confirm", len(outcome["gaps"]))
-c5.metric("sensitive columns read", len(outcome["disclosure"]["sensitive_columns_touched"]))
+c5.metric("sensitive cols", len(outcome["disclosure"]["sensitive_columns_touched"]))
+notes = []
 if conf.get("factors"):
-    st.caption(
-        "score: "
-        + "; ".join(conf["factors"])
-        + ((" · priority: " + "; ".join(prio["factors"])) if prio else "")
-        + (
-            " · offline: the second opinion is a deterministic stub"
-            if outcome.get("llm") == "stub"
-            else ""
-        )
-    )
-fb1, fb2, fb3 = st.columns([1, 1, 6])
-if fb1.button("👍 agree with verdict", key="v-agree"):
-    st.session_state["cal"] = Memory().verdict_feedback(alert_id, True)
-    st.rerun()
-if fb2.button("👎 disagree", key="v-disagree"):
-    st.session_state["cal"] = Memory().verdict_feedback(alert_id, False)
-    st.rerun()
+    notes.append(f"score {conf['score']:.2f} ({conf.get('label')}): " + "; ".join(conf["factors"]))
+notes.append(queue_note)
+if outcome.get("llm") == "stub":
+    notes.append("offline: the second opinion and the critic are deterministic stubs")
+st.caption(" · ".join(notes))
+
+# ------------------------------------------------------------------ verdict feedback
 try:
     cal = st.session_state.get("cal") or Memory().calibration()
 except Exception:  # memory store unavailable or mid-write
     cal = {}
-if cal:
-    fb3.caption(
-        "analyst feedback tally (humans only): "
-        + "; ".join(
-            f"{k}: {v['agree']} agree / {v['disagree']} disagree over {v['verdicts']} verdict(s)"
-            for k, v in cal.items()
+fb1, fb2, fb3, fb4 = st.columns([1.3, 1.3, 1.2, 4.2])
+if fb1.button("👍 agree", key="v-agree", help="record that you agree with this verdict"):
+    st.session_state["cal"] = Memory().verdict_feedback(alert_id, True)
+    st.rerun()
+if fb2.button("👎 disagree", key="v-disagree", help="record that you disagree with this verdict"):
+    st.session_state["cal"] = Memory().verdict_feedback(alert_id, False)
+    st.rerun()
+with fb3.popover("tally", help="analyst verdict feedback so far (humans only)"):
+    if cal:
+        st.table(
+            [
+                {
+                    "verdict": k,
+                    "agree": v["agree"],
+                    "disagree": v["disagree"],
+                    "verdicts": v["verdicts"],
+                }
+                for k, v in cal.items()
+            ]
         )
+    else:
+        st.caption("no verdict feedback recorded yet")
+mine = cal.get(verdict)
+if mine:
+    fb4.caption(
+        f"{verdict}: {mine['agree']} agree / {mine['disagree']} disagree over {mine['verdicts']} verdict(s)"
     )
 
 # ------------------------------------------------------------------ report + trace
@@ -270,71 +356,14 @@ with left:
 with right:
     st.subheader("How the agent got there")
     for s in trace.get("steps", []):
-        k = s["kind"]
-        if k == "plan":
-            st.markdown(
-                f"**{s['t']:.1f}s · planner** → {', '.join(s['evidence'])}  \n_{s['reason'][:140]}_"
-                + (f"  \nmodel drafted {s['llm_drafted']} SQL" if s.get("llm_drafted") else "")
-            )
-        elif k == "query":
-            with st.expander(
-                f"{s['t']:.1f}s · {s['step']} {s['evidence']} → {s['rows']} rows ({s['backend']}, {s['elapsed_ms']} ms)"
-            ):
-                st.code(s["sql"], language="sql")
-        elif k == "query_failed":
-            st.error(f"{s['t']:.1f}s · {s['step']} {s['evidence']} failed: {s['error'][:160]}")
-        elif k == "rejected_llm_sql":
-            st.warning(f"{s['t']:.1f}s · planner rejected model SQL for {s['step']}: {s['why']}")
-        elif k == "assess":
-            st.markdown(
-                f"**{s['t']:.1f}s · evaluator** round {s['round']}: "
-                + (
-                    f"verdict **{s['verdict']}**"
-                    if s["verdict"]
-                    else "needs more: " + ", ".join(s["missing"])
-                )
-            )
-        elif k == "second_opinion":
-            ag = s.get("agrees")
-            (st.success if ag else st.warning)(
-                f"{s['t']:.1f}s · evaluator second opinion ({s.get('source')}): model says **{s.get('verdict')}**, rules say **{s.get('rules_verdict')}** → "
-                + (
-                    "agrees"
-                    if ag
-                    else "no usable opinion; rules stand"
-                    if ag is None
-                    else "disagrees, escalating"
-                )
-            )
-        elif k == "critique":
-            sc = s.get("scores")
-            if sc is None:
-                st.warning(f"{s['t']:.1f}s · critic unavailable: {s.get('note')}")
-            else:
-                (st.success if s["passed"] else st.warning)(
-                    f"{s['t']:.1f}s · critic attempt {s['attempt']}: accuracy {sc['accuracy']} · appropriateness {sc['appropriateness']} · actionability {sc['actionability']} = {s['total']}/9"
-                    + (f" → fix: {s['fix']}" if s.get("fix") else "")
-                )
-        elif k == "revise":
-            st.info(f"{s['t']:.1f}s · reporter revised the summary once")
-        elif k == "llm":
-            st.caption(
-                f"{s['t']:.1f}s · {s['agent']} ← {s.get('routed_model') or s.get('model_served')} ({(s.get('usage') or {}).get('total_tokens', '?')} tokens)"
-            )
-        elif k == "recall":
-            st.caption(f"{s['t']:.1f}s · H-MEM recalled {len(s['hits'])} memories")
-        elif k == "dossier":
-            st.caption(
-                f"{s['t']:.1f}s · World Model: account {'known' if s['known'] else 'new'}, {len(s['prior_alerts'])} prior alert(s)"
-            )
-        elif k == "remember":
-            st.caption(
-                f"{s['t']:.1f}s · H-MEM: {len(s['created'])} created, {len(s['reconfirmed'])} re-verified, {len(s['superseded'])} superseded"
-            )
-        elif k == "ingest":
-            st.caption(
-                f"{s['t']:.1f}s · World Model: +{s['appended']} events ({s['entities']} entities, {s['events']} events total)"
-            )
+        role, text, sql = trace_step(s)
+        label = f"`{s['t']:.1f}s` **{role}** · {text}"
+        if sql:
+            with st.expander(label):
+                st.code(sql, language="sql")
+        else:
+            with st.container(border=True):
+                st.markdown(label)
     with st.expander("Raw JSON trace"):
         st.json(trace)
 
