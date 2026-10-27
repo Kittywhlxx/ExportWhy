@@ -13,6 +13,7 @@ import sys
 from pathlib import Path
 
 import streamlit as st
+import streamlit.components.v1
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -229,6 +230,7 @@ with st.sidebar:
     outage = st.multiselect(
         "Simulate an outage",
         ["tickets", "policy", "logs"],
+        default=[o for o in st.query_params.get("outage", "").split(",") if o],
         help="The data layer fails for that source; watch the verdict degrade to cannot-confirm instead of guessing.",
     )
     os.environ["SIMULATE_OUTAGE"] = ",".join(outage)
@@ -248,8 +250,12 @@ with st.sidebar:
         ]: f"{r['alert_id']} · {r['severity']} · {r['account_id']} → {r['dataset_id']} ({r['rows_exported']} rows)"
         for r in alerts
     }
+    wanted = st.query_params.get("alert")  # deep link: ?alert=AL-004 opens that alert triaged
+    preselect = list(labels).index(wanted) if wanted in labels else 0
     alert_id = (
-        st.selectbox("Alert", list(labels), format_func=lambda k: labels[k]) if labels else None
+        st.selectbox("Alert", list(labels), index=preselect, format_func=lambda k: labels[k])
+        if labels
+        else None
     )
     if alert_id:
         st.caption(next(r["rule"] for r in alerts if r["alert_id"] == alert_id))
@@ -265,11 +271,15 @@ with st.sidebar:
     )
 
 # ------------------------------------------------------------------ run
+if wanted and alert_id == wanted and st.session_state.get("deep_link") != wanted:
+    st.session_state["deep_link"] = wanted
+    go = True
 if go and alert_id:
     with st.spinner(f"Investigating {alert_id} ..."):
         try:
             report, outcome = run(Task(alert_id=alert_id))
             st.session_state["last"] = (alert_id, report, outcome)
+            st.session_state["just_ran"] = True
         except DataLayerError as exc:
             st.error(f"data layer error: {exc}")
 
@@ -282,7 +292,17 @@ if "last" not in st.session_state:
     )
     st.stop()
 
+selected = alert_id
 alert_id, report, outcome = st.session_state["last"]
+if selected and selected != alert_id:
+    st.info(
+        f"Showing the previous result ({alert_id}). Press **Triage this alert** to run {selected}."
+    )
+if st.session_state.pop("just_ran", False):  # a fresh result starts at the top of the page
+    st.components.v1.html(
+        "<script>window.parent.document.querySelector('[data-testid=\"stMain\"]').scrollTo(0, 0);</script>",
+        height=0,
+    )
 trace_path = (
     config.TRACE_DIR / f"{outcome['run_id']}.json"
 )  # the trace of THIS outcome, not the newest file
@@ -522,6 +542,12 @@ def cross_source(tables: list[str]) -> bool:
     return len(systems) > 1
 
 
+def _conf(before, after) -> str:
+    if before is not None:
+        return f"{float(before):.2f} → {float(after):.2f}"
+    return f"{float(after):.2f}" if after is not None else ""
+
+
 def round_title(n: int) -> str:
     return "Identify the alert and the account" if n == 0 else f"Round {n}"
 
@@ -598,9 +624,7 @@ with st.expander("Trust ledger (H-MEM): every stored fact, its confidence and it
                 {
                     "action": h["action"],
                     "actor": h["actor"],
-                    "confidence": f"{h['confidence_before']} → {h['confidence_after']}"
-                    if h["confidence_before"] is not None
-                    else (h["confidence_after"] if h["confidence_after"] is not None else ""),
+                    "confidence": _conf(h["confidence_before"], h["confidence_after"]),
                     "details": json.dumps(h["details"])[:80],
                 }
                 for h in mem.history(pick)
