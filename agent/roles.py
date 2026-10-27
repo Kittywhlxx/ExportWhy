@@ -1309,12 +1309,18 @@ DONE_HINTS = [
 ]
 
 
-def _handoff(step: str) -> str:
+def handoff(step: str) -> tuple[str, str]:
+    """(suggested owner, done-when) for a next step, from keywords in its text."""
     owner = next((o for k, o in OWNER_HINTS if k.lower() in step.lower()), "analyst")
     done = next(
         (d for k, d in DONE_HINTS if k.lower() in step.lower()),
         "evidence attached and the verdict re-run",
     )
+    return owner, done
+
+
+def _handoff(step: str) -> str:
+    owner, done = handoff(step)
     return f"{step}  _(suggested owner: {owner}; done when: {done})_"
 
 

@@ -18,9 +18,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from agent import config
+from agent.catalog import TABLES
 from agent.main import run
 from agent.memory import Memory
-from agent.roles import Task, redact
+from agent.roles import TEMPLATES, Task, handoff, redact
 from agent.zetaris import DataLayerError, get_backend
 
 st.set_page_config(page_title="ExportWhy", page_icon="🔎", layout="wide")
@@ -73,8 +74,16 @@ SECTIONS = {
     ),
 }
 FOLDED = ("Memory used", "Memory updated")  # also listed under "Correct the agent"
-DROPPED = ("Investigation timeline",)  # the right-hand column shows it step by step
-PREAMBLE_SHOWN_ELSEWHERE = ("# ", "**Verdict:", "Score factors:", "Priority:", "Why:")
+# built from the structured outcome instead (first screen, grouped evidence) or shown step by step
+# in the right-hand column
+DROPPED = (
+    "Evidence",
+    "Conflicts",
+    "Cannot be confirmed",
+    "Evidence not retrieved",
+    "Suggested next checks",
+    "Investigation timeline",
+)
 CITATION = re.compile(r"\s+\[([^\]|]+) \| (q\d+)\]\s*$", re.MULTILINE)
 
 
@@ -99,10 +108,9 @@ def show_report(body: str) -> None:
     folded = []
     for title, text in report_sections(body):
         text = CITATION.sub(r"  `\1 | \2`", text).strip()
-        if not title:
-            for paragraph in text.split("\n\n"):
-                if paragraph.strip() and not paragraph.startswith(PREAMBLE_SHOWN_ELSEWHERE):
-                    st.markdown(paragraph)
+        if (
+            not title
+        ):  # the preamble: verdict, reasons, summary; the banner and the first screen show them
             continue
         base, _, detail = title.partition(" (")
         if base.startswith(DROPPED):
@@ -120,11 +128,17 @@ def show_report(body: str) -> None:
             st.markdown(text)
 
 
+def shorten(text: str, limit: int = 120) -> str:
+    if len(text) <= limit:
+        return text
+    return text[:limit].rsplit(" ", 1)[0] + " …"
+
+
 def trace_step(s: dict) -> tuple[str, str, str | None]:
     """One trace step as (role, text, sql): every kind renders the same way."""
     k = s["kind"]
     if k == "plan":
-        text = "fetch " + ", ".join(s["evidence"]) + f"  \n_{s['reason'][:140]}_"
+        text = "fetch " + ", ".join(s["evidence"]) + f"  \n_{shorten(s['reason'])}_"
         if s.get("llm_drafted"):
             text += f"  \nmodel drafted {s['llm_drafted']} SQL"
         return "planner", text, None
@@ -274,48 +288,33 @@ trace_path = (
 )  # the trace of THIS outcome, not the newest file
 trace = json.loads(trace_path.read_text()) if trace_path.exists() else {}
 
-# ------------------------------------------------------------------ verdict banner
+# ------------------------------------------------------------------ first screen: conclusion
 verdict = outcome["verdict"]
 conf = outcome.get("confidence") or {}
 prio = outcome.get("priority")
-tstatus = outcome.get("status", "complete")
-banner = f"**{alert_id} → {verdict.upper()}**  —  " + (
-    "; ".join(outcome["reasons"]) or "no reasons recorded"
-)
-if tstatus != "complete":
-    banner = f"[{tstatus.upper()}] " + banner
-getattr(st, VERDICT_STYLE.get(verdict, "info"))(banner)
-queue = outcome.get("queue", "none")
-queue_value = (
-    prio["bucket"] if prio else {"manual-review": "review", "none": "none"}.get(queue, queue)
-)
-queue_note = (
-    f"priority {prio['score']:.0f}/10: " + "; ".join(prio["factors"])
-    if prio
-    else ("manual review: unresolved evidence" if queue == "manual-review" else "no action")
-)
-c0, c1, c2, c3, c4, c5 = st.columns(6)
-c0.metric(
-    "evidence score",
-    f"{conf.get('score', 0):.2f}",
-    help="heuristic, not a probability: evidence completeness, second-opinion agreement, critic score, open gaps",
-)
-c1.metric(
-    "queue", queue_value, help="P1-P3 from the priority score; 'review' when evidence is unresolved"
-)
-c2.metric("rounds", outcome["rounds"], help="evidence rounds the Evaluator asked for (max 3)")
-c3.metric("facts cited", outcome["facts"])
-c4.metric("cannot confirm", len(outcome["gaps"]))
-c5.metric("sensitive cols", len(outcome["disclosure"]["sensitive_columns_touched"]))
-notes = []
-if conf.get("factors"):
-    notes.append(f"score {conf['score']:.2f} ({conf.get('label')}): " + "; ".join(conf["factors"]))
-notes.append(queue_note)
-if outcome.get("llm") == "stub":
-    notes.append("offline: the second opinion and the critic are deterministic stubs")
-st.caption(" · ".join(notes))
+status = outcome.get("status", "complete")
+event = next((r for r in alerts if r["alert_id"] == alert_id), {})
+if status != "complete":
+    skipped = outcome.get("missing") or []
+    st.warning(
+        f"Run status: **{status}**. "
+        + (
+            "Evidence not retrieved: " + ", ".join(skipped) + ". "
+            if skipped
+            else "The run stopped early. "
+        )
+        + "The verdict below stands on what was retrieved."
+    )
+reasons = outcome["reasons"] or ["no reasons recorded"]
+headline = f"**{alert_id} → {verdict.upper()}**"
+if event:
+    headline += f" · {event['account_id']} → {event['dataset_id']}, {event['rows_exported']:,} rows"
+headline += f"  \n{reasons[0]}"
+if len(reasons) > 1:
+    headline += f" (+{len(reasons) - 1} more below)"
+getattr(st, VERDICT_STYLE.get(verdict, "info"))(headline)
 
-# ------------------------------------------------------------------ verdict feedback
+# verdict feedback, right under the conclusion
 try:
     cal = st.session_state.get("cal") or Memory().calibration()
 except Exception:  # memory store unavailable or mid-write
@@ -348,63 +347,252 @@ if mine:
         f"{verdict}: {mine['agree']} agree / {mine['disagree']} disagree over {mine['verdicts']} verdict(s)"
     )
 
-# ------------------------------------------------------------------ report + trace
-left, right = st.columns([3, 2])
-with left:
-    st.subheader("What the agent found")
-    show_report(report.split("\n_trace:")[0])
-with right:
-    st.subheader("How the agent got there")
-    for s in trace.get("steps", []):
-        role, text, sql = trace_step(s)
-        label = f"`{s['t']:.1f}s` **{role}** · {text}"
-        if sql:
-            with st.expander(label):
-                st.code(sql, language="sql")
-        else:
-            with st.container(border=True):
-                st.markdown(label)
-    with st.expander("Raw JSON trace"):
-        st.json(trace)
-
-# ------------------------------------------------------------------ correct the agent (H-MEM feedback)
-st.divider()
-st.subheader("Correct the agent")
-st.caption(
-    "Each fact above was stored in H-MEM with its provenance. Mark one as wrong and the trust ledger records the change: "
-    "confidence drops by 0.20, the record gets a `review` tag and ranks lower in the next investigation. Helpful adds 0.05."
+queue = outcome.get("queue", "none")
+queue_value = (
+    prio["bucket"] if prio else {"manual-review": "review", "none": "none"}.get(queue, queue)
 )
+queue_note = (
+    f"priority {prio['score']:.0f}/10: " + "; ".join(prio["factors"])
+    if prio
+    else ("manual review: unresolved evidence" if queue == "manual-review" else "no action")
+)
+c0, c1, c2, c3, c4, c5 = st.columns(6)
+c0.metric(
+    "evidence score",
+    f"{conf.get('score', 0):.2f}",
+    help="heuristic, not a probability: evidence completeness, second-opinion agreement, critic score, open gaps",
+)
+c1.metric(
+    "queue", queue_value, help="P1-P3 from the priority score; 'review' when evidence is unresolved"
+)
+c2.metric("rounds", outcome["rounds"], help="evidence rounds the Evaluator asked for (max 3)")
+c3.metric("facts cited", outcome["facts"])
+c4.metric("cannot confirm", len(outcome["gaps"]))
+c5.metric("sensitive cols", len(outcome["disclosure"]["sensitive_columns_touched"]))
+notes = []
+if conf.get("factors"):
+    notes.append(f"score {conf['score']:.2f} ({conf.get('label')}): " + "; ".join(conf["factors"]))
+notes.append(queue_note)
+if outcome.get("llm") == "stub":
+    notes.append("offline: the second opinion and the critic are deterministic stubs")
+st.caption(" · ".join(notes))
+
+# ------------------------------------------------------------------ first screen: why, and what next
+evidence = [e for e in outcome["evidence"] if e["kind"] != "gap"]
+step_class = {
+    q["id"]: q["evidence"]
+    for s in trace.get("steps", [])
+    if s["kind"] == "plan"
+    for q in s.get("steps", [])
+}
+
+
+def cite_tag(e: dict) -> str:
+    c = e["cites"][0]
+    return f"`{c['table']}.{c.get('column') or '*'} | {c['step']}`"
+
+
+def evidence_about(prefix: str) -> dict | None:
+    return next((e for e in evidence if e["text"].startswith(prefix)), None)
+
+
+ROWS_CONFLICT = re.compile(r"(\d+) rows exported exceed the ticket's max_rows (\d+)")
+TICKET = re.compile(r"ticket (T-\d+)")
+
+why, nxt = st.columns([1.2, 1])
+with why:
+    st.subheader(
+        "Why", help="conflicts between the sources, what could not be confirmed, the reasons"
+    )
+    for conflict in outcome["conflicts"]:
+        with st.container(border=True):
+            m = ROWS_CONFLICT.search(conflict)
+            ticket = TICKET.search(conflict)
+            if m and ticket:
+                a, b = st.columns(2)
+                a.metric("exported", f"{int(m.group(1)):,}")
+                b.metric(f"approved by {ticket.group(1)}", f"{int(m.group(2)):,}")
+                line = evidence_about(f"Ticket {ticket.group(1)}")
+                st.markdown(
+                    f"⚠ {conflict}" + (f"  \n{line['text']} {cite_tag(line)}" if line else "")
+                )
+            else:
+                st.markdown(f"⚠ {conflict}")
+    for gap in outcome["gaps"]:
+        with st.container(border=True):
+            st.markdown(f"**Cannot confirm:** {gap}")
+    unfetched = [m for m in (outcome.get("missing") or []) if m in TEMPLATES]
+    if unfetched:
+        with st.container(border=True):
+            st.markdown(
+                "**Evidence not retrieved** (budget): "
+                + "; ".join(f"{m}: {TEMPLATES[m][0]}" for m in unfetched)
+            )
+    if len(reasons) > 1 or not (outcome["conflicts"] or outcome["gaps"]):
+        st.markdown("\n".join(f"- {r}" for r in reasons))
+with nxt:
+    st.subheader("Next checks", help="owner to be assigned by the analyst; SLA not modelled")
+    for step in outcome["next_steps"]:
+        owner, done = handoff(step)
+        with st.container(border=True):
+            st.markdown(f"{step}  \n_owner: {owner} · done when: {done}_")
+    if not outcome["next_steps"]:
+        st.caption("none: the verdict is grounded and no action is required")
+
+# ------------------------------------------------------------------ evidence and the trace
+GROUPS = [
+    ("Cited ticket", ("ticket_cited",)),
+    ("Policy", ("policy",)),
+    ("Other authorisation", ("tickets_account", "exceptions")),
+    ("Context", ("alert", "account", "dataset", "sensitivity", "account_history", "destination")),
+]
 try:
     mem = Memory()
-    records = [m for m in mem.for_alert(alert_id) if "kind:verdict" not in (m.get("tags") or [])]
-    if "flash" in st.session_state:
-        st.success(st.session_state.pop("flash"))
-    for m in records:
-        c_text, c_conf, c_ok, c_bad = st.columns([7, 1.2, 1, 1])
-        flags = (" · superseded" if m["superseded"] else "") + (
-            " · review" if "review" in (m.get("tags") or []) else ""
-        )
-        c_text.markdown(f"`{m['id']}` {redact(m['content'])[0]}")
-        c_conf.markdown(f"**{float(m['confidence']):.2f}**{flags}")
-        if c_ok.button("helpful", key=f"ok-{m['id']}"):
+    records = {
+        redact(m["content"])[0]: m
+        for m in mem.for_alert(alert_id)
+        if "kind:verdict" not in (m.get("tags") or [])
+    }
+except Exception as exc:  # memory store unavailable or mid-write
+    mem, records = None, {}
+    st.caption(f"memory unavailable: {exc}")
+
+
+def fact_feedback(e: dict, key: str) -> None:
+    """A small popover per evidence line: the stored memory's confidence, helpful / wrong."""
+    m = records.get(e["text"])
+    if not (m and mem):
+        return
+    flags = (" · superseded" if m["superseded"] else "") + (
+        " · review" if "review" in (m.get("tags") or []) else ""
+    )
+    with st.popover("✎", help="correct this fact (H-MEM trust ledger)"):
+        st.caption(f"`{m['id']}` confidence **{float(m['confidence']):.2f}**{flags}")
+        a, b = st.columns(2)
+        if a.button("helpful", key=f"ok-{key}"):
             mem.feedback(m["id"], "helpful")
             st.session_state["flash"] = (
                 f"{m['id']}: helpful, +0.05 confidence, ledger entry written"
             )
             st.rerun()
-        if c_bad.button("wrong", key=f"bad-{m['id']}", type="primary"):
+        if b.button("wrong", key=f"bad-{key}", type="primary"):
             mem.feedback(m["id"], "wrong")
             st.session_state["flash"] = (
                 f"{m['id']}: marked wrong, -0.20 confidence, tagged review, ledger entry written"
             )
             st.rerun()
-    pick = st.selectbox(
-        "Trust-ledger history for",
-        [m["id"] for m in records] or ["-"],
-        key="ledger-pick",
+
+
+left, right = st.columns([3, 2])
+with left:
+    st.subheader(
+        "Evidence", help="every line ends with the table, column and query step it came from"
     )
-    if records:
-        hist = mem.history(pick)
+    if "flash" in st.session_state:
+        st.success(st.session_state.pop("flash"))
+    queries = {s["step"]: s for s in trace.get("steps", []) if s["kind"] == "query"}
+    for title, classes in GROUPS:
+        lines = [e for e in evidence if step_class.get(e["cites"][0]["step"]) in classes]
+        if not lines:
+            continue
+        st.markdown(f"**{title}**")
+        for i, e in enumerate(lines):
+            text_col, fb_col = st.columns([12, 1])
+            text_col.markdown(f"- {e['text']} {cite_tag(e)}")
+            with fb_col:
+                fact_feedback(e, f"{title}-{i}")
+        used = sorted({e["cites"][0]["step"] for e in lines}, key=lambda q: int(q[1:]))
+        with st.expander("queries: " + ", ".join(used)):
+            for q in used:
+                if q in queries:
+                    s = queries[q]
+                    st.caption(
+                        f"{q} {s['evidence']} · {s['rows']} rows · {s['backend']}, {s['elapsed_ms']} ms"
+                    )
+                    st.code(s["sql"], language="sql")
+    other = [e for e in evidence if step_class.get(e["cites"][0]["step"]) is None]
+    for e in other:
+        st.markdown(f"- {e['text']} {cite_tag(e)}")
+    show_report(report.split("\n_trace:")[0])
+
+
+def cross_source(tables: list[str]) -> bool:
+    """True when the query joined tables that live in different source databases."""
+    systems = {TABLES[t]["system"].split(" ")[0] for t in tables if t in TABLES}
+    return len(systems) > 1
+
+
+def round_title(n: int) -> str:
+    return "Identify the alert and the account" if n == 0 else f"Round {n}"
+
+
+with right:
+    st.subheader("How the agent got there")
+    rounds: dict[int, list] = {}
+    pending: list = []
+    for s in trace.get("steps", []):
+        if s["kind"] == "assess":
+            rounds.setdefault(s["round"], []).extend(pending + [s])
+            pending = []
+        else:
+            pending.append(s)
+    for n, steps in rounds.items():
+        with st.container(border=True):
+            st.markdown(f"**{round_title(n)}**")
+            for s in steps:
+                if s["kind"] == "llm":
+                    continue
+                if s["kind"] == "query":
+                    joined = " · cross-source" if cross_source(s.get("tables") or []) else ""
+                    st.markdown(f"- `{s['step']}` {s['evidence']} → {s['rows']} rows{joined}")
+                    continue
+                role, text, _ = trace_step(s)
+                st.markdown(f"- **{role}** {text}")
+    if pending:
+        with st.container(border=True):
+            st.markdown("**Review and memory**")
+            for s in pending:
+                if s["kind"] == "llm":
+                    continue
+                role, text, _ = trace_step(s)
+                st.markdown(f"- **{role}** {text}")
+    with st.expander("Technical details: SQL, model calls, receipts"):
+        for s in trace.get("steps", []):
+            if s["kind"] == "query":
+                st.caption(
+                    f"`{s['t']:.1f}s` {s['step']} {s['evidence']} · {s['rows']} rows · "
+                    f"{s['backend']}, {s['elapsed_ms']} ms"
+                )
+                st.code(s["sql"], language="sql")
+            elif s["kind"] == "llm":
+                tokens = (s.get("usage") or {}).get("total_tokens", "?")
+                st.caption(
+                    f"`{s['t']:.1f}s` {s['agent']} ← {s.get('routed_model') or s.get('model_served')} "
+                    f"· {tokens} tokens · receipt {s.get('receipt_id') or '-'}"
+                )
+    with st.expander("Raw JSON trace"):
+        st.json(trace)
+
+# ------------------------------------------------------------------ trust ledger (folded)
+with st.expander("Trust ledger (H-MEM): every stored fact, its confidence and its history"):
+    st.caption(
+        "Each evidence line above was stored with its provenance. Marking one wrong drops its confidence "
+        "by 0.20, tags it `review` and ranks it lower next time; helpful adds 0.05. Use the ✎ next to a line."
+    )
+    if records and mem:
+        st.table(
+            [
+                {
+                    "id": m["id"],
+                    "confidence": f"{float(m['confidence']):.2f}",
+                    "flags": ("superseded " if m["superseded"] else "")
+                    + ("review" if "review" in (m.get("tags") or []) else ""),
+                    "fact": text[:90],
+                }
+                for text, m in records.items()
+            ]
+        )
+        pick = st.selectbox("history for", [m["id"] for m in records.values()], key="ledger-pick")
         st.table(
             [
                 {
@@ -415,9 +603,9 @@ try:
                     else (h["confidence_after"] if h["confidence_after"] is not None else ""),
                     "details": json.dumps(h["details"])[:80],
                 }
-                for h in hist
+                for h in mem.history(pick)
             ]
         )
-    st.caption(f"ledger totals: {mem.ledger_stats()}")
-except Exception as exc:
-    st.caption(f"memory unavailable: {exc}")
+        st.caption(f"ledger totals: {mem.ledger_stats()}")
+    else:
+        st.caption("no stored facts for this alert")
